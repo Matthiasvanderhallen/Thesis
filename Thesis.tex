@@ -1,0 +1,186 @@
+\documentclass[10pt,a4paper,draft]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\begin{document}
+\begin{flushleft}
+\section{Syntax}
+
+\newcommand{\longspace}{\;\;\;\;\;\;}
+\begin{align*}
+\text{Program} ::= \; & \lbrace Mod;\rbrace^{*}\;e\\
+\text{Module } Mod ::= \; &\text{module}\; ModName \;\\ 
+&\longspace \text{interface [}  \Delta \text{]}\\
+&\longspace \text{body [} d \text{]}\\ 
+\\
+\text{Declaration } \Delta \; ::=\; &(varident:\tau)\\
+&|\; (varident:\tau), \Delta \\ 
+\\
+\text{Definition } d \; ::= \; & (varident=e : \tau)\\
+&| (varident=e:\tau), d\\
+\\
+\text{Expression }e \; ::= \; &num \; n \; | \; false \; | \; true \\
+&|\;varident  \\
+&|\;ModName.varident \\
+&|\;this.varident \\
+&|\;e_{1}e_{2} \\
+&|\;(e_{1},e_{2}) \\
+&|\;\lambda(p)\;.\;e \\
+&|\;let \; p \; = \; e_{1} \; in \; e_{2} \\
+&|\;letrec \; p \; = \; e_{1} \; in \; e_{2} \\
+&|\; if(e_{1}) \; then \; e_{2} \; else \; e_{3}\\
+\\
+\text{Pattern }p \; ::= \; &varident \\
+&| \; (p,p)\\
+\end{align*}
+
+\section{Type System}
+
+\begin{align*}
+\text{Type }\tau \; ::= \; &nat \\
+&| \; bool \\
+&| \; \tau_{1} \rightarrow \tau_{2} \\
+&| \; \tau_{1} \times \tau_{2} \\
+&| \; \alpha \\
+\\
+\text{Type-Scheme } \sigma \; ::= \; &\tau \\
+&| \; \forall \alpha . \sigma \\
+\\
+\text{Context }\Gamma ::=\; &\cdot \\
+&| \; \Gamma :(x:\tau) \\
+\\
+\text{Typing } ::=\;&\Gamma \vdash e: \sigma \\
+\\
+\text{ModuleTyping } ::= \; &\Gamma \gg Mod
+\\
+\text{DefinitionTyping } ::= \; &\Gamma \models d \rightarrow \Gamma'\\
+\\
+\text{DeclarationTyping } ::= \;&\Gamma \propto \Delta
+\end{align*}
+
+\subsection{Rules}
+\begin{align*}
+&\Gamma \vdash true : bool \tag{T-True} \\
+&\Gamma \vdash false : bool \tag{T-False} \\
+&\Gamma \vdash num \; n : nat \tag{T-Num} \\ \\
+\tag{T-Mono}
+&\frac{\sigma \geq \tau \longspace varident:\sigma \in \Gamma}{\Gamma \vdash varident:\tau}\\ \\
+\tag{T-App}
+&\frac{\Gamma \vdash e_{1}:\tau_{2} \rightarrow \tau_{1} \longspace \Gamma \vdash e_{2}:\tau_{2}}
+{\Gamma \vdash e_{1}e_{2}:\tau_{1}} \\ \\
+\tag{T-BuildContext1}
+& varident:\sigma \rightarrow \cdot:(varident:\sigma) \\ \\
+\tag{T-BuildContext2}
+&\frac{p_{1}:\sigma_{1} \rightarrow \Gamma_{1} \longspace p_{2}:\sigma_{2}\rightarrow \Gamma_{2} \longspace \Gamma_{3} = \Gamma_{1}\bigcup \Gamma_{2}}{(p_{1},p_{2}):\sigma_{1}\times \sigma_{2} \rightarrow \Gamma_{3}} \\ \\
+\tag{T-Fun}
+&\frac{p:\tau_{2} \rightarrow \Gamma_{2} \longspace \Gamma_{2} \bigcup \Gamma_{1} \vdash e:\tau_{1}}
+{\Gamma_{1} \vdash \lambda(p).e:\tau_{2} \rightarrow \tau_{1}} \\ \\
+\tag{T-IfThenElse}
+&\frac{\Gamma \vdash e_{1}:bool \longspace \Gamma \vdash e_{2}:\tau \longspace \Gamma \vdash e_{3} : \tau}
+{\Gamma \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} : \tau} \\ \\
+\tag{T-Pair}
+&\frac{\Gamma \vdash e_{1}:\tau_{1} \longspace \Gamma \vdash e_{2}:\tau_{2}}
+{\Gamma \vdash (e_{1},e_{2}) : \tau_{1}\times\tau_{2}} \\ \\
+\tag{T-Let}
+&\frac{\Gamma \vdash e_{2}:\tau_{2} \;\;\; \sigma=gen(\Gamma,\tau)\;\;\;p:\sigma\rightarrow \Gamma_{2} \;\;\; \Gamma \bigcup \Gamma_{2} \vdash e_{1}:\tau}
+{\Gamma \vdash let\;p\;=\;e_{2}\;in\;e_{1}:\tau} \\ \\
+\tag{T-Letrec}
+&\frac{\Gamma \vdash let\;p\;=\;fix\;(\lambda p.e_{2})\;in\;e_{1}:\tau}
+{\Gamma \vdash letrec\;p\;=\;e_{2}\;in\;e_{1}:\tau} \\ \\
+\tag{T-Fix}
+&\frac{\Gamma \vdash e : \tau \rightarrow \tau}
+{\Gamma \vdash fix(e) : \tau} \\
+\displaybreak
+\\
+\tag{T-ModVarThis}
+&\frac{\sigma \geq \tau \longspace this.varident:\sigma \in \Gamma}
+{\Gamma \vdash this.varident : \tau} \\ 
+\\
+\tag{T-ModVarOther}
+&\frac{\Gamma \gg ModName \longspace varident:\tau \in ModName.interface}
+{\Gamma \vdash ModName.varident : \tau} \\ 
+\\
+\tag{T-Module}
+&\frac{\cdot \models ModName.body \rightarrow \Gamma' \longspace \Gamma' \propto ModName.interface}
+{\Gamma \gg ModName} \\
+\\
+\tag{T-ModInterface}
+&\frac{(x:\tau) \in \Gamma}
+{\Gamma \propto (x:\tau),\Delta}\\
+\\
+\tag{T-ModInterfaceSingle}
+&\frac{(x:\tau) \in \Gamma}
+{\Gamma \propto (x:\tau)}\\
+\\
+\tag{T-ModBody}
+&\frac{\Gamma'=\Gamma:(x:\tau) \longspace \Gamma' \models d \longspace \Gamma \vdash e:\tau}
+{\Gamma \models (x=e:\tau),d \rightarrow \Gamma'} \\
+\\
+\tag{T-ModBodySingle}
+&\frac{\Gamma'=\Gamma:(x:\tau) \longspace \Gamma \vdash e:\tau}
+{\Gamma \models (x=e:\tau) \rightarrow \Gamma'} \\
+\end{align*}
+
+\section{Operational semantics}
+\begin{align*}
+\text{Value }v ::=\;&num n \; | \; true \; | \; false \\
+&| (v,v) \\
+&| \lambda p.e\\
+\\
+\text{Environment } E\; ::= \;&\cdot \\
+&|\;E:(varident=v) \\
+&|\;E:(this.varident=v) \\ 
+\\
+\text{Evaluation } ::= &e \rightarrow e' \\
+\end{align*}
+\subsection{Rules}
+\begin{align*}
+\tag{E-IfTrue}
+&if \; true  \; then \; e_{1} \; else \; e_{2} \rightarrow e_{1}\\
+\tag{E-IfFalse}
+&if \; false \; then \; e_{1} \; else \; e_{2} \rightarrow e_{2}\\ \\
+\tag{E-IfThenElse}
+&\frac{e_{1} \rightarrow e_{1}'}
+{if \; e_{1} \; then \; e_{2} \; else \; e_{3} \rightarrow if \; e_{1}' \; then \; e_{2} \; else \; e_{3}}\\ \\
+\tag{E-PairLeft}
+&\frac{e_{1} \rightarrow e_{1}'}
+{(e_{1},e_{2}) \rightarrow (e_{1}',e_{2})} \\ \\
+\tag{E-PairRight}
+&\frac{e_{2} \rightarrow e_{2}'}
+{(e_{1},e_{2}) \rightarrow (e_{1},e_{2}')} \\ \\
+\tag{E-Let}
+&\frac{e_{1}\rightarrow e_{1}'}
+{let \; p \; = \; e_{1} \; in \; e_{2} \rightarrow let \; x \; = \; e_{1}' \; in \; e_{2}}
+\\ \\
+\tag{E-LetV}
+&let \; x \; = \; v \; in \; e \rightarrow [x \mapsto v]e \\ \\
+\tag{E-LetRec}
+&letrec\;p=\;e_{1} \; in \; e_{2} \rightarrow let \; p \; = fix(\lambda p.e_{1}) \; in \; e_{2} \\ \\ 
+\tag{E-Fix}
+&\frac{e\rightarrow e'}
+{fix(e) \rightarrow fix(e')}\\ \\
+\tag{E-FixRec}
+&fix(\lambda(p.e)) \rightarrow [p \mapsto (fix (\lambda(p.e))]e \\ \\
+\tag{E-PatternMatch}
+&let \; (p_{1},p_{2}) \; = \; (e_{1},e_{2}) \; in \; e_{3} \rightarrow
+let \; p_{1} \; = \; e_{1} \; in \;
+(let \; p_{2}  \; = \; e_{2} \; in \; e_{3}) \\ \\
+\tag{E-App1}
+&\frac{e_{1} \rightarrow e_{1}'}
+{e_{1} e_{2} \rightarrow e_{1}' e_{2}}\\ \\
+\tag{E-App2}
+&\frac{e_{2} \rightarrow e_{2}'}
+{v\;e_{2} \rightarrow v\;e_{2}'}\\ \\
+\tag{E-Lambda}
+&(\lambda x . e) \; v \rightarrow [x \mapsto v]e \\ \\
+\tag{E-MatchLambda}
+&(\lambda (p_{1},p_{2}) . e_{3}) \; (e_{1},e_{2}) \rightarrow (\lambda p_{1}.(\lambda p_{2}.e_{3})\;e_{2})\; e_{1} \\
+\displaybreak
+\\
+\tag{E-ModVar}
+&\frac{(x=e':\tau) \in ModName.body \longspace e=[this.y\mapsto M.y]e'\;\forall (this.y \in e')}
+{M.x \rightarrow e}
+\end{align*}
+\end{flushleft}
+\end{document}

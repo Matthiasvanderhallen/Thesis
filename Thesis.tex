@@ -7,56 +7,65 @@
 \begin{flushleft}
 \section{Syntax}
 
+
 \newcommand{\longspace}{\;\;\;\;\;\;}
+We first introduce the syntax of a MiniML program. A program can consist of a set of modules, consisting of an interface and module body and uniquely identified with a module \textit{name}. The interface and body are represented as a set of declarations $\Delta$ and of definitions $d$ respectively.
+The program is concluded by a single naked expression, functioning as the main entry point of the program.
 \begin{align*}
-\text{Program} ::= \; & \lbrace Mod;\rbrace^{*}\;e\\
-\text{Module } Mod ::= \; &\text{module}\; ModName \;\\ 
-&\longspace \text{interface [}  \Delta \text{]}\\
-&\longspace \text{body [} d \text{]}\\ 
+\text{Program} ::= \; & \overline{\mathit{Mod}};\;e\\
+\text{Module } \mathit{Mod} ::= \; &\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}\\ 
 \\
-\text{Declaration } \Delta \; ::=\; &(varident:\tau)\\
-&|\; (varident:\tau), \Delta \\ 
+\text{Declaration } \Delta \; ::=\; &\emptyset \\
+&|\; (\mathit{id}:\tau), \Delta \\ 
 \\
-\text{Definition } d \; ::= \; & (varident=e : \tau)\\
-&| (varident=e:\tau), d\\
+\text{Definition } d \; ::= \; & \emptyset\\
+&| (\mathit{id}=e:\tau), \mathit{d}\\
 \\
-\text{Expression }e \; ::= \; &num \; n \; | \; false \; | \; true \\
-&|\;varident  \\
-&|\;ModName.varident \\
-&|\;this.varident \\
+\text{Expression }e \; ::= \; &\mathit{num \; n \;} | \; \mathit{false} \; | \; \mathit{true} \\
+&|\;\mathit{id}  \\
+&|\;\mathit{name.id} \\
+&|\;\mathit{this.id} \\
 &|\;e_{1}e_{2} \\
 &|\;(e_{1},e_{2}) \\
-&|\;\lambda(p)\;.\;e \\
-&|\;let \; p \; = \; e_{1} \; in \; e_{2} \\
-&|\;letrec \; p \; = \; e_{1} \; in \; e_{2} \\
-&|\; if(e_{1}) \; then \; e_{2} \; else \; e_{3}\\
+&|\;\lambda(p:\tau)\;.\;e \\
+&|\;\mathit{let }\; p \; = \; e_{1} \; in \; e_{2} \\
+&|\;\mathit{letrec} \; p \; = \; e_{1} \; in \; e_{2} \\
+&|\; \mathit{if(e_{1}) \; then \; e_{2} \; else \; e_{3}}\\
 \\
-\text{Pattern }p \; ::= \; &varident \\
+\text{Pattern }p \; ::= \; & \mathit{id} \\
 &| \; (p,p)\\
+\\
+\text{Type }\tau \; ::= \; &nat \\
+&| \; \mathit{bool} \\
+&| \; \tau_{1} \rightarrow \tau_{2} \\
+&| \; \tau_{1} \times \tau_{2} \\
+&| \; \alpha \\
 \end{align*}
 
 \section{Type System}
 
+We now introduce the Type System for MiniML. First, we introduce the concept of a type-scheme. The concept of a type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the $\forall$ quantifier. This allows any concrete types $\tau$ to 'match' to the type variable.
+
+This concept of a type-scheme will later be used to provide let-polymorphism. Note that the definition of a Type-Scheme assures that the resulting type-tcheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
 \begin{align*}
-\text{Type }\tau \; ::= \; &nat \\
-&| \; bool \\
-&| \; \tau_{1} \rightarrow \tau_{2} \\
-&| \; \tau_{1} \times \tau_{2} \\
-&| \; \alpha \\
-\\
 \text{Type-Scheme } \sigma \; ::= \; &\tau \\
 &| \; \forall \alpha . \sigma \\
 \\
-\text{Context }\Gamma ::=\; &\cdot \\
-&| \; \Gamma :(x:\tau) \\
+\intertext{We also introduce the notion of a context. The context simply is a \textbf{set} allowing for lookups. It contains type assumptions, with representation $x:\sigma$, meaning $x$ has type $\sigma$, as well as mappings from module name to module definition }
+\\
+\text{Context }\Gamma ::=\; &\emptyset \\
+&| \; \Gamma, (x:\sigma) \\
+&| \; \Gamma, (name:\lbrace \Delta,d\rbrace^{name}
+\\
+\intertext{The following four relations are the typing judgements. They convey the meaning that an expression or other part of the syntax is well-typed in the context $\Gamma$. The typing of a module body and it's definitions generates a new typing context for the module. In this resulting context, the declarations must be well-typed.}
 \\
 \text{Typing } ::=\;&\Gamma \vdash e: \sigma \\
 \\
-\text{ModuleTyping } ::= \; &\Gamma \gg Mod
+\text{ModuleTyping } ::= \; &\Gamma \vdash \mathit{Mod}
 \\
-\text{DefinitionTyping } ::= \; &\Gamma \models d \rightarrow \Gamma'\\
+\text{DefinitionTyping } ::= \; &\Gamma \vdash d \rightarrow \Gamma'\\
 \\
-\text{DeclarationTyping } ::= \;&\Gamma \propto \Delta
+\text{DeclarationTyping } ::= \;&\Gamma \vdash \Delta
 \end{align*}
 
 \subsection{Rules}
@@ -65,17 +74,18 @@
 &\Gamma \vdash false : bool \tag{T-False} \\
 &\Gamma \vdash num \; n : nat \tag{T-Num} \\ \\
 \tag{T-Mono}
-&\frac{\sigma \geq \tau \longspace varident:\sigma \in \Gamma}{\Gamma \vdash varident:\tau}\\ \\
+&\frac{\sigma \geq \tau \longspace id:\sigma \in \Gamma}{\Gamma \vdash id:\tau}\\ \\
 \tag{T-App}
 &\frac{\Gamma \vdash e_{1}:\tau_{2} \rightarrow \tau_{1} \longspace \Gamma \vdash e_{2}:\tau_{2}}
 {\Gamma \vdash e_{1}e_{2}:\tau_{1}} \\ \\
 \tag{T-BuildContext1}
-& varident:\sigma \rightarrow \cdot:(varident:\sigma) \\ \\
+& id:\sigma \rightarrow \emptyset, (id:\sigma) \\ \\
 \tag{T-BuildContext2}
-&\frac{p_{1}:\sigma_{1} \rightarrow \Gamma_{1} \longspace p_{2}:\sigma_{2}\rightarrow \Gamma_{2} \longspace \Gamma_{3} = \Gamma_{1}\bigcup \Gamma_{2}}{(p_{1},p_{2}):\sigma_{1}\times \sigma_{2} \rightarrow \Gamma_{3}} \\ \\
+&\frac{p_{1}:\sigma_{1} \rightarrow \Gamma_{1} \longspace p_{2}:\sigma_{2}\rightarrow \Gamma_{2}}
+{(p_{1},p_{2}):\sigma_{1}\times \sigma_{2} \rightarrow \Gamma_{1}\cup \Gamma_{2}} \\ \\
 \tag{T-Fun}
-&\frac{p:\tau_{2} \rightarrow \Gamma_{2} \longspace \Gamma_{2} \bigcup \Gamma_{1} \vdash e:\tau_{1}}
-{\Gamma_{1} \vdash \lambda(p).e:\tau_{2} \rightarrow \tau_{1}} \\ \\
+&\frac{p:\tau_{2} \rightarrow \Gamma_{2} \longspace \Gamma_{2} \cup \Gamma_{1} \vdash e:\tau_{1}}
+{\Gamma_{1} \vdash \lambda(p:\tau).e:\tau_{2} \rightarrow \tau_{1}} \\ \\
 \tag{T-IfThenElse}
 &\frac{\Gamma \vdash e_{1}:bool \longspace \Gamma \vdash e_{2}:\tau \longspace \Gamma \vdash e_{3} : \tau}
 {\Gamma \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} : \tau} \\ \\
@@ -83,7 +93,7 @@
 &\frac{\Gamma \vdash e_{1}:\tau_{1} \longspace \Gamma \vdash e_{2}:\tau_{2}}
 {\Gamma \vdash (e_{1},e_{2}) : \tau_{1}\times\tau_{2}} \\ \\
 \tag{T-Let}
-&\frac{\Gamma \vdash e_{2}:\tau_{2} \;\;\; \sigma=gen(\Gamma,\tau)\;\;\;p:\sigma\rightarrow \Gamma_{2} \;\;\; \Gamma \bigcup \Gamma_{2} \vdash e_{1}:\tau}
+&\frac{\Gamma \vdash e_{2}:\tau_{2} \;\;\; \sigma=gen(\Gamma,\tau)\;\;\;p:\sigma\rightarrow \Gamma_{2} \;\;\; \Gamma \cup \Gamma_{2} \vdash e_{1}:\tau}
 {\Gamma \vdash let\;p\;=\;e_{2}\;in\;e_{1}:\tau} \\ \\
 \tag{T-Letrec}
 &\frac{\Gamma \vdash let\;p\;=\;fix\;(\lambda p.e_{2})\;in\;e_{1}:\tau}
@@ -94,43 +104,39 @@
 \displaybreak
 \\
 \tag{T-ModVarThis}
-&\frac{\sigma \geq \tau \longspace this.varident:\sigma \in \Gamma}
-{\Gamma \vdash this.varident : \tau} \\ 
+&\frac{\sigma \geq \tau \longspace this.id:\sigma \in \Gamma}
+{\Gamma \vdash this.id : \tau} \\ 
 \\
 \tag{T-ModVarOther}
-&\frac{\Gamma \gg ModName \longspace varident:\tau \in ModName.interface}
-{\Gamma \vdash ModName.varident : \tau} \\ 
+&\frac{\Gamma \vdash \lbrace\Delta,d\rbrace^{name} \longspace id:\tau \in \Delta}
+{\Gamma \vdash name.id : \tau} \\ 
 \\
 \tag{T-Module}
-&\frac{\cdot \models ModName.body \rightarrow \Gamma' \longspace \Gamma' \propto ModName.interface}
-{\Gamma \gg ModName} \\
+&\frac{\emptyset \vdash d \rightarrow \Gamma' \longspace \Gamma' \vdash \Delta}
+{\Gamma \vdash \lbrace\Delta,d\rbrace^{name}} \\
 \\
 \tag{T-ModInterface}
-&\frac{(x:\tau) \in \Gamma}
-{\Gamma \propto (x:\tau),\Delta}\\
-\\
-\tag{T-ModInterfaceSingle}
-&\frac{(x:\tau) \in \Gamma}
-{\Gamma \propto (x:\tau)}\\
+&\frac{(x:\tau) \in \Gamma \longspace \Gamma \vdash \Delta}
+{\Gamma \vdash (x:\tau),\Delta}\\
 \\
 \tag{T-ModBody}
-&\frac{\Gamma'=\Gamma:(x:\tau) \longspace \Gamma' \models d \longspace \Gamma \vdash e:\tau}
-{\Gamma \models (x=e:\tau),d \rightarrow \Gamma'} \\
+&\frac{ (x:\tau),\Gamma \vdash d \rightarrow \Gamma' \longspace \Gamma \vdash e:\tau}
+{\Gamma \vdash (x=e:\tau),d \rightarrow (x:\tau),\Gamma'} \\
 \\
-\tag{T-ModBodySingle}
-&\frac{\Gamma'=\Gamma:(x:\tau) \longspace \Gamma \vdash e:\tau}
-{\Gamma \models (x=e:\tau) \rightarrow \Gamma'} \\
+\tag{T-EmptySet}
+&\frac{Wellformedness of \Gamma}
+{\Gamma \vdash \emptyset}
 \end{align*}
 
 \section{Operational semantics}
 \begin{align*}
-\text{Value }v ::=\;&num n \; | \; true \; | \; false \\
+\text{Value }v ::=\;&\mathit{num\;n} \; | \; \mathit{true} \; | \; \mathit{false} \\
 &| (v,v) \\
 &| \lambda p.e\\
 \\
 \text{Environment } E\; ::= \;&\cdot \\
-&|\;E:(varident=v) \\
-&|\;E:(this.varident=v) \\ 
+&|\;E:(\mathit{id}=v) \\
+&|\;E:(\mathit{this.id}=v) \\ 
 \\
 \text{Evaluation } ::= &e \rightarrow e' \\
 \end{align*}
@@ -179,7 +185,7 @@ let \; p_{1} \; = \; e_{1} \; in \;
 \displaybreak
 \\
 \tag{E-ModVar}
-&\frac{(x=e':\tau) \in ModName.body \longspace e=[this.y\mapsto M.y]e'\;\forall (this.y \in e')}
+&\frac{\lbrace\Delta,d\rbrace^{M} \longspace (x=e':\tau) \in d \longspace e=[this.y\mapsto M.y]e'\;\forall (this.y \in e')}
 {M.x \rightarrow e}
 \end{align*}
 \end{flushleft}

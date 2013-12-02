@@ -18,7 +18,7 @@ All modules specify an interface and module body and are uniquely identified wit
 
 The program is concluded by a single naked expression, functioning as the main entry point of the program.
 
-\begin{figure}
+\begin{figure}[!htbp]
 \begin{align*}
 \begin{aligned}
 \text{Program} ::= \; & \overline{\mathit{Mod}};\;e\\
@@ -56,32 +56,64 @@ The program is concluded by a single naked expression, functioning as the main e
 \caption{The syntax of MiniML}
 \end{figure}
 
+\subsection{Syntax example}
+We now give an example of a syntactically correct MiniML program.
+
+\begin{figure}[!htbp]
+\begin{verbatim}
+test
+\end{verbatim}
+\caption{Syntax example}
+\label{code:SyntaxExample}
+\end{figure}
+
 \section{Type System}
 
-We now formalize the Type System for MiniML. First, we introduce the concept of a type-scheme. The concept of a type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the $\forall$ quantifier. This allows any concrete types $\tau$ to 'match' to the type variable. For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
+\subsection{Type-Schemes}
+Having defined the syntax for MiniML, we are now able to formalize its Type System. First, we introduce the concept of a type-scheme, as seen in figure \ref{fig:Type-schemes}. A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$. This allows any concrete types $\tau$ to 'match' to the type variable. For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
 
 This concept of a type-scheme will later be used to provide \todo{explain further}let-polymorphism.  Note that the definition of a Type-Scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
+
+\begin{figure}[!htbp]
 \begin{align*}
 \text{Type-Scheme } \sigma \; ::= \; &\tau \\
 &| \; \forall \alpha . \sigma \\
-\\
-\intertext{A few relationships and properties can be defined over type-schemes and types: }
-\\
-\intertext{We also define the notion of a context. The context simply is a \textbf{set} allowing for lookups. It contains type assumptions, with representation $x:\sigma$, meaning $x$ has type $\sigma$, as well as mappings from module name to module definition.\endgraf
-The $\Diamond \Gamma$ relation is a statement of well-formedness of a context $\Gamma$. A context is well-formed if the keyset of the lookup table it represents conforms to the standard notion of a set, meaning every key is used only once.}
-\\
+\end{align*}
+\caption{Type-schemes in the MiniML type system.}
+\label{fig:Type-schemes}
+\end{figure}
+
+A few relationships and properties can be defined over type-schemes and types: \todo{introduce gen and spec}
+
+\subsection{Contexts}
+We also define the notion of a context in figure \ref{fig:Contexts}. The context simply is a \textbf{set} allowing for lookups. It contains type assumptions, with representation $x:\sigma$, meaning $x$ has type $\sigma$, as well as mappings from module name to module definition.
+
+\begin{figure}[!htbp]
+\begin{align*}
 \text{Context }\Gamma ::=\; &\emptyset \\
-&| \; \Gamma, (x:\sigma) \\
-&| \; \Gamma, (name:\lbrace \Delta,d\rbrace^{name}\\
-\\
-\text{Well-formedness } ::=\;&\Diamond \Gamma
-\\
-\intertext{The following four relations are the typing judgements. They convey the meaning that an expression or other part of the syntax is well-typed in the context $\Gamma$. The typing of a module body and it's definitions generates a new typing context for the module. In this resulting context, the declarations must be well-typed.}
+&| \; (x:\sigma),\Gamma \\
+&| \; (name=\lbrace \overline{\Delta},\overline{d}\rbrace^{name}), \Gamma
+\end{align*}
+\caption{Contexts in the MiniML type system.}
+\label{fig:Contexts}
+\end{figure}
+
+\subsection{Typing judgements}
+The relations in figure \ref{fig:TypingJudgements} are the typing judgements. They convey the meaning that an expression or other part of the syntax is well-typed in the context $\Gamma$. The typing of a module body and its definitions generates a new typing context $\Gamma'$ for the module. In this resulting context, the declarations must be well-typed.
+
+The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a context $\Gamma$. A context is well-formed if the keyset of the lookup table it represents conforms to the standard notion of a set, meaning every key is used only once.
+
+\begin{figure}[!htbp]
+\begin{align*}
 \text{ExpressionTyping } ::=\;&\Gamma \vdash e: \sigma \\
 \text{ModuleTyping } ::= \; &\Gamma \vdash \mathit{Mod} \\
 \text{DefinitionTyping } ::= \; &\Gamma \vdash d \rightarrow \Gamma' \\
-\text{DeclarationTyping } ::= \;&\Gamma \vdash \Delta
+\text{DeclarationTyping } ::= \;&\Gamma \vdash \Delta \\
+\text{Well-formedness } ::=\;&\Gamma \vdash \Diamond
 \end{align*}
+\caption{Typing judgements in the MiniML type system.}
+\label{fig:TypingJudgements}
+\end{figure}
 
 \subsection{Rules}
 \begin{align*}
@@ -147,7 +179,7 @@ The $\Diamond \Gamma$ relation is a statement of well-formedness of a context $\
 {\Gamma \vdash (x=e:\tau),d \rightarrow (x:\tau),\Gamma'} \\
 \\
 \tag{T-EmptySet}
-&\frac{\Diamond \Gamma}
+&\frac{\Gamma \vdash \Diamond}
 {\Gamma \vdash \emptyset}
 \end{align*}
 

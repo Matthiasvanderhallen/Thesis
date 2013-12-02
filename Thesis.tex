@@ -11,10 +11,12 @@
 
 \newcommand{\longspace}{\;\;\;\;\;\;}
 \newcommand{\inlinecode}{\texttt}
-We first introduce the syntax of a MiniML program. A program consists of a set of modules, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists. \footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can either be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}
-
-
+We first introduce the syntax of a MiniML program. A program consists of a set of modules, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists \footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can either be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$} and a set of functors $\overline{\mathit{Fun}}$.
+\\[2ex]
 All modules specify an interface and module body and are uniquely identified with a module \textit{name}. The interface and body are represented as a set of declarations $\Delta$ and of definitions $d$ respectively.
+\\[2ex]
+\todo{signatures lostrekken uit Module defiinition}
+Functors specify their own interface, $\overline{\Delta}$, as well as the interfaces upon which it depends, $\overline{\overline{\Delta}}$. It takes a set of modules that conform to the dependent interfaces, and functions as a module with the interface it specified itself.
 
 The program is concluded by a single naked expression, functioning as the main entry point of the program.
 
@@ -217,7 +219,7 @@ The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a co
 \tag{E-LetV}
 &let \; id \; = \; v \; in \; e \rightarrow [id \mapsto v]e \\ \\
 \tag{E-LetRec}
-&letrec\;p=\;e_{1} \; in \; e_{2} \rightarrow let \; p \; = fix(\lambda p.e_{1}) \; in \; e_{2} \\ \\ 
+& letrec\;p=\;e_{1} \; in \; e_{2} \rightarrow let \; p \; = fix(\lambda p.e_{1}') \; in \; e_{2} \\ \\ 
 \tag{E-Fix}
 &\frac{e\rightarrow e'}
 {fix(e) \rightarrow fix(e')}\\ \\
@@ -244,5 +246,6 @@ let \; p_{1} \; = \; e_{1} \; in \;
 &\frac{\lbrace\Delta,d\rbrace^{M} \longspace (x=e':\tau) \in d \longspace e=[this.y\mapsto M.y]e'\;\forall (this.y \in e')}
 {M.x \rightarrow e}
 \end{align*}
+\todo{provide a desugar function}
 \end{flushleft}
 \end{document}

@@ -11,17 +11,17 @@
 
 \newcommand{\longspace}{\;\;\;\;\;\;}
 \newcommand{\inlinecode}{\texttt}
-We first introduce the syntax of a MiniML program. A program can consist of a set of modules, consisting of an interface and module body and uniquely identified with a module \textit{name}. The interface and body are represented as a set of declarations $\Delta$ and of definitions $d$ respectively.
+We first introduce the syntax of a MiniML program. A program consists of a set of modules, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists. \footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can either be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}
+
+
+All modules specify an interface and module body and are uniquely identified with a module \textit{name}. The interface and body are represented as a set of declarations $\Delta$ and of definitions $d$ respectively.
+
 The program is concluded by a single naked expression, functioning as the main entry point of the program.
+
+\begin{figure}
 \begin{align*}
+\begin{aligned}
 \text{Program} ::= \; & \overline{\mathit{Mod}};\;e\\
-\text{Module } \mathit{Mod} ::= \; &\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}\\ 
-\\
-\text{Declaration } \Delta \; ::=\; &\emptyset \\
-&|\; (\mathit{id}:\tau), \Delta \\ 
-\\
-\text{Definition } d \; ::= \; & \emptyset\\
-&| (\mathit{id}=e:\tau), \mathit{d}\\
 \\
 \text{Expression }e \; ::= \; &\mathit{num \; n \;} | \; \mathit{false} \; | \; \mathit{true} \\
 &|\;\mathit{id}  \\
@@ -34,17 +34,27 @@ The program is concluded by a single naked expression, functioning as the main e
 &|\;\mathit{letrec} \; p \; = \; e_{1} \; in \; e_{2} \\
 &|\; \mathit{if(e_{1}) \; then \; e_{2} \; else \; e_{3}}\\
 &|\;\mathit{p.left}\; | \; \mathit{p.right} \\
-&|\;\mathit{fix\;e}\\
+&|\;\mathit{fix\;e}
+\end{aligned}
+\begin{aligned}
+\text{Module } \mathit{Mod} ::= \; &\lbrace \overline{\Delta}, \overline{\mathit{d}}\rbrace^{name}\\ 
 \\
-\text{Pattern }p \; ::= \; & \mathit{id} \\
-&| \; (p,p)\\
+\text{Declaration } \Delta \; ::=\; & (\mathit{id}:\tau)\\ 
+\\
+\text{Definition } d \; ::= \; &(\mathit{id}=e:\tau)\\
 \\
 \text{Type }\tau \; ::= \; &nat \\
 &| \; \mathit{bool} \\
 &| \; \tau_{1} \rightarrow \tau_{2} \\
 &| \; \tau_{1} \times \tau_{2} \\
-&| \; \alpha \\
+&| \; \alpha\\
+\\
+\text{Pattern }p \; ::= \; & \mathit{id} \\
+&| \; (p,p)\\
+\end{aligned}
 \end{align*}
+\caption{The syntax of MiniML}
+\end{figure}
 
 \section{Type System}
 

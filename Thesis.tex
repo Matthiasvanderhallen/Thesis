@@ -212,17 +212,18 @@ The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a co
 {(e_{1},e_{2}) \rightarrow (e_{1},e_{2}')} \\ \\
 \tag{E-Let}
 &\frac{e_{1}\rightarrow e_{1}'}
-{let \; p \; = \; e_{1} \; in \; e_{2} \rightarrow let \; x \; = \; e_{1}' \; in \; e_{2}}
+{let \; p \; = \; e_{1} \; in \; e_{2} \rightarrow let \; p \; = \; e_{1}' \; in \; e_{2}}
 \\ \\
 \tag{E-LetV}
-&let \; x \; = \; v \; in \; e \rightarrow [x \mapsto v]e \\ \\
+&let \; id \; = \; v \; in \; e \rightarrow [id \mapsto v]e \\ \\
 \tag{E-LetRec}
 &letrec\;p=\;e_{1} \; in \; e_{2} \rightarrow let \; p \; = fix(\lambda p.e_{1}) \; in \; e_{2} \\ \\ 
 \tag{E-Fix}
 &\frac{e\rightarrow e'}
 {fix(e) \rightarrow fix(e')}\\ \\
 \tag{E-FixRec}
-&fix(\lambda(p.e)) \rightarrow [p \mapsto (fix (\lambda(p.e))]e \\ \\
+&fix(\lambda(p.e)) \rightarrow [p \mapsto (fix (\lambda(p.e))]e \\
+\\
 \tag{E-PatternMatch}
 &let \; (p_{1},p_{2}) \; = \; (e_{1},e_{2}) \; in \; e_{3} \rightarrow
 let \; p_{1} \; = \; e_{1} \; in \;

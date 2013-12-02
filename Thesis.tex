@@ -3,12 +3,14 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
+\usepackage{todonotes}
 \begin{document}
 \begin{flushleft}
 \section{Syntax}
 
 
 \newcommand{\longspace}{\;\;\;\;\;\;}
+\newcommand{\inlinecode}{\texttt}
 We first introduce the syntax of a MiniML program. A program can consist of a set of modules, consisting of an interface and module body and uniquely identified with a module \textit{name}. The interface and body are represented as a set of declarations $\Delta$ and of definitions $d$ respectively.
 The program is concluded by a single naked expression, functioning as the main entry point of the program.
 \begin{align*}
@@ -31,6 +33,8 @@ The program is concluded by a single naked expression, functioning as the main e
 &|\;\mathit{let }\; p \; = \; e_{1} \; in \; e_{2} \\
 &|\;\mathit{letrec} \; p \; = \; e_{1} \; in \; e_{2} \\
 &|\; \mathit{if(e_{1}) \; then \; e_{2} \; else \; e_{3}}\\
+&|\;\mathit{p.left}\; | \; \mathit{p.right} \\
+&|\;\mathit{fix\;e}\\
 \\
 \text{Pattern }p \; ::= \; & \mathit{id} \\
 &| \; (p,p)\\
@@ -44,27 +48,28 @@ The program is concluded by a single naked expression, functioning as the main e
 
 \section{Type System}
 
-We now introduce the Type System for MiniML. First, we introduce the concept of a type-scheme. The concept of a type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the $\forall$ quantifier. This allows any concrete types $\tau$ to 'match' to the type variable.
+We now formalize the Type System for MiniML. First, we introduce the concept of a type-scheme. The concept of a type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the $\forall$ quantifier. This allows any concrete types $\tau$ to 'match' to the type variable. For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
 
-This concept of a type-scheme will later be used to provide let-polymorphism. Note that the definition of a Type-Scheme assures that the resulting type-tcheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
+This concept of a type-scheme will later be used to provide \todo{explain further}let-polymorphism.  Note that the definition of a Type-Scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
 \begin{align*}
 \text{Type-Scheme } \sigma \; ::= \; &\tau \\
 &| \; \forall \alpha . \sigma \\
 \\
-\intertext{We also introduce the notion of a context. The context simply is a \textbf{set} allowing for lookups. It contains type assumptions, with representation $x:\sigma$, meaning $x$ has type $\sigma$, as well as mappings from module name to module definition }
+\intertext{A few relationships and properties can be defined over type-schemes and types: }
+\\
+\intertext{We also define the notion of a context. The context simply is a \textbf{set} allowing for lookups. It contains type assumptions, with representation $x:\sigma$, meaning $x$ has type $\sigma$, as well as mappings from module name to module definition.\endgraf
+The $\Diamond \Gamma$ relation is a statement of well-formedness of a context $\Gamma$. A context is well-formed if the keyset of the lookup table it represents conforms to the standard notion of a set, meaning every key is used only once.}
 \\
 \text{Context }\Gamma ::=\; &\emptyset \\
 &| \; \Gamma, (x:\sigma) \\
-&| \; \Gamma, (name:\lbrace \Delta,d\rbrace^{name}
+&| \; \Gamma, (name:\lbrace \Delta,d\rbrace^{name}\\
+\\
+\text{Well-formedness } ::=\;&\Diamond \Gamma
 \\
 \intertext{The following four relations are the typing judgements. They convey the meaning that an expression or other part of the syntax is well-typed in the context $\Gamma$. The typing of a module body and it's definitions generates a new typing context for the module. In this resulting context, the declarations must be well-typed.}
-\\
-\text{Typing } ::=\;&\Gamma \vdash e: \sigma \\
-\\
-\text{ModuleTyping } ::= \; &\Gamma \vdash \mathit{Mod}
-\\
-\text{DefinitionTyping } ::= \; &\Gamma \vdash d \rightarrow \Gamma'\\
-\\
+\text{ExpressionTyping } ::=\;&\Gamma \vdash e: \sigma \\
+\text{ModuleTyping } ::= \; &\Gamma \vdash \mathit{Mod} \\
+\text{DefinitionTyping } ::= \; &\Gamma \vdash d \rightarrow \Gamma' \\
 \text{DeclarationTyping } ::= \;&\Gamma \vdash \Delta
 \end{align*}
 
@@ -78,9 +83,9 @@ This concept of a type-scheme will later be used to provide let-polymorphism. No
 \tag{T-App}
 &\frac{\Gamma \vdash e_{1}:\tau_{2} \rightarrow \tau_{1} \longspace \Gamma \vdash e_{2}:\tau_{2}}
 {\Gamma \vdash e_{1}e_{2}:\tau_{1}} \\ \\
-\tag{T-BuildContext1}
+\tag{BuildContext1}
 & id:\sigma \rightarrow \emptyset, (id:\sigma) \\ \\
-\tag{T-BuildContext2}
+\tag{BuildContext2}
 &\frac{p_{1}:\sigma_{1} \rightarrow \Gamma_{1} \longspace p_{2}:\sigma_{2}\rightarrow \Gamma_{2}}
 {(p_{1},p_{2}):\sigma_{1}\times \sigma_{2} \rightarrow \Gamma_{1}\cup \Gamma_{2}} \\ \\
 \tag{T-Fun}
@@ -92,15 +97,23 @@ This concept of a type-scheme will later be used to provide let-polymorphism. No
 \tag{T-Pair}
 &\frac{\Gamma \vdash e_{1}:\tau_{1} \longspace \Gamma \vdash e_{2}:\tau_{2}}
 {\Gamma \vdash (e_{1},e_{2}) : \tau_{1}\times\tau_{2}} \\ \\
+\tag{T-PairLeft}
+&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
+{\Gamma \vdash \mathit{p.left} : \tau_{1}} \\
+\\
+\tag{T-PairRight}
+&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
+{\Gamma \vdash \mathit{p.right} : \tau_{2}} \\
+\\
 \tag{T-Let}
 &\frac{\Gamma \vdash e_{2}:\tau_{2} \;\;\; \sigma=gen(\Gamma,\tau)\;\;\;p:\sigma\rightarrow \Gamma_{2} \;\;\; \Gamma \cup \Gamma_{2} \vdash e_{1}:\tau}
 {\Gamma \vdash let\;p\;=\;e_{2}\;in\;e_{1}:\tau} \\ \\
 \tag{T-Letrec}
-&\frac{\Gamma \vdash let\;p\;=\;fix\;(\lambda p.e_{2})\;in\;e_{1}:\tau}
+&\frac{\Gamma \vdash let\;p\;=\;\mathit{fix}\;(\lambda p.e_{2})\;in\;e_{1}:\tau}
 {\Gamma \vdash letrec\;p\;=\;e_{2}\;in\;e_{1}:\tau} \\ \\
 \tag{T-Fix}
 &\frac{\Gamma \vdash e : \tau \rightarrow \tau}
-{\Gamma \vdash fix(e) : \tau} \\
+{\Gamma \vdash \mathit{fix\;e} : \tau} \\
 \displaybreak
 \\
 \tag{T-ModVarThis}
@@ -124,7 +137,7 @@ This concept of a type-scheme will later be used to provide let-polymorphism. No
 {\Gamma \vdash (x=e:\tau),d \rightarrow (x:\tau),\Gamma'} \\
 \\
 \tag{T-EmptySet}
-&\frac{Wellformedness of \Gamma}
+&\frac{\Diamond \Gamma}
 {\Gamma \vdash \emptyset}
 \end{align*}
 

@@ -15,8 +15,7 @@ We first introduce the syntax of a MiniML program. A program consists of a set o
 \\[2ex]
 All modules specify an interface and module body and are uniquely identified with a module \textit{name}. The interface and body are represented as a set of declarations $\Delta$ and of definitions $d$ respectively.
 \\[2ex]
-\todo{signatures lostrekken uit Module defiinition}
-Functors specify their own interface, $\overline{\Delta}$, as well as the interfaces upon which it depends, $\overline{\overline{\Delta}}$. It takes a set of modules that conform to the dependent interfaces, and functions as a module with the interface it specified itself.
+Functors, a special kind of modules, specify \todo{Is it always possible to specify the interface of a module? In our simple system, yes.} their own interface, $\Sigma$, as well as the interfaces upon which it depends, $\overline{\Sigma}$. It takes a set of modules that conform to the dependent interfaces, and functions as a module with the interface it specified itself.
 
 The program is concluded by a single naked expression, functioning as the main entry point of the program.
 
@@ -27,8 +26,7 @@ The program is concluded by a single naked expression, functioning as the main e
 \\
 \text{Expression }e \; ::= \; &\mathit{num \; n \;} | \; \mathit{false} \; | \; \mathit{true} \\
 &|\;\mathit{id}  \\
-&|\;\mathit{name.id} \\
-&|\;\mathit{this.id} \\
+&|\;\mathit{path.id} \\
 &|\;e_{1}e_{2} \\
 &|\;(e_{1},e_{2}) \\
 &|\;\lambda(p:\tau)\;.\;e \\
@@ -36,14 +34,26 @@ The program is concluded by a single naked expression, functioning as the main e
 &|\;\mathit{letrec} \; p \; = \; e_{1} \; in \; e_{2} \\
 &|\; \mathit{if(e_{1}) \; then \; e_{2} \; else \; e_{3}}\\
 &|\;\mathit{p.left}\; | \; \mathit{p.right} \\
-&|\;\mathit{fix\;e}
+&|\;\mathit{fix\;e} \\
+\\
+\text{Access Path } \mathit{path} \; ::= \; &\mathit{M_{name}}\\
+&|\;M_{name}(\overline{\mathit{M_{name}}})\\
+&|\;\mathit{this}\\
+&|\;\mathit{path.M_{name}}\\
+&|\;\mathit{path.M_{name}(\overline{\mathit{M_{name}}})}\\
+\\
 \end{aligned}
 \begin{aligned}
-\text{Module } \mathit{Mod} ::= \; &\lbrace \overline{\Delta}, \overline{\mathit{d}}\rbrace^{name}\\ 
+\text{Module } \mathit{Mod} ::= \; &\lbrace \Sigma, \overline{\mathit{d}}\rbrace^{name}\\
+&|\;\lbrace \Sigma, \overline{\Sigma}, \overline{d} \rbrace^{name} \\
 \\
-\text{Declaration } \Delta \; ::=\; & (\mathit{id}:\tau)\\ 
+\text{Signature } \Sigma \; ::=\; & \overline{\Delta}^{name}\\
+\\
+\text{Declaration } \Delta \; ::=\; & (\mathit{id}:\tau)\\
+& | \; (\mathit{M_{i}}:\Sigma)\\
 \\
 \text{Definition } d \; ::= \; &(\mathit{id}=e:\tau)\\
+& | \; (\mathit{M_{i}} = \overline{d} : \Sigma) \\
 \\
 \text{Type }\tau \; ::= \; &nat \\
 &| \; \mathit{bool} \\
@@ -88,13 +98,14 @@ This concept of a type-scheme will later be used to provide \todo{explain furthe
 A few relationships and properties can be defined over type-schemes and types: \todo{introduce gen and spec}
 
 \subsection{Contexts}
-We also define the notion of a context in figure \ref{fig:Contexts}. The context simply is a \textbf{set} allowing for lookups. It contains type assumptions, with representation $x:\sigma$, meaning $x$ has type $\sigma$, as well as mappings from module name to module definition.
+We also define the notion of a context in figure \ref{fig:Contexts}. The context simply is a \textbf{set} allowing for lookups. It contains type assumptions, with representation $x:\sigma$, meaning $x$ has type $\sigma$, as well as mappings from module name to module specification and signature names to signature specifications.
 
 \begin{figure}[!htbp]
 \begin{align*}
 \text{Context }\Gamma ::=\; &\emptyset \\
 &| \; (x:\sigma),\Gamma \\
-&| \; (name=\lbrace \overline{\Delta},\overline{d}\rbrace^{name}), \Gamma
+&| \; (name=\lbrace \overline{\Sigma},\overline{d}\rbrace^{name}), \Gamma \\
+&| \; (S= \overline{\Delta}), \Gamma
 \end{align*}
 \caption{Contexts in the MiniML type system.}
 \label{fig:Contexts}
@@ -165,20 +176,24 @@ The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a co
 {\Gamma \vdash this.id : \tau} \\ 
 \\
 \tag{T-ModVarOther}
-&\frac{\Gamma \vdash \lbrace\Delta,d\rbrace^{name} \longspace id:\tau \in \Delta}
+&\frac{\Gamma \vdash \lbrace\Sigma,d\rbrace^{name} \longspace id:\tau \in \Sigma}
 {\Gamma \vdash name.id : \tau} \\ 
 \\
 \tag{T-Module}
-&\frac{\emptyset \vdash d \rightarrow \Gamma' \longspace \Gamma' \vdash \Delta}
-{\Gamma \vdash \lbrace\Delta,d\rbrace^{name}} \\
+&\frac{\emptyset \vdash d \rightarrow \Gamma' \longspace \Gamma' \vdash \Sigma}
+{\Gamma \vdash \lbrace\Sigma,\overline{d}\rbrace^{name}} \\
 \\
 \tag{T-ModInterface}
 &\frac{(x:\tau) \in \Gamma \longspace \Gamma \vdash \Delta}
 {\Gamma \vdash (x:\tau),\Delta}\\
 \\
-\tag{T-ModBody}
-&\frac{ (x:\tau),\Gamma \vdash d \rightarrow \Gamma' \longspace \Gamma \vdash e:\tau}
-{\Gamma \vdash (x=e:\tau),d \rightarrow (x:\tau),\Gamma'} \\
+\tag{T-ModBodyV}
+&\frac{ (x:\tau),\Gamma \vdash \overline{d} \rightarrow \Gamma' \longspace \Gamma \vdash e:\tau}
+{\Gamma \vdash (x=e:\tau),\overline{d} \rightarrow (x:\tau),\Gamma'} \\
+\\
+\tag{T-ModBodyM}
+&\frac{\Gamma \vdash \lbrace\Sigma, \overline{d} \rbrace }
+{\Gamma \vdash (\mathit{M_{i}=e}:\Sigma),\overline{d} \rightarrow (M_{i}=\lbrace \Sigma,\overline{d} \rbrace),\Gamma'} \\
 \\
 \tag{T-EmptySet}
 &\frac{\Gamma \vdash \Diamond}

@@ -215,33 +215,29 @@ The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a co
 {\Gamma \vdash this.id : \tau} \\ 
 \\
 \tag{T-ModVarOther}
-&\frac{M_{i} = \lbrace \Sigma_{i}, \overline{d} \rbrace \in \Gamma \longspace
-\longspace \Gamma \vdash M_{i}
-\longspace id:\tau \in \Sigma_{i}}
+&\frac{
+\Gamma \vdash M_{i}
+\longspace id:\tau \in \Gamma[M_{i}].\Sigma}
 {\Gamma \vdash \mathit{M_{i}.id} : \tau} \\
 \\
 \tag{T-FunctorVar}
-&\frac{F_{i}=\lbrace \Sigma_{1}, \overline{\Sigma_{3}}, \overline{d}\rbrace \in \Gamma
+&\frac{\overline{\Gamma \vdash M_{1..n}}
 \longspace
-\overline{\Gamma \vdash M_{1..n}}
-\longspace
-\overline{\Sigma_{3} \succeq M_{1..n}.\Sigma}
+\overline{\Sigma_{3} \succeq \Gamma[M_{1..n}].\Sigma}
 \longspace
 \Gamma \vdash F_{i}(\overline{M_{1..n}})
 \longspace
-id:\tau \in \Sigma_{1}}
+id:\tau \in \Gamma[F_{i}].\Sigma_{1}}
 {\Gamma \vdash \mathit{F_{i}(\overline{M_{1..n}}).id}:\tau} \\
 \\
 \tag{T-Module}
-&\frac{M_{i} = \lbrace\Sigma_{i},\overline{d}\rbrace \in \Gamma
-\longspace
-\emptyset \vdash \overline{d} \rightarrow \Gamma' \longspace \Gamma' \vdash \Sigma_{i}}
+&\frac{
+\emptyset \vdash \Gamma[M_{i}].\overline{d}\rightarrow \Gamma' \longspace \Gamma' \vdash \Gamma[M_{i}].\Sigma_{i}}
 {\Gamma \vdash M_{i}} \\
 \\
 \tag{T-Functor}
-&\frac{F_{i}=\lbrace\Sigma,\overline{\Sigma_{2}},\overline{d}\rbrace \in \Gamma
-\longspace
-\emptyset \vdash [\overline{M_{1..n} \mapsto M_{arg}}]\overline{d} \rightarrow \Gamma' \longspace \Gamma' \vdash \Sigma}
+&\frac{
+\emptyset \vdash [\overline{M_{1..n} \mapsto M_{arg}}]\overline{d} \rightarrow \Gamma' \longspace \Gamma' \vdash \Gamma[F_{i}].\Sigma}
 {\Gamma \vdash F_{i}(\overline{M_{args}})}\\
 \\
 \tag{T-ModInterfaceField}
@@ -275,64 +271,72 @@ id:\tau \in \Sigma_{1}}
 &| (v,v) \\
 &| \lambda p.e\\
 \\
-\text{Environment } E\; ::= \;&\cdot \\
-&|\;E:(\mathit{id}=v) \\
-&|\;E:(\mathit{this.id}=v) \\ 
+\text{Module Table } T\; ::= \;&\emptyset \\
+&| \; (M_{i} \mapsto \lbrace \Sigma,\overline{d}\rbrace), T \\
+&| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), T \\
+&| \; (S_{i} \mapsto \Sigma), T\\
 \\
-\text{Evaluation } ::= &e \rightarrow e' \\
+\text{Evaluation } ::= T \vdash &e \rightarrow T \vdash e' \\
 \end{align*}
+
+The operational semantics defines a module table T, containing mappings from the signature-, module and functor identifiers to their definition and and the evaluation relation. 
+
+The module table T allows looking up the definition behind a certain identifier and accessing a certain part of it using projection. $T[M_{i}].\Sigma$ will give access to the $\Sigma$ in the definition of $M_{i}$. 
+
+The evaluation relation allows the evaluation of an expression $e$ to a (simpler) expression $e'$, while potentially making a lookup in T.
+
 \subsection{Rules}
 \begin{align*}
 \tag{E-IfTrue}
-&if \; true  \; then \; e_{1} \; else \; e_{2} \rightarrow e_{1}\\
+&T \vdash if \; true  \; then \; e_{1} \; else \; e_{2} \rightarrow T \vdash e_{1}\\
 \tag{E-IfFalse}
-&if \; false \; then \; e_{1} \; else \; e_{2} \rightarrow e_{2}\\ \\
+&T \vdash if \; false \; then \; e_{1} \; else \; e_{2} \rightarrow T \vdash e_{2}\\ \\
 \tag{E-IfThenElse}
-&\frac{e_{1} \rightarrow e_{1}'}
-{if \; e_{1} \; then \; e_{2} \; else \; e_{3} \rightarrow if \; e_{1}' \; then \; e_{2} \; else \; e_{3}}\\ \\
+&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
+{T \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} \rightarrow T \vdash if \; e_{1}' \; then \; e_{2} \; else \; e_{3}}\\ \\
 \tag{E-PairLeft}
-&\frac{e_{1} \rightarrow e_{1}'}
-{(e_{1},e_{2}) \rightarrow (e_{1}',e_{2})} \\ \\
+&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
+{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1}',e_{2})} \\ \\
 \tag{E-PairRight}
-&\frac{e_{2} \rightarrow e_{2}'}
-{(e_{1},e_{2}) \rightarrow (e_{1},e_{2}')} \\ \\
+&\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
+{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1},e_{2}')} \\ \\
 \tag{E-Let}
-&\frac{e_{1}\rightarrow e_{1}'}
-{let \; p \; = \; e_{1} \; in \; e_{2} \rightarrow let \; p \; = \; e_{1}' \; in \; e_{2}}
+&\frac{T \vdash e_{1}\rightarrow T \vdash e_{1}'}
+{T \vdash let \; p \; = \; e_{1} \; in \; e_{2} \rightarrow T \vdash let \; p \; = \; e_{1}' \; in \; e_{2}}
 \\ \\
 \tag{E-LetV}
-&let \; id \; = \; v \; in \; e \rightarrow [id \mapsto v]e \\ \\
+&T \vdash let \; id \; = \; v \; in \; e \rightarrow T \vdash [id \mapsto v]e \\ \\
 \tag{E-LetRec}
-& letrec\;p=\;e_{1} \; in \; e_{2} \rightarrow let \; p \; = fix(\lambda p.e_{1}') \; in \; e_{2} \\ \\ 
+& T \vdash letrec\;p=\;e_{1} \; in \; e_{2} \rightarrow T \vdash let \; p \; = fix(\lambda p.e_{1}') \; in \; e_{2} \\ \\ 
 \tag{E-Fix}
-&\frac{e\rightarrow e'}
-{fix(e) \rightarrow fix(e')}\\ \\
+&\frac{T \vdash e\rightarrow T \vdash e'}
+{T \vdash fix(e) \rightarrow T \vdash fix(e')}\\ \\
 \tag{E-FixRec}
-&fix(\lambda(p.e)) \rightarrow [p \mapsto (fix (\lambda(p.e))]e \\
+&T \vdash fix(\lambda(p.e)) \rightarrow T \vdash [p \mapsto (fix (\lambda(p.e))]e \\
 \\
 \tag{E-PatternMatch}
-&let \; (p_{1},p_{2}) \; = \; (e_{1},e_{2}) \; in \; e_{3} \rightarrow
+&T \vdash let \; (p_{1},p_{2}) \; = \; (e_{1},e_{2}) \; in \; e_{3} \rightarrow
 let \; p_{1} \; = \; e_{1} \; in \;
 (let \; p_{2}  \; = \; e_{2} \; in \; e_{3}) \\ \\
 \tag{E-App1}
-&\frac{e_{1} \rightarrow e_{1}'}
-{e_{1} e_{2} \rightarrow e_{1}' e_{2}}\\ \\
+&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
+{T \vdash e_{1} e_{2} \rightarrow T \vdash e_{1}' e_{2}}\\ \\
 \tag{E-App2}
-&\frac{e_{2} \rightarrow e_{2}'}
-{v\;e_{2} \rightarrow v\;e_{2}'}\\ \\
+&\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
+{T \vdash v\;e_{2} \rightarrow T \vdash v\;e_{2}'}\\ \\
 \tag{E-Lambda}
-&(\lambda x . e) \; v \rightarrow [x \mapsto v]e \\ \\
+&T \vdash (\lambda x . e) \; v \rightarrow T \vdash [x \mapsto v]e \\ \\
 \tag{E-MatchLambda}
-&(\lambda (p_{1},p_{2}) . e_{3}) \; (e_{1},e_{2}) \rightarrow (\lambda p_{1}.(\lambda p_{2}.e_{3})\;e_{2})\; e_{1} \\
+&T \vdash (\lambda (p_{1},p_{2}) . e_{3}) \; (e_{1},e_{2}) \rightarrow T \vdash (\lambda p_{1}.(\lambda p_{2}.e_{3})\;e_{2})\; e_{1} \\
 \displaybreak
 \\
 \tag{E-ModVar}
-&\frac{\lbrace \Sigma, \overline{d}\rbrace^{M} \longspace (x=e':\tau) \in d \longspace e=[this.y\mapsto M.y]e'\;\forall (this.y \in e')}
-{M.x \rightarrow e}\\
+&\frac{\longspace (x=e':\tau) \in T[M_{i}].\overline{d} \longspace e=[this.y\mapsto M.y]e'\;\forall (this.y \in e')}
+{T \vdash M.x \rightarrow T \vdash e}\\
 \\
 \tag{E-FunVar}
-&\frac{\lbrace \Sigma,\overline{Sigma}, \overline{d}\rbrace^{M_{1}} \longspace (x=e':\tau) \in d \longspace e=[this.y\mapsto M.y]e'\;\forall (this.y \in e')}
-{M_{1}(\overline{M_{n}}).x \rightarrow e}
+&\frac{\longspace (x=e':\tau) \in T[F_{i}].\overline{d} \longspace e=[M_{1..n} \mapsto M_{args}][this.y\mapsto F_{i}(\overline{M_{args}}).y]e'\;\forall (this.y \in e')}
+{T \vdash F_{1}(\overline{M_{args}}).x \rightarrow T \vdash e}
 \end{align*}
 \todo{How to express the substitution of all references to argument placeholder module names to the modules names given at execution}
 \todo{provide a desugar function}

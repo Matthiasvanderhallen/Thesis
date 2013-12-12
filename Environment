@@ -1,0 +1,10 @@
+\subsection{Environments}
+The type checker has to keep track of the different modules, functors and their signatures. This means it has to create mappings from identifiers for these objects to their actual bindings. 
+
+\begin{align*}
+\text{Environment } E ::= &\; (M_{i} \mapsto \lbrace \Sigma,\overline{d}\rbrace), E \\
+&| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), E \\
+&| \; (S_{i} \mapsto \Sigma), E
+\end{align*}
+
+To access mappings from these Environments, we will introduce projections. For example $M_{i}.\overline{d}$ will look up the mapping $(M_{i} \mapsto \lbrace S,\overline{d}\rbrace)$ in $E$ and project this to the $\overline{d}$ specified in the mapping.

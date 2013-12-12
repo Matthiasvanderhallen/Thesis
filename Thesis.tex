@@ -98,16 +98,16 @@ This concept of a type-scheme will later be used to provide \todo{explain furthe
 \\[2ex]
 Our type system will also need to keep track of the type assumptions and the module, functor and signature definitions. This represents the notion of a \emph{context}. It is in this context that typing will happen. While type checking, the context is what the type checker uses to keep track of the facts it already knows.
 \\[2ex]
-To access mappings from these contexts, we will introduce projections. For example $M_{i}.\overline{d}$ will look up the mapping $(M_{i} = \lbrace S,\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping.
+To access mappings from these contexts, we will introduce projections. For example $\Gamma[M_{i}].\overline{d}$ will look up the mapping $(M_{i} \mapsto \lbrace S,\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping. A lookup will \emph{fail} if the identifier has no mapping in the context.
 
 \begin{figure}[!htbp]
 \begin{align*}
 \begin{aligned}
 \text{Context }\Gamma ::=\; &\emptyset \\
 &| \; (x:\sigma),\Gamma \\
-&| \; (M_{i}=\lbrace \Sigma,\overline{d}\rbrace), \Gamma \\
-&| \; (F_{i}=\lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), \Gamma \\
-&| \; (S_{i}= \Sigma), \Gamma
+&| \; (M_{i} \mapsto \lbrace \Sigma,\overline{d}\rbrace), \Gamma \\
+&| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), \Gamma \\
+&| \; (S_{i} \mapsto \Sigma), \Gamma
 \end{aligned}
 \begin{aligned}
 \longspace

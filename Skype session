@@ -1,0 +1,10 @@
+[8/12/13 11:11:50] Squera: \newcommand{\typerule}[3]{\ensuremath{\begin{array}{c}\textsf{\scriptsize ({#1})} \\#2 \\\hline\raisebox{-3pt}{\ensuremath{#3}}\end{array}}}
+
+\newcommand{\raisedrule}[2][0em]{\leaders\hbox{\rule[#1]{1pt}{#2}}\hfill}
+
+\newcommand{\toprule}[1]{\begin{center}\vspace{1mm}\noindent\raisedrule{0.3mm}\ \raisebox{-0.5ex}{\emph{#1}} \raisedrule{0.3mm}\!\raisedrule{0.3mm}\!\raisedrule{0.3mm}}
+
+\newcommand{\botrule}{\vspace*{2mm}\HRule\end{center}}
+[8/12/13 11:12:58] Squera: \newcommand{\HRule}[0]{\rule{\linewidth}{0.3mm}}
+
+T | e -> T' | e'

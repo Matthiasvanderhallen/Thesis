@@ -7,24 +7,23 @@
 \begin{document}
 \begin{flushleft}
 \section{Syntax}
-
-
 \newcommand{\longspace}{\;\;\;\;\;\;}
 \newcommand{\inlinecode}{\texttt}
-We first introduce the syntax of a MiniML program. A program consists of a set of modules, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists \footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can either be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$} and a set of functors $\overline{\mathit{Fun}}$.
+We first introduce the syntax of a MiniML program, as seen in figure \ref{fig:Syntax}. A program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists \footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
+This description of a program allows us to first specify a set of signatures as well as a set of module and functors conforming to those signatures.
 \\[2ex]
-All modules specify an interface and module body and are uniquely identified with a module \textit{name}. The interface and body are represented as a set of declarations $\Delta$ and of definitions $d$ respectively.
+A signature $\Sigma$ is a module type and is represented by a list of \emph{declarations}. A declaration $\Delta$ specifies the type of an value identifier or the signature of a module identifier.
+\\[2ex] 
+A module can be seen as a special case of functors. A module specifies a signature and module body and is uniquely identified with an identifier $M_{i}$. The module body is represented as a list of definitions $\overline{d}$. A module $M_{i}$ with body $\overline{d}$ conforms to a signature $S_{i}$ if every identifier in $S_{i}$ has a definition in the module body, and its typing does not violate the one specified in the signature.
 \\[2ex]
-Functors, a special kind of modules, specify \todo{Is it always possible to specify the interface of a module? In our simple system, yes, There can be no problem with opaque types since we don't support them.} their own interface, $\Sigma$, as well as the interfaces upon which it depends, $\overline{\Sigma}$. It takes a set of modules that conform to the dependent interfaces, and functions as a module with the interface it specified itself.
-
-The program is concluded by a single naked expression, functioning as the main entry point of the program.
+Functors $F_{i}$, presented as a generalization of modules, specify \todo{Is it always possible to specify the interface of a module? In our simple system, yes, There can be no problem with opaque types since we don't support them.} their own signature, $S_{i}$, as well as a set of signatures upon which it depends, $\overline{S_{n}}$. It then specifies a functor body in which those modules can be used. The functor can be given a set of modules that conform to the dependent signatures. We say the functor is applied to a set of modules. The result of this application behaves as a module that conforms to the interface $S_{i}$ that the functor specified for itself.
 
 \begin{figure}[!htbp]
 \begin{align*}
 \begin{aligned}
 \text{Program} ::= \; & \overline{\mathit{Mod}};\;e\\
 \\
-\text{Expression }e \; ::= \; &\mathit{num \; n \;} | \; \mathit{false} \; | \; \mathit{true} \\
+\text{Value Expression }e \; ::= \; &\mathit{num \; n \;} | \; \mathit{false} \; | \; \mathit{true} \\
 &|\;\mathit{id}  \\
 &|\;\mathit{path.id} \\
 &|\;e_{1}e_{2} \\
@@ -36,21 +35,31 @@ The program is concluded by a single naked expression, functioning as the main e
 &|\;\mathit{p.left}\; | \; \mathit{p.right} \\
 &|\;\mathit{fix\;e} \\
 \\
-\text{Access Path } \mathit{path} \; ::= \; &\mathit{M}\\
-&|\;M_{1}(\overline{\mathit{M_{2}}})\\
+\text{Identifiers } ::= \; & \; id \\ 
+&|\;M_{i}\\
+&|\;F_{i}\\
+&|\;S_{i}\\
+\\
+\text{Access Path } \mathit{path} \; ::= \; &\mathit{M_{i}}\\
+&|\;F_{i}(\overline{\mathit{M_{i}}})\\
 &|\;\mathit{this}\\
 \\
-\text{Module } \mathit{Mod} ::= \; &\lbrace \Sigma, \overline{\mathit{d}}\rbrace^{M}\\
-&|\;\lbrace \Sigma, \overline{\Sigma}, \overline{d} \rbrace^{M} \\
+\text{Mod Expr } \mathit{me} ::= \; & \mathit{sig} \; S_{i} = \Sigma\\
+&|\; \mathit{mod} \;  M_{i} : S_{i} = \overline{\mathit{d}} \\
+&|\; \mathit{funct} \; F_{i} (\overline{M_{n}:S_{n}}):S_{i} = \overline{d}\\
+\\
 \end{aligned}
 \begin{aligned}
-\text{Signature } \Sigma \; ::=\; & \overline{\Delta}^{S}\\
+\text{Mod Types } \mathit{Mod} ::=\;&\lbrace \Sigma, \overline{\mathit{d}} \rbrace^{M_{i}} \\
+&|\; \lbrace \Sigma, \overline{\Sigma}, \overline{d} \rbrace^{F_{i}} \\
+\\
+\text{Signature } \Sigma \; ::=\; & \overline{\Delta}\\
 \\
 \text{Declaration } \Delta \; ::=\; & (\mathit{id}:\tau)\\
-& | \; (\mathit{M_{i}}:\Sigma)\\
+& | \; (\mathit{M_{i}}:S_{i})\\
 \\
 \text{Definition } d \; ::= \; &(\mathit{id}=e:\tau)\\
-& | \; (\mathit{M_{i}} = \overline{d} : \Sigma) \\
+& | \; (\mathit{M_{i}} = \overline{d} : S_{i}) \\
 \\
 \text{Type }\tau \; ::= \; &nat \\
 &| \; \mathit{bool} \\
@@ -60,9 +69,12 @@ The program is concluded by a single naked expression, functioning as the main e
 \\
 \text{Pattern }p \; ::= \; & \mathit{id} \\
 &| \; (p,p)\\
+\\
+\\
 \end{aligned}
 \end{align*}
 \caption{The syntax of MiniML}
+\label{fig:Syntax}
 \end{figure}
 
 \subsection{Syntax example}
@@ -76,38 +88,69 @@ test
 \label{code:SyntaxExample}
 \end{figure}
 
-\section{Type System}
+\section{Type system}
+Having defined the syntax for MiniML, we are now able to formalize its type system.
 
-\subsection{Type-Schemes}
-Having defined the syntax for MiniML, we are now able to formalize its Type System. First, we introduce the concept of a type-scheme, as seen in figure \ref{fig:Type-schemes}. A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$. This allows any concrete types $\tau$ to 'match' to the type variable. For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
+\subsection{Type-schemes and contexts}
+First, we introduce the concept of a type-scheme, as seen in figure \ref{fig:Type-schemesAndContexts}. A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$. This allows any concrete types $\tau$ to 'match' to the type variable. For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
 
 This concept of a type-scheme will later be used to provide \todo{explain further}let-polymorphism.  Note that the definition of a Type-Scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
+\\[2ex]
+Our type system will also need to keep track of the type assumptions and the module, functor and signature definitions. This represents the notion of a \emph{context}. It is in this context that typing will happen. While type checking, the context is what the type checker uses to keep track of the facts it already knows.
+\\[2ex]
+To access mappings from these contexts, we will introduce projections. For example $M_{i}.\overline{d}$ will look up the mapping $(M_{i} = \lbrace S,\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping.
 
 \begin{figure}[!htbp]
 \begin{align*}
-\text{Type-Scheme } \sigma \; ::= \; &\tau \\
-&| \; \forall \alpha . \sigma \\
-\end{align*}
-\caption{Type-schemes in the MiniML type system.}
-\label{fig:Type-schemes}
-\end{figure}
-
-\subsection{Contexts}
-We also define the notion of a context in figure \ref{fig:Contexts}. The context simply is a \textbf{set} allowing for lookups. It contains type assumptions, with representation $x:\sigma$, meaning $x$ has type $\sigma$, as well as mappings from module name to module specification and signature names to signature specifications.
-
-\begin{figure}[!htbp]
-\begin{align*}
+\begin{aligned}
 \text{Context }\Gamma ::=\; &\emptyset \\
 &| \; (x:\sigma),\Gamma \\
-&| \; (M=\lbrace \Sigma,\overline{d}\rbrace^{M}), \Gamma \\
-&| \; (S= \overline{\Delta}), \Gamma
+&| \; (M_{i}=\lbrace \Sigma,\overline{d}\rbrace), \Gamma \\
+&| \; (F_{i}=\lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), \Gamma \\
+&| \; (S_{i}= \Sigma), \Gamma
+\end{aligned}
+\begin{aligned}
+\longspace
+\end{aligned}
+\begin{aligned}
+\text{Type-Scheme } \sigma \; ::= \; &\tau \\
+&| \; \forall \alpha . \sigma \\
+\\
+\\
+\end{aligned}
 \end{align*}
-\caption{Contexts in the MiniML type system.}
-\label{fig:Contexts}
+\caption{Type-schemes and contexts in the MiniML type system.}
+\label{fig:Type-schemesAndContexts}
 \end{figure}
 
+We are now in a position to define a few helpful relations between type-schemes, types and contexts: type-scheme specialization and type-scheme generalization.
+
+\subsubsection{Type-scheme specialization}
+The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_{2}$ is more specialised than $\sigma_{1}$. This means that the following rule holds:
+% $\sigma_{2}$ can be expressed as $\forall \beta_{i}...\beta_{m}.\sigma_{2}'$ and $\sigma_{1}$ as $\forall \alpha_{1}...\forall \alpha_{n}.\sigma_{1}'$, $\sigma_{2}$ is more specialised than $\sigma_{1}$ iff $\sigma_{2}'=[\alpha_{i} \mapsto \sigma_{i}]\sigma_{1}'$ and $\beta_{i} \in free(\sigma_{1})$. In other words, 
+%
+
+\[
+\tag{specialization}
+\frac{\tau_{2}=[\alpha_{i} \mapsto \tau_{i}]\tau_{1} \longspace \beta_{i} \not\in\mathit{free(\alpha_{1}...\forall \alpha_{n}.\tau_{1})}}
+{\forall\alpha_{1}...\forall\alpha_{n}.\tau_{1}\geq \forall \beta_{i}...\forall \beta_{m}\tau_{2}'}
+\]
+
+In other words, the quantifier-free ending of the more specialized type-scheme can be obtained by consistently replacing all quantified type variables $\alpha_{i}$ in the more general type-scheme by a type $\tau_{i}$, which can possibly contain type variables itself, resulting in the quantifier-free ending of the more specialized type scheme. Furthermore, only variables that were not free in the more general type-scheme can be bound in the specialized type-scheme.
+
+The first condition gives one the possibility to specify the type of a type variable. This second condition forbids one to \emph{rescope} a type variable in the process.
+
+\subsubsection{Type-scheme generalization}
+Type-scheme generalisation is the opposite process of type-scheme specialization. However, whereas specialization can be expressed independent of the context, whether or not one is allowed to generalize, is dependent on the context. Generalisation allows one to quantify an unquantified variable, as long as it does not appear unquantified in any type expression in the current context.
+
+\[
+\tag{generalization}
+\frac{\Gamma \vdash e:\Sigma \longspace \alpha \not\in \mathit{free(\Gamma)}}{\Gamma \vdash e : \forall \alpha . \sigma}
+\]
+
+
 \subsection{Typing judgements}
-The relations in figure \ref{fig:TypingJudgements} are the typing judgements. They convey the meaning that an expression or other part of the syntax is well-typed in the context $\Gamma$. The typing of a module body and its definitions generates a new typing context $\Gamma'$ for the module. In this resulting context, the declarations must be well-typed.
+To type check our program, the type checker will perform typing judgements. These typing judgements, which can bee seen in figure \ref{fig:TypingJudgements}, are relations between the context and parts of the syntax. They convey the meaning that an expression or other part of the syntax is well-typed in the context $\Gamma$. The typing of a module body and its definitions generates a new typing context $\Gamma'$ for the module. In this resulting context, the declarations must be well-typed.
 
 The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a context $\Gamma$. A context is well-formed if the keyset of the lookup table it represents conforms to the standard notion of a set, meaning every key is used only once.
 
@@ -123,32 +166,8 @@ The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a co
 \label{fig:TypingJudgements}
 \end{figure}
 
-\subsection{Helpful relations}
-Some relationships can be defined over type-schemes, types and contexts: For example,  type-scheme specialization and type-scheme generalization.
-\subsubsection{Type-Scheme specialization}
-The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_{2}$ is more specialised than $\sigma_{1}$. This means that the following rule holds:
-% $\sigma_{2}$ can be expressed as $\forall \beta_{i}...\beta_{m}.\sigma_{2}'$ and $\sigma_{1}$ as $\forall \alpha_{1}...\forall \alpha_{n}.\sigma_{1}'$, $\sigma_{2}$ is more specialised than $\sigma_{1}$ iff $\sigma_{2}'=[\alpha_{i} \mapsto \sigma_{i}]\sigma_{1}'$ and $\beta_{i} \in free(\sigma_{1})$. In other words, 
-%
-
-\[
-\tag{specialization}
-\frac{\tau_{2}=[\alpha_{i} \mapsto \tau_{i}]\tau_{1} \longspace \beta_{i} \not\in\mathit{free(\alpha_{1}...\forall \alpha_{n}.\tau_{1})}}
-{\forall\alpha_{1}...\forall\alpha_{n}.\tau_{1}\geq \forall \beta_{i}...\forall \beta_{m}\tau_{2}'}
-\]
-
-In other words, the quantifier-free ending of the more specialized type-scheme can be obtained by consistently replacing all quantified type variables $\alpha_{i}$ in the more general type-scheme by a type $\tau_{i}$, which can possibly contain type variables itself, resulting in the quantifier-free ending of the more specialized type scheme. Furthermore, only variables that were not free in the more general type-scheme can be bound in the specialized type-scheme.
-
-The first condition gives one the possibility to specify the type of a type variable. This second condition forbids one to \emph{rescope} a type variable in the process.
-
-\subsubsection{Type-Scheme generalization}
-Type-scheme generalisation is the opposite process of Type-Scheme specialization. However, whereas specialization can be expressed independent of the context, whether or not one is allowed to generalize, is dependent on the context. Generalisation allows one to quantify an unquantified variable, as long as it does not appear unquantified in any type expression in the current context.
-
-\[
-\tag{generalization}
-\frac{\Gamma \vdash e:\Sigma \longspace \alpha \not\in \mathit{free(\Gamma)}}{\Gamma \vdash e : \forall \alpha . \sigma}
-\]
-
 \subsection{Rules}
+%\begin{figure}
 \begin{align*}
 &\Gamma \vdash true : bool \tag{T-True} \\
 &\Gamma \vdash false : bool \tag{T-False} \\
@@ -196,28 +215,34 @@ Type-scheme generalisation is the opposite process of Type-Scheme specialization
 {\Gamma \vdash this.id : \tau} \\ 
 \\
 \tag{T-ModVarOther}
-&\frac{\Gamma \vdash \lbrace\Sigma,d\rbrace^{M_{name}} \longspace id:\tau \in \Sigma}
-{\Gamma \vdash \mathit{M_{name}.id} : \tau} \\
+&\frac{M_{i} = \lbrace \Sigma_{i}, \overline{d} \rbrace \in \Gamma \longspace
+\longspace \Gamma \vdash M_{i}
+\longspace id:\tau \in \Sigma_{i}}
+{\Gamma \vdash \mathit{M_{i}.id} : \tau} \\
 \\
 \tag{T-FunctorVar}
-&\frac{\Gamma \vdash \lbrace \Sigma_{1}, \overline{\Sigma_{3}}, \overline{d}\rbrace
+&\frac{F_{i}=\lbrace \Sigma_{1}, \overline{\Sigma_{3}}, \overline{d}\rbrace \in \Gamma
 \longspace
-\overline{\Gamma \vdash \lbrace \Sigma_{2}, \overline{d_{2}}\rbrace}
+\overline{\Gamma \vdash M_{1..n}}
 \longspace
-\overline{\Sigma_{3} \succeq \Sigma_{2}}}
-{\Gamma \vdash \mathit{M_{1}(\overline{\lbrace \Sigma_{2}, \overline{d_{2}}\rbrace}).id}:\tau} \\
+\overline{\Sigma_{3} \succeq M_{1..n}.\Sigma}
+\longspace
+\Gamma \vdash F_{i}(\overline{M_{1..n}})
+\longspace
+id:\tau \in \Sigma_{1}}
+{\Gamma \vdash \mathit{F_{i}(\overline{M_{1..n}}).id}:\tau} \\
 \\
 \tag{T-Module}
-&\frac{\lbrace\Sigma,\overline{d}\rbrace^{M} \in \Gamma
+&\frac{M_{i} = \lbrace\Sigma_{i},\overline{d}\rbrace \in \Gamma
 \longspace
-\emptyset \vdash d \rightarrow \Gamma' \longspace \Gamma' \vdash \Sigma}
-{\Gamma \vdash \lbrace\Sigma,\overline{d}\rbrace^{M}} \\
+\emptyset \vdash \overline{d} \rightarrow \Gamma' \longspace \Gamma' \vdash \Sigma_{i}}
+{\Gamma \vdash M_{i}} \\
 \\
 \tag{T-Functor}
-&\frac{\lbrace\Sigma,\overline{\Sigma_{2}},\overline{d}\rbrace^{M} \in \Gamma
+&\frac{F_{i}=\lbrace\Sigma,\overline{\Sigma_{2}},\overline{d}\rbrace \in \Gamma
 \longspace
-\emptyset \vdash d \rightarrow \Gamma' \longspace \Gamma' \vdash \Sigma}
-{\Gamma \vdash \lbrace\Sigma,\overline{\Sigma_{2}},\overline{d}\rbrace^{M}} \\
+\emptyset \vdash [\overline{M_{1..n} \mapsto M_{arg}}]\overline{d} \rightarrow \Gamma' \longspace \Gamma' \vdash \Sigma}
+{\Gamma \vdash F_{i}(\overline{M_{args}})}\\
 \\
 \tag{T-ModInterfaceField}
 &\frac{(x:\tau) \in \Gamma \longspace \Gamma \vdash \Delta}
@@ -241,6 +266,7 @@ Type-scheme generalisation is the opposite process of Type-Scheme specialization
 &\frac{\Gamma \vdash \Diamond}
 {\Gamma \vdash \emptyset}
 \end{align*}
+%\end{figure}
 \todo{Must specify $\succeq$ to mean the specialization of an interface}
 
 \section{Operational semantics}

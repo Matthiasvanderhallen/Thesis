@@ -1,15 +1,62 @@
-\documentclass[10pt,a4paper,draft]{article}
+\documentclass[10pt,a4paper]{report}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{todonotes}
+\usepackage{listings}
 \begin{document}
-\begin{flushleft}
+
+%\begin{flushleft}
+
+\chapter{A Compilation Example}
+
+The secure compilation scheme is shown from an example program written in the source language, MiniML, which is a subset of the ML language. Its syntax and semantics are reminiscent of those used in Standard ML.
+
+\section{A Cipher In ML}
+Our example program will consist of the definition of a signature that represents symmetric cyphers, a concept used in cryptography. We chose this example since the modules related to cryptography are usually under more scrutiny with regards to the privacy of their internal values. 
+
+\begin{figure}[!htbp]
+\begin{lstlisting}[frame=single]
+signature SYMMETRICCIPHER = sig 
+    type cred
+    val newcredentials : cred
+    val encrypt: int -> cred -> int
+    val decrypt: int -> cred -> int
+end
+
+structure Caesar :> SYMMETRICCIPHER = struct
+    type cred = int
+    fun newcredentials = rand
+    fun encrypt(a,cred) = (a + cred)%26
+    fun decrypt(a, cred) = (a - cred)%26
+    val seed = 3
+    fun rand = time.now * seed
+end
+\end{lstlisting}
+\caption{ML example}
+\label{code:Example}
+\end{figure}
+
+In Figure \ref{code:Example}, we define a signature \texttt{SYMMETRICCIPHER} that describes a module that implements a symmetric cipher. In order to implement a symmetric cipher, one must have a credential, i.e. the key, and two functions, \texttt{encrypt} and \texttt{decrypt}, which take data and credentials. The \texttt{encrypt} function takes the raw data and encodes it in a way only those with knowledge of the correct credentials can later use the \texttt{decrypt} function to transform the encoded data back into the raw data.
+
+The second part of Figure \ref{code:Example} is the definition of a structure called \texttt{Caesar}. This structure provides the \texttt{newcredential}, \texttt{encrypt} and \texttt{decrypt} functions. For internal use it also possesses the necessary characteristics of a pseudorandom number generator, namely a seed value and a rand function that provides a pseudorandom number. It is necessary to hide the seed value from users since this would allow people to predict the output of the pseudorandom number generator.
+
+The \texttt{Caesar} structure is forced to conform to the signature \texttt{SYMMETRICCIPHER} by means of \emph{opaque ascription (\texttt{:>})}. This not only forces the module to implement all the necessary elements of the signature, but it also restricts the means of interaction with the module to those elements that are explicitly mentioned in the interface. It is this notion of \emph{opaque ascription} that dictates what it means for this module to be secure. Concretely, to be secure, this module hides its \texttt{rand} function and its seed value from any outside code, only 
+
+This example can later be broadened so that the \texttt{Caesar} structure becomes a functor that is parameterized to use an external module as its PRNG.
+
+\section{Expected LLVM Intemediate Representation}
+This section introduces the expected LLVM intermediate representation code for the example in Figure \ref{code:Example}. This means the high level abstractions made in MiniML, for example \emph{signatures} and \emph{structures} must be mapped to lower level constructs that are available in the LLVM intermediate representation. In order to focus on the security of the compilation, the more aggressive optimisation capabilities of LLVM will not be used.
+
+
+\chapter{Formal Specification}
+In this chapter the source language, MiniML, will be formally specified. First the syntax within which a program can be defined will be introduced. Next, the typing rules that a correct program must adhere to is shown. Lastly, the operational semantics govern what a correct program must do once it runs.
+
 \section{Syntax}
 \newcommand{\longspace}{\;\;\;\;\;\;}
 \newcommand{\inlinecode}{\texttt}
-We first introduce the syntax of a MiniML program, as seen in figure \ref{fig:Syntax}. A program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists \footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
+First we introduce the syntax of a MiniML program, as seen in figure \ref{fig:Syntax}. A program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists \footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
 This description of a program allows us to first specify a set of signatures as well as a set of module and functors conforming to those signatures.
 \\[2ex]
 A signature $\Sigma$ is a module type and is represented by a list of \emph{declarations}. A declaration $\Delta$ specifies the type of an value identifier or the signature of a module identifier.
@@ -77,21 +124,21 @@ Functors $F_{i}$, presented as a generalization of modules, specify \todo{Is it 
 \label{fig:Syntax}
 \end{figure}
 
-\subsection{Syntax example}
-We now give an example of a syntactically correct MiniML program.
+%\subsubsection{Syntax example}
+%We now give an example of a syntactically correct MiniML program.
 
-\begin{figure}[!htbp]
-\begin{verbatim}
-test
-\end{verbatim}
-\caption{Syntax example}
-\label{code:SyntaxExample}
-\end{figure}
+%\begin{figure}[!htbp]
+%\begin{verbatim}
+%test
+%\end{verbatim}
+%\caption{Syntax example}
+%\label{code:SyntaxExample}
+%\end{figure}
 
-\section{Type system}
+\subsection{Type system}
 Having defined the syntax for MiniML, we are now able to formalize its type system.
 
-\subsection{Type-schemes and contexts}
+\subsubsection{Type-schemes and contexts}
 First, we introduce the concept of a type-scheme, as seen in figure \ref{fig:Type-schemesAndContexts}. A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$. This allows any concrete types $\tau$ to 'match' to the type variable. For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
 
 This concept of a type-scheme will later be used to provide \todo{explain further}let-polymorphism.  Note that the definition of a Type-Scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
@@ -149,7 +196,7 @@ Type-scheme generalisation is the opposite process of type-scheme specialization
 \]
 
 
-\subsection{Typing judgements}
+\subsubsection{Typing judgements}
 To type check our program, the type checker will perform typing judgements. These typing judgements, which can bee seen in figure \ref{fig:TypingJudgements}, are relations between the context and parts of the syntax. They convey the meaning that an expression or other part of the syntax is well-typed in the context $\Gamma$. The typing of a module body and its definitions generates a new typing context $\Gamma'$ for the module. In this resulting context, the declarations must be well-typed.
 
 The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a context $\Gamma$. A context is well-formed if the keyset of the lookup table it represents conforms to the standard notion of a set, meaning every key is used only once.
@@ -166,7 +213,7 @@ The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a co
 \label{fig:TypingJudgements}
 \end{figure}
 
-\subsection{Rules}
+\subsubsection{Rules}
 %\begin{figure}
 \begin{align*}
 &\Gamma \vdash true : bool \tag{T-True} \\
@@ -265,7 +312,7 @@ id:\tau \in \Gamma[F_{i}].\Sigma_{1}}
 %\end{figure}
 \todo{Must specify $\succeq$ to mean the specialization of an interface}
 
-\section{Operational semantics}
+\subsection{Operational semantics}
 \begin{align*}
 \text{Value }v ::=\;&\mathit{num\;n} \; | \; \mathit{true} \; | \; \mathit{false} \\
 &| (v,v) \\
@@ -285,7 +332,7 @@ The module table T allows looking up the definition behind a certain identifier 
 
 The evaluation relation allows the evaluation of an expression $e$ to a (simpler) expression $e'$, while potentially making a lookup in T.
 
-\subsection{Rules}
+\subsubsection{Rules}
 \begin{align*}
 \tag{E-IfTrue}
 &T \vdash if \; true  \; then \; e_{1} \; else \; e_{2} \rightarrow T \vdash e_{1}\\
@@ -338,7 +385,7 @@ let \; p_{1} \; = \; e_{1} \; in \;
 &\frac{\longspace (x=e':\tau) \in T[F_{i}].\overline{d} \longspace e=[M_{1..n} \mapsto M_{args}][this.y\mapsto F_{i}(\overline{M_{args}}).y]e'\;\forall (this.y \in e')}
 {T \vdash F_{1}(\overline{M_{args}}).x \rightarrow T \vdash e}
 \end{align*}
-\todo{How to express the substitution of all references to argument placeholder module names to the modules names given at execution}
-\todo{provide a desugar function}
-\end{flushleft}
+%\todo{How to express the substitution of all references to argument placeholder module names to the modules names given at execution}
+%\todo{provide a desugar function}
+%\end{flushleft}
 \end{document}

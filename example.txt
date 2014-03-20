@@ -1,0 +1,15 @@
+signature SYMMETRICCRYPTO = 
+	sig 
+		opaque type cred
+		val newcredentials : cred
+		val encrypt: string -> cred -> string
+		val decrypt: string -> cred -> string
+	end
+
+structure AES :> SYMMETRICCRYPTO = struct
+	type cred = (int, int)
+	val encrypt =...
+	val decrypt =...
+	val seed = ...
+	val rand = ...
+end

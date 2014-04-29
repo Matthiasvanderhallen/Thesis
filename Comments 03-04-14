@@ -1,0 +1,12 @@
+Chapter 1:
+-Expand on the modules (What does it mean, how are they defined, different files, what does separate unit of compilation means)
+-End of first chapter: wrapup. (We've seen what we expect to be the the compiled version, list key insights)
+
+Chapter 2:
+First section: MiniML
+-Cut some of the things
+-but still give a clear notion and formalization of MiniML.
+
+Second Section: LLVM.
+
+Formalization of the compilation

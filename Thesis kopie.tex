@@ -1,0 +1,605 @@
+\documentclass[10pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{todonotes}
+\usepackage{listings}
+\usepackage[style=mla,babel=hyphen,backend=biber]{biblatex}
+\begin{document}
+
+%\begin{flushleft}
+
+\chapter{A Compilation Example}
+
+This chapter first describes the MiniML source language, a subset of the ML language. Its syntax and semantics are reminiscent of those used in Standard ML. It then introduces an example program that will be used to show the secure compilation scheme. It continues by describing the LLVM intermediate language to which the first translation occurs. In the end the example ML program is translated using the secure compilation scheme and the resulting LLVM code is shown.
+%The secure compilation scheme is shown from an example program written in the source language, MiniML, which is a subset of the ML language. Its syntax and semantics are reminiscent of those used in Standard ML.
+
+\section{MiniML}
+The ML language is a functional programming language, well known for its module system. This module system aims to group data and code together into coherent entities, called the modules.
+
+A \emph{structure} is the most basic type of module. It can be defined using \texttt{struct...end} and provides a set of bindings for types, values and functions. It specifies a name for the binding and the corresponding value, called its implementation. Figure~\ref{code:DictionaryStructureExample} shows how a dictionary of strings to strings might be implemented by a module.
+~
+\begin{figure}[!htb]
+\begin{lstlisting}[frame=single, language=ML]
+structure Dictionary = struct
+   type dictionary = (string, string) list
+   val emptyDictionary = []
+   fun insert(x, y, d) = (x,y)::d
+end
+\end{lstlisting}
+\label{code:DictionaryStructureExample}
+\caption{An example structure showing the definition of a dictionary in ML}
+\end{figure}
+
+Figure~\ref{code:DictionaryStructureExample} first defines a type dictionary, which is defined to be a type synonym for a list of string pairs, a value representing the empty dictionary and a function for inserting data into the dictionary.
+
+Structures provide the possibility of grouping related code and data, fulfilling the need of \emph{encapsulation} in software. However, the need for \emph{data abstraction} is not yet fulfilled.
+
+As it stands, the dictionary type is a type synonym for lists of string pairs, and any such list could be used where a dictionary is expected. However, the concept of a dictionary does not require users to know that the dictionary type is implemented as a list of string pairs. According to the principle of data abstraction, it would be favourable to hide this information from the user of the dictionary module.
+
+Here the idea of a signature comes into play. A signature groups a set of types, values and functions without providing an implementation. It provides a way of abstracting over structures that implement the same logical concept using a different implementation. A possible signature for dictionaries is shown in Figure~\ref{code:SignatureDictionaryExample}.
+~
+\begin{figure}[!htb]
+\begin{lstlisting}[frame=single, language=ML]
+signature DICTIONARYSIGNATURE = sig
+   type dictionary
+   val emptyDictionary : dictionary
+   val insert: string -> string -> dictionary
+end
+\end{lstlisting}
+\caption{An example structure showing the definition of a dictionary in ML}
+\label{code:SignatureDictionaryExample}
+\end{figure}
+
+A signature can guarantee that two implementations of the same logical concepts are interchangeable for each other by standardizing the way an implementation communicates with the other code. It can also abstract the fact that the current implementation for dictionaries uses lists, as well as obscuring any helper methods that the specific implementation defines in order to simplify its inner workings.
+
+This last function of a signature is a way to perform \emph{information hiding}, clearly distinct of the way information hiding is done in Object Oriented languages such as Java. This gives the necessary incentive to study the secure compilation of ML modules.
+
+In order to simplify this study, the ML language is simplified to its core, resulting in the smaller MiniML language. This will, at first, only feature modules. Later on, It will be extended with more advanced concepts of ML, such as functors.
+
+\subsection{A Cipher In ML}
+Figure~\ref{code:Example} presents an example program that consists of the definition of a signature that represents symmetric cyphers, a concept used in cryptography. This example was chosen since the modules related to cryptography are usually under more scrutiny with regards to the privacy of their internal values. 
+
+\begin{figure}[!htb]
+\begin{lstlisting}[frame=single, language=ML]
+signature SYMMETRICCIPHER = sig 
+    type cred
+    val newcredentials : cred
+    val encrypt: int -> cred -> int
+    val decrypt: int -> cred -> int
+end
+
+structure Caesar :> SYMMETRICCIPHER = struct
+    type cred = int
+    fun newcredentials = rand
+    fun encrypt(a,cred) = (a + cred)%26
+    fun decrypt(a, cred) = (a - cred)%26
+    val seed = 3
+    fun rand = time.now * seed
+end
+\end{lstlisting}
+\caption{Example of a security sensitive module specifying and implementing a symmetric cypher.}
+\label{code:Example}
+\end{figure}
+
+The code in Figure~\ref{code:Example} defines a signature \texttt{SYMMETRICCIPHER}. This signature describes the common traits between modules that implement a symmetric cipher.
+
+In order to implement a symmetric cipher, one must have a credential, i.e. the key, and two functions, \texttt{encrypt} and \texttt{decrypt}, which take data and credentials.
+The \texttt{encrypt} function takes the raw data and encodes it in a way only those with knowledge of the correct credentials can later use the \texttt{decrypt} function to transform the encoded data back into the raw data.
+
+The second part of Figure~\ref{code:Example} is the definition of a structure called \texttt{Caesar}. Since \texttt{Caesar} is a symmetric cipher, we expect it to implement the \texttt{SYMMETRICCYPHER} signature.
+In this context, this structure provides the \texttt{newcredential}, \texttt{encrypt} and \texttt{decrypt} functions. For internal use it also possesses the necessary characteristics of a pseudorandom number generator, namely a seed value and a rand function that provides a pseudorandom number. It is necessary to hide the seed value from users since this would allow people to predict the output of the pseudorandom number generator.
+
+The \texttt{Caesar} structure is forced to conform to the signature \texttt{SYMMETRICCIPHER} by means of \emph{opaque ascription (\texttt{:>})}. This not only forces the module to implement all the necessary elements of the signature, but it also restricts the means of interaction with the module to those elements that are explicitly mentioned in the interface. It is this notion of \emph{opaque ascription} that dictates what it means for this module to be secure. Concretely, to be secure, this module hides its \texttt{rand} function and its seed value from any outside code, only allowing the code internal to the structure to access this value or call the function.
+
+%This example can later be broadened so that the \texttt{Caesar} structure becomes a functor that is parameterized to use an external module as its PRNG.
+
+\section{LLVM Intermediate Representation}
+This section introduces the LLVM intermediate representation. It also specifies the expected LLVM intermediate representation code for the example in Figure~\ref{code:Example}.
+
+\subsection{LLVM}
+LLVM, short for \emph{Low Level Virtual Machine} is the name of a project providing many different and closely affiliated utilities concerned with the compilation process. One of the important utilities being used in this work is LLVM's intermediate representation. This intermediate representation is defined in an attempt towards providing a shared abstraction that the compilers of many languages can use. 
+From this point on, any form of optimization can be done on the LLVM intermediate representation, and thus might be shared between the different high-level languages.
+
+When all required optimizations are performed, one can compile the intermediate language into machine code and perform linking of all necessary code. Any special modification necessary to run on specific target platforms can be shared as well. In order to focus on the security of the compilation, the more aggressive optimization capabilities of LLVM will not be used.
+\\[1em]
+The secure compiler for MiniML will translate MiniML code into this intermediate representation.
+
+It is possible to write a program in this LLVM's intermediate representation (LLVM IR) using one of three different and equivalent encodings:
+\begin{itemize}
+\item A bitcode format
+\item Textual assembly language
+\item A symbolic representation
+\end{itemize}
+
+This thesis will use the textual assembly language as representation for LLVM IR programs, because this makes examples and results more understandable and human readable.
+While it is possible to generate LLVM IR programs using the LLVM API, the compiler will generate the human readable intermediate code itself, because it offers more direct control over the resulting translation.
+
+The benefit of LLVM's intermediate representation is not limited to the points mentioned above. The LLVM intermediate representation works at a higher level of abstraction than standard assembly doe. Two important additional aspects make the intermediate representation used by LLVM of a higher level of abstraction than standard assembly code:
+
+Firstly, more information about the program is captured by LLVM than when using regular assembly, using LLVM's type system.
+
+Secondly, for optimization purposes, the LLVM IR adheres to the \emph{static single assigment} paradigm, or \emph{SSA}. This implies that every register can be assigned a value only once. However, this restriction poses no real hindrance to a functional language as MiniML.
+
+\subsection{Translating MiniML concepts to LLVM}
+Compiling from MiniML to LLVM IR means the high level abstractions made in MiniML, for example \emph{signatures} and \emph{structures}, must be mapped to lower level constructs that are available in the LLVM intermediate representation.
+
+\subsubsection{Structures}
+LLVM already provides the concept of a module as a separate unit of compilation. This means that LLVM already provides a way of performing code and data encapsulation:
+
+An LLVM module declares which external functions will be provided by other code, and then continues by defining and implementing its own code and data. LLVM poses no restrictions on the access of data and functions within a single module. When compiling these modules the result is a single object file. Each of these object files is accompanied by a link table specifying which methods are defined, which is used to match the declaration of external functions with their implementation in other object files.
+
+The functionality offered by this concept of a module makes it the right target  to map the different ML structures onto.
+
+\subsubsection{Functions}
+LLVM provides the concept of a function as a basic blocks of code. 
+The concept of a function as a basic building blocks allows us to specify the visibility of these blocks towards outside code. 
+
+When linking the object files that result from the compilation of different modules, LLVM looks for the implementation of externally declared functions in the different object files, keeping into account whether or not the code was in fact declared to be visible outside the module. It is possible to map ML functions directly to their LLVM counterpart.
+
+\subsubsection{Signatures}
+While structures can be mapped directly onto the concept of a module in LLVM, the information provided in signatures will mainly affect metadata in the resulting code or influence the specific implementation of different elements inside the modules.
+
+When a structure is opaquely ascribed, or \emph{sealed} by a signature, we must make sure that the values and functions defined in the structure but not specified in the signature are not externally visible. The first step in protecting these internal functions consists of marking these members as private in the module corresponding to the ML structure. This will filter these members from the object file's link table. %This way these private members are protected from access by any of the external code generated by the same compiler.
+
+%Structures will be mapped onto the different modules, while the information provided in the signatures will mainly affect metadata in the resulting code, or influence the specific implementation of different elements inside the modules.
+
+\subsubsection{Fields}
+
+Translations of the fields happens as global constants within a module. Since their value is unchanging, the \emph{SSA} paradigm poses no real limitation.
+
+\subsection{Translation Example: The Caesar Cipher}
+In order to study the compilation scheme, the example ML code in Figure~\ref{code:Example} is translated to LLVM IR. The translation to LLVM intermediate representation should look like the code in Figure~\ref{llvm:Example}
+
+\begin{figure}[!htb]
+\begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}]
+define i32 @newcredentials(){
+entry:
+   %0 = call i32 @rand()
+   ret i32 %0
+}
+
+define i32 @encrypt(i32, i32) { 
+entry:
+   %x = add i32 %0, %1
+   %y = urem i32 26, %x 
+   ret i32 %y
+}
+
+define i32 @decrypt(i32, i32) { 
+entry:
+   %x = sub i32 %0, %1
+   %y = urem i32 26, %x 
+   ret i32 %y
+}
+
+@.seed = private constant i32 3	
+
+define private i32 @rand() {
+entry:
+   %t = load i32* @.seed
+   ret i32 %t
+}
+\end{lstlisting}
+\caption{LLVM IR for the example}
+\label{llvm:Example}
+\end{figure}
+
+This code, that implicitly is part of a module, consists of a list of \emph{global values}, denoted by the @ sign.
+Every value, be it a global function or a global variable, has a \emph{linkage} type associated with it.
+Linkage types control the accessibility of of variables and functions. The two linkage types in use are \emph{private}, which makes a value only accessible by objects inside the same module, and the default linkage type, \emph{external}.
+
+\vbox{The code specifies 5 different global values, corresponding to the 5 definitions in the \texttt{Caesar} structure:
+\begin{itemize}
+\item \texttt{newcredentials} 
+\item \texttt{encrypt}
+\item \texttt{decrypt}
+\item \texttt{seed}
+\item \texttt{rand}
+\end{itemize}}
+
+\subsubsection{newcredentials}
+The first defined function is the \texttt{newcredentials} function.
+On line 1 in the code of Figure~\ref{llvm:Example}, the function is defined and its return type is declared to be i32, i.e. an integer. Since no linkage type is explictly specified, linkage type `external'  is used.
+
+In its body, it has to perform a call to the rand function, saving the resulting return value. It does so in a temporary local variable called \%0. This is returned using the \emph{ret} assembly function.
+
+\subsubsection{encrypt \& decrypt}
+Next are the \texttt{encrypt} en \texttt{decrypt} functions. The translation starts with the definition on line 7 in the code of Figure~\ref{llvm:Example}.
+
+The definition specifies the return type, as well as the different argument types. Since these are all of type `integer', the type i32 is being used.
+
+The body uses the arguments in two calls to arithmetical assembly functions and returns the result.
+
+\subsubsection{seed}
+Afterwards, the variable \texttt{seed} is translated to a global variable. As the structure is opaquely ascribed by the signature \texttt{SYMMETRICCIPHER}, and the variable \texttt{seed} is not specified in this signature, it should be hidden from any outside components.
+
+To help achieve this protection and mark this information, the linkage type is specified to be \emph{private}.
+
+The definition of \texttt{seed} can be seen on line 21 in the code of Figure~\ref{llvm:Example}
+
+\subsubsection{rand}
+Last, the function \texttt{rand} is defined starting line 23 and onwards in Figure~\ref{llvm:Example}. For the same reasons as the variable \texttt{seed}, its linkage type is set to private.
+
+In its body, it returns the value of the seed. Since all global values are pointers, the pointer must be dereferenced using a load operation, saving the value to a local variable. This value is then returned.
+
+\subsection{Wrap-up}
+
+An introduction to the MiniML language, which was chosen because of its special module system and how it specifies security aspects was given. It will be more formally specified in the next chapter.
+
+Furthermore, LLVM and its intermediate representation was introduced as the target language.
+
+The compilation scheme was described, showing how \emph{structures} can be mapped to LLVM \emph{modules}, followed by a translation of its \emph{fields} and \emph{functions} to global variables and LLVM \emph{functions}.
+
+\emph{Signatures} were shown to have no translation to a single LLVM concept, instead having an influence on the translation of the modules that it \emph{seals} in linkage types and more subtle ways.
+
+\chapter{Formal Specification}
+In this chapter the source language, MiniML, and the target language, LLVM IR, will be formally specified. 
+
+First the syntax of MiniML within which a program can be defined will be introduced. Next, the typing rules that a correct program must adhere to is shown. Lastly, the operational semantics govern what a correct program must do once it runs.
+\section{MiniML}
+\subsection{Syntax}
+\newcommand{\longspace}{\;\;\;\;\;\;}
+\newcommand{\inlinecode}{\texttt}
+First we introduce the syntax of a MiniML program, as seen in figure~\ref{fig:Syntax}. A program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists \footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
+This description of a program allows us to first specify a set of signatures as well as a set of module and functors conforming to those signatures.
+\\[2ex]
+A signature $\Sigma$ is a module type and is represented by a list of \emph{declarations}. A declaration $\Delta$ specifies the type of an value identifier or the signature of a module identifier.
+%\\[2ex] 
+%A module can be seen as a special case of functors. A module specifies a signature and module body and is uniquely identified with an identifier $M_{i}$. The module body is represented as a list of definitions $\overline{d}$. A module $M_{i}$ with body $\overline{d}$ conforms to a signature $S_{i}$ if every identifier in $S_{i}$ has a definition in the module body, and its typing does not violate the one specified in the signature.
+%\\[2ex]
+%Functors $F_{i}$, presented as a generalization of modules, specify \todo{Is it always possible to specify the interface of a module? In our simple system, yes, There can be no problem with opaque types since we don't support them.} their own signature, $S_{i}$, as well as a set of signatures upon which it depends, $\overline{S_{n}}$. It then specifies a functor body in which those modules can be used. The functor can be given a set of modules that conform to the dependent signatures. We say the functor is applied to a set of modules. The result of this application behaves as a module that conforms to the interface $S_{i}$ that the functor specified for itself.
+
+\begin{figure}[!htb]
+\begin{align*}
+\begin{aligned}
+\text{Program} ::= \; & \overline{\mathit{Mod}};\;e\\
+\\
+\text{Value Expression }e \; ::= \; &\mathit{num \; n \;} | \; \mathit{false} \; | \; \mathit{true} \\
+&|\;\mathit{id}  \\
+&|\;\mathit{path.id} \\
+&|\;e_{1}e_{2} \\
+% &|\;(e_{1},e_{2}) \\
+&|\;\lambda(p:\tau)\;.\;e \\
+&|\;\mathit{let }\; p \; = \; e_{1} \; in \; e_{2} \\
+% &|\;\mathit{letrec} \; p \; = \; e_{1} \; in \; e_{2} \\
+&|\; \mathit{if(e_{1}) \; then \; e_{2} \; else \; e_{3}}\\
+% &|\;\mathit{p.left}\; | \; \mathit{p.right} \\
+% &|\;\mathit{fix\;e} \\
+\\
+\text{Identifiers } ::= \; & \; id \\ 
+&|\;M_{i}\\
+% &|\;F_{i}\\
+&|\;S_{i}\\
+\\
+\text{Access Path } \mathit{path} \; ::= \; &\mathit{M_{i}}\\
+% &|\;F_{i}(\overline{\mathit{M_{i}}})\\
+%&|\;\mathit{this}\\
+\\
+\text{Mod Expr } \mathit{me} ::= \; & \mathit{sig} \; S_{i} = \Sigma\\
+&|\; \mathit{mod} \;  M_{i} : S_{i} = \overline{\mathit{d}} \\
+% &|\; \mathit{funct} \; F_{i} (\overline{M_{n}:S_{n}}):S_{i} = \overline{d}\\
+\\
+\end{aligned}
+\begin{aligned}
+\text{Mod Types } \mathit{Mod} ::=\;&\lbrace \Sigma, \overline{\mathit{d}} \rbrace^{M_{i}} \\
+% &|\; \lbrace \Sigma, \overline{\Sigma}, \overline{d} \rbrace^{F_{i}} \\
+\\
+\text{Signature } \Sigma \; ::=\; & \overline{\Delta}\\
+\\
+\text{Declaration } \Delta \; ::=\; & (\mathit{id}:\tau)\\
+& | \; (\mathit{M_{i}}:S_{i})\\
+\\
+\text{Definition } d \; ::= \; &(\mathit{id}=e:\tau)\\
+& | \; (\mathit{M_{i}} = \overline{d} : S_{i}) \\
+\\
+\text{Type }\tau \; ::= \; &nat \\
+&| \; \mathit{bool} \\
+&| \; \tau_{1} \rightarrow \tau_{2} \\
+&| \; \tau_{1} \times \tau_{2} \\
+&| \; \alpha\\
+\\
+\text{Pattern }p \; ::= \; & \mathit{id} \\
+&| \; (p,p)\\
+\\
+\\
+\end{aligned}
+\end{align*}
+\caption{The syntax of MiniML}
+\label{fig:Syntax}
+\end{figure}
+
+%\subsubsection{Syntax example}
+%We now give an example of a syntactically correct MiniML program.
+
+%\begin{figure}[!htbp]
+%\begin{verbatim}
+%test
+%\end{verbatim}
+%\caption{Syntax example}
+%\label{code:SyntaxExample}
+%\end{figure}
+
+\subsection{Type system}
+Having defined the syntax for MiniML, we are now able to formalize its type system.
+
+\subsubsection{Type-schemes and contexts}
+First, we introduce the concept of a type-scheme, as seen in figure~\ref{fig:Type-schemesAndContexts}. A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$. This allows any concrete types $\tau$ to 'match' to the type variable. For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
+
+This concept of a type-scheme will later be used to provide %\todo{explain further}
+let-polymorphism.  Note that the definition of a Type-Scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
+\\[2ex]
+Our type system will also need to keep track of the type assumptions and the module, functor and signature definitions. This represents the notion of a \emph{context}. It is in this context that typing will happen. While type checking, the context is what the type checker uses to keep track of the facts it already knows.
+\\[2ex]
+To access mappings from these contexts, we will introduce projections. For example $\Gamma[M_{i}].\overline{d}$ will look up the mapping $(M_{i} \mapsto \lbrace S,\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping. A lookup will \emph{fail} if the identifier has no mapping in the context.
+
+\begin{figure}[!htb]
+\begin{align*}
+\begin{aligned}
+\text{Context }\Gamma ::=\; &\emptyset \\
+&| \; (x:\sigma),\Gamma \\
+&| \; (M_{i} \mapsto \lbrace \Sigma,\overline{d}\rbrace), \Gamma \\
+% &| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), \Gamma \\
+&| \; (S_{i} \mapsto \Sigma), \Gamma
+\end{aligned}
+\begin{aligned}
+\longspace
+\end{aligned}
+\begin{aligned}
+\text{Type-Scheme } \sigma \; ::= \; &\tau \\
+&| \; \forall \alpha . \sigma \\
+\\
+\\
+\end{aligned}
+\end{align*}
+\caption{Type-schemes and contexts in the MiniML type system.}
+\label{fig:Type-schemesAndContexts}
+\end{figure}
+
+We are now in a position to define a few helpful relations between type-schemes, types and contexts: type-scheme specialization and type-scheme generalization.
+
+\subsubsection{Type-scheme specialization}
+The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_{2}$ is more specialised than $\sigma_{1}$. This means that the following rule holds:
+% $\sigma_{2}$ can be expressed as $\forall \beta_{i}...\beta_{m}.\sigma_{2}'$ and $\sigma_{1}$ as $\forall \alpha_{1}...\forall \alpha_{n}.\sigma_{1}'$, $\sigma_{2}$ is more specialised than $\sigma_{1}$ iff $\sigma_{2}'=[\alpha_{i} \mapsto \sigma_{i}]\sigma_{1}'$ and $\beta_{i} \in free(\sigma_{1})$. In other words, 
+%
+
+\[
+\tag{specialization}
+\frac{\tau_{2}=[\alpha_{i} \mapsto \tau_{i}]\tau_{1} \longspace \beta_{i} \not\in\mathit{free(\alpha_{1}...\forall \alpha_{n}.\tau_{1})}}
+{\forall\alpha_{1}...\forall\alpha_{n}.\tau_{1}\geq \forall \beta_{i}...\forall \beta_{m}\tau_{2}'}
+\]
+
+In other words, the quantifier-free ending of the more specialized type-scheme can be obtained by consistently replacing all quantified type variables $\alpha_{i}$ in the more general type-scheme by a type $\tau_{i}$, which can possibly contain type variables itself, resulting in the quantifier-free ending of the more specialized type scheme. Furthermore, only variables that were not free in the more general type-scheme can be bound in the specialized type-scheme.
+
+The first condition gives one the possibility to specify the type of a type variable. This second condition forbids one to \emph{rescope} a type variable in the process.
+
+\subsubsection{Type-scheme generalization}
+Type-scheme generalisation is the opposite process of type-scheme specialization. However, whereas specialization can be expressed independent of the context, whether or not one is allowed to generalize, is dependent on the context. Generalisation allows one to quantify an unquantified variable, as long as it does not appear unquantified in any type expression in the current context.
+
+\[
+\tag{generalization}
+\frac{\Gamma \vdash e:\Sigma \longspace \alpha \not\in \mathit{free(\Gamma)}}{\Gamma \vdash e : \forall \alpha . \sigma}
+\]
+
+
+\subsubsection{Typing judgements}
+To type check our program, the type checker will perform typing judgements. These typing judgements, which can bee seen in figure~\ref{fig:TypingJudgements}, are relations between the context and parts of the syntax. They convey the meaning that an expression or other part of the syntax is well-typed in the context $\Gamma$. The typing of a module body and its definitions generates a new typing context $\Gamma'$ for the module. In this resulting context, the declarations must be well-typed.
+
+The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a context $\Gamma$. A context is well-formed if the keyset of the lookup table it represents conforms to the standard notion of a set, meaning every key is used only once.
+
+\begin{figure}[!htb]
+\begin{align*}
+\text{ExpressionTyping } ::=\;&\Gamma \vdash e: \sigma \\
+\text{ModuleTyping } ::= \; &\Gamma \vdash \mathit{Mod} \\
+\text{DefinitionTyping } ::= \; &\Gamma \vdash d \rightarrow \Gamma' \\
+\text{DeclarationTyping } ::= \;&\Gamma \vdash \Delta \\
+\text{Well-formedness } ::=\;&\Gamma \vdash \Diamond
+\end{align*}
+\caption{Typing judgements in the MiniML type system.}
+\label{fig:TypingJudgements}
+\end{figure}
+
+\subsubsection{Rules}
+%\begin{figure}
+\begin{align*}
+&\Gamma \vdash true : bool \tag{T-True} \\
+&\Gamma \vdash false : bool \tag{T-False} \\
+&\Gamma \vdash num \; n : nat \tag{T-Num} \\ \\
+\tag{T-Mono}
+&\frac{\sigma \geq \tau \longspace id:\sigma \in \Gamma}{\Gamma \vdash id:\tau}\\ \\
+\tag{T-App}
+&\frac{\Gamma \vdash e_{1}:\tau_{2} \rightarrow \tau_{1} \longspace \Gamma \vdash e_{2}:\tau_{2}}
+{\Gamma \vdash e_{1}e_{2}:\tau_{1}} \\ \\
+\tag{BuildContext1}
+& id:\sigma \rightarrow \emptyset, (id:\sigma) \\ \\
+\tag{BuildContext2}
+&\frac{p_{1}:\sigma_{1} \rightarrow \Gamma_{1} \longspace p_{2}:\sigma_{2}\rightarrow \Gamma_{2}}
+{(p_{1},p_{2}):\sigma_{1}\times \sigma_{2} \rightarrow \Gamma_{1}\cup \Gamma_{2}} \\ \\
+\tag{T-Fun}
+&\frac{p:\tau_{2} \rightarrow \Gamma_{2} \longspace \Gamma_{2} \cup \Gamma_{1} \vdash e:\tau_{1}}
+{\Gamma_{1} \vdash \lambda(p:\tau).e:\tau_{2} \rightarrow \tau_{1}} \\ \\
+\tag{T-IfThenElse}
+&\frac{\Gamma \vdash e_{1}:bool \longspace \Gamma \vdash e_{2}:\tau \longspace \Gamma \vdash e_{3} : \tau}
+{\Gamma \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} : \tau} \\ \\
+%\tag{T-Pair}
+%&\frac{\Gamma \vdash e_{1}:\tau_{1} \longspace \Gamma \vdash e_{2}:%\tau_{2}}
+%{\Gamma \vdash (e_{1},e_{2}) : \tau_{1}\times\tau_{2}} \\ \\
+%\tag{T-PairLeft}
+%&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
+%{\Gamma \vdash \mathit{p.left} : \tau_{1}} \\
+%\\
+% \tag{T-PairRight}
+%&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
+%{\Gamma \vdash \mathit{p.right} : \tau_{2}} \\
+%\\
+\tag{T-Let}
+&\frac{\Gamma \vdash e_{2}:\tau_{2} \;\;\; \sigma=gen(\Gamma,\tau)\;\;\;p:\sigma\rightarrow \Gamma_{2} \;\;\; \Gamma \cup \Gamma_{2} \vdash e_{1}:\tau}
+{\Gamma \vdash let\;p\;=\;e_{2}\;in\;e_{1}:\tau} 
+%\\ \\
+%\tag{T-Letrec}
+%&\frac{\Gamma \vdash let\;p\;=\;\mathit{fix}\;(\lambda p.e_{2})\;in\%;e_{1}:\tau}
+%{\Gamma \vdash letrec\;p\;=\;e_{2}\;in\;e_{1}:\tau} \\ \\
+%\tag{T-Fix}
+%&\frac{\Gamma \vdash e : \tau \rightarrow \tau}
+%{\Gamma \vdash \mathit{fix\;e} : \tau} \\
+%\displaybreak
+\\
+\tag{T-ModVarThis}
+&\frac{\sigma \geq \tau \longspace this.id:\sigma \in \Gamma}
+{\Gamma \vdash this.id : \tau} \\ 
+\\
+\tag{T-ModVarOther}
+&\frac{
+\Gamma \vdash M_{i}
+\longspace id:\tau \in \Gamma[M_{i}].\Sigma}
+{\Gamma \vdash \mathit{M_{i}.id} : \tau} \\
+\\
+%\tag{T-FunctorVar}
+%&\frac{\overline{\Gamma \vdash M_{1..n}}
+%\longspace
+%\overline{\Sigma_{3} \succeq \Gamma[M_{1..n}].\Sigma}
+%\longspace
+%\Gamma \vdash F_{i}(\overline{M_{1..n}})
+%\longspace
+%id:\tau \in \Gamma[F_{i}].\Sigma_{1}}
+%{\Gamma \vdash \mathit{F_{i}(\overline{M_{1..n}}).id}:\tau} \\
+%\\
+\displaybreak
+\tag{T-Module}
+&\frac{
+\emptyset \vdash \Gamma[M_{i}].\overline{d}\rightarrow \Gamma' \longspace \Gamma' \vdash \Gamma[M_{i}].\Sigma_{i}}
+{\Gamma \vdash M_{i}} \\
+\\
+%\tag{T-Functor}
+%&\frac{
+%\emptyset \vdash [\overline{M_{1..n} \mapsto M_{arg}}]\overline{d} \rightarrow \Gamma' \longspace \Gamma' \vdash \Gamma[F_{i}].\Sigma}
+%{\Gamma \vdash F_{i}(\overline{M_{args}})}\\
+\\
+\tag{T-ModInterfaceField}
+&\frac{(x:\tau) \in \Gamma \longspace \Gamma \vdash \Delta}
+{\Gamma \vdash (x:\tau),\Delta}\\
+\\
+\tag{T-ModInterfaceModule}
+&\frac{(M=\lbrace \Sigma_{2}, \overline{d} \rbrace^{M}) \in \Gamma
+\longspace \Sigma_{1} \succeq \Sigma_{2} 
+\longspace \Gamma \vdash \Delta}
+{\Gamma \vdash (M:\Sigma_{1}),\Delta}\\
+\\
+\tag{T-ModBodyV}
+&\frac{ (x:\tau),\Gamma \vdash \overline{d} \rightarrow \Gamma' \longspace \Gamma \vdash e:\tau}
+{\Gamma \vdash (x=e:\tau),\overline{d} \rightarrow (x:\tau),\Gamma'} \\
+\\
+\tag{T-ModBodyM}
+&\frac{\Gamma \vdash \lbrace\Sigma, \overline{d} \rbrace^{M_{i}} }
+{\Gamma \vdash (\mathit{M_{i}=\overline{d}}:\Sigma),\overline{d} \rightarrow (M_{i}=\lbrace \Sigma,\overline{d} \rbrace),\Gamma'} \\
+\\
+\tag{T-EmptySet}
+&\frac{\Gamma \vdash \Diamond}
+{\Gamma \vdash \emptyset}
+\end{align*}
+%\end{figure}
+\todo{Must specify $\succeq$ to mean the specialization of an interface}
+
+\subsection{Operational semantics}
+\begin{align*}
+\text{Value }v ::=\;&\mathit{num\;n} \; | \; \mathit{true} \; | \; \mathit{false} \\
+% &| (v,v) \\
+&| \lambda p.e\\
+\\
+\text{Module Table } T\; ::= \;&\emptyset \\
+&| \; (M_{i} \mapsto \lbrace \Sigma,\overline{d}\rbrace), T \\
+%&| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), T \\
+&| \; (S_{i} \mapsto \Sigma), T\\
+\\
+\text{Evaluation } ::= T \vdash &e \rightarrow T \vdash e' \\
+\end{align*}
+
+The operational semantics defines a module table T, containing mappings from the signature-%, module and functor identifiers to their definition and and the evaluation relation. 
+and module identifiers to their definition and and the evaluation relation. 
+
+The module table T allows looking up the definition behind a certain identifier and accessing a certain part of it using projection. $T[M_{i}].\Sigma$ will give access to the $\Sigma$ in the definition of $M_{i}$. 
+
+The evaluation relation allows the evaluation of an expression $e$ to a (simpler) expression $e'$, while potentially making a lookup in T.
+
+\subsubsection{Rules}
+\begin{align*}
+\tag{E-IfTrue}
+&T \vdash if \; true  \; then \; e_{1} \; else \; e_{2} \rightarrow T \vdash e_{1}\\
+\tag{E-IfFalse}
+&T \vdash if \; false \; then \; e_{1} \; else \; e_{2} \rightarrow T \vdash e_{2}\\ \\
+\tag{E-IfThenElse}
+&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
+{T \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} \rightarrow T \vdash if \; e_{1}' \; then \; e_{2} \; else \; e_{3}}\\ \\
+%\tag{E-PairLeft}
+%&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
+%{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1}',e_{2})} \\ \\
+%\tag{E-PairRight}
+%&\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
+%{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1},e_{2}')} \\ \\
+\tag{E-Let}
+&\frac{T \vdash e_{1}\rightarrow T \vdash e_{1}'}
+{T \vdash let \; p \; = \; e_{1} \; in \; e_{2} \rightarrow T \vdash let \; p \; = \; e_{1}' \; in \; e_{2}}
+\\ \\
+\tag{E-LetV}
+&T \vdash let \; id \; = \; v \; in \; e \rightarrow T \vdash [id \mapsto v]e \\ \\
+%\tag{E-LetRec}
+%& T \vdash letrec\;p=\;e_{1} \; in \; e_{2} \rightarrow T \vdash let \; p \; = %fix(\lambda p.e_{1}') \; in \; e_{2} \\ \\ 
+%\tag{E-Fix}
+%&\frac{T \vdash e\rightarrow T \vdash e'}
+%{T \vdash fix(e) \rightarrow T \vdash fix(e')}\\ \\
+%\tag{E-FixRec}
+%&T \vdash fix(\lambda(p.e)) \rightarrow T \vdash [p \mapsto (fix %(\lambda(p.e))]e \\
+\\
+\tag{E-PatternMatch}
+&T \vdash let \; (p_{1},p_{2}) \; = \; (e_{1},e_{2}) \; in \; e_{3} \rightarrow
+let \; p_{1} \; = \; e_{1} \; in \;
+(let \; p_{2}  \; = \; e_{2} \; in \; e_{3}) \\ \\
+\tag{E-App1}
+&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
+{T \vdash e_{1} e_{2} \rightarrow T \vdash e_{1}' e_{2}}\\ \\
+\tag{E-App2}
+&\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
+{T \vdash v\;e_{2} \rightarrow T \vdash v\;e_{2}'}\\ \\
+\tag{E-Lambda}
+&T \vdash (\lambda x . e) \; v \rightarrow T \vdash [x \mapsto v]e \\ \\
+\tag{E-MatchLambda}
+&T \vdash (\lambda (p_{1},p_{2}) . e_{3}) \; (e_{1},e_{2}) \rightarrow T \vdash (\lambda p_{1}.(\lambda p_{2}.e_{3})\;e_{2})\; e_{1} \\
+%\displaybreak
+\\
+\tag{E-ModVar}
+&\frac{\longspace (x=e':\tau) \in T[M_{i}].\overline{d} \longspace e=[this.y\mapsto M.y]e'\;\forall (this.y \in e')}
+{T \vdash M.x \rightarrow T \vdash e}\\
+\\
+%\tag{E-FunVar}
+%&\frac{\longspace (x=e':\tau) \in T[F_{i}].\overline{d} \longspace %e=[M_{1..n} \mapsto M_{args}][this.y\mapsto F_{i}%(\overline{M_{args}}).y]e'\;\forall (this.y \in e')}
+%{T \vdash F_{1}(\overline{M_{args}}).x \rightarrow T \vdash e}
+\end{align*}
+%\todo{How to express the substitution of all references to argument placeholder module names to the modules names given at execution}
+%\todo{provide a desugar function}
+%\end{flushleft}
+\section{LLVM Intermediate Representation}
+The LLVM Intermediate Representation is a language very reminiscent of assembly. 
+\subsubsection{Syntax}
+In Figure~\ref{fig:LLVMSyntax}, the reduced syntax of LLVM is given\todo{Formalize this citation into the correct style}\todo{Expand the syntax}.\footnote{Taken from "Formalizing the LLVM Intermediate
+Representation for Verified Program
+Transformations"}
+\begin{figure}[!htb]
+\begin{align*}
+\begin{aligned}
+\text{Modules }\mathit{mod} ::= &\overline{\mathit{prod}} \\
+\text{Products }prod ::= & \mathit{global}\ \mathit{typ}\ \mathit{const}\ \mathit{align}\ | \mathit{define\ typ\ id(\overline{arg})\{\overline{b}\}}\\
+&| \mathit{declare\ typ\ id(\overline{arg})} \\
+\text{Types } \mathit{typ} ::= &\mathit{ isz\ |\ void\ |\ typ*\ |\ \left[sz \times typ\right]\ |\ \lbrace\ \overline{typ_{j}}^{j}\ \rbrace\ |\ typ\ \overline{typ_{j}}^{j}\ \rbrace\ | id}
+\end{aligned}
+\end{align*}
+\label{fig:LLVMSyntax}
+\caption{The reduced LLVM Syntax, taken from Jianzhou Zhao et al.}
+\end{figure}
+
+%\text{Types } \mathit{typ\ ::= }&\mathit{ isz | void | typ* | } 
+
+%\end{align*}
+
+
+\end{document}

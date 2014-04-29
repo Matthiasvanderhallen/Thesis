@@ -1,0 +1,11 @@
+compiler: inductive function to programs
+just keep a list of all generated things <-> saving meta data in the structure
+
+	
+Marco Patrignani	10:13 AM
+[[ Mod; e ]] -> _ _
+[[ { S, d:d} ; e ]] ->
+[[ S ]] ;[[ d ]] [[e]]
+[[ num n ]] -> n
+$[[ ]]^{signature $}
+[[ term ]]^s -> llvm term such that s(term) = llvm

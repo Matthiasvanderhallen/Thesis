@@ -1,0 +1,183 @@
+\newcounter{line}
+
+
+\DeclareMathOperator\compat{\ensuremath{\raisebox{1mm}{$\frown$}}}
+\DeclareMathOperator\nsimeq{\ensuremath{\simeq\!\!\!\!\!/\ }}
+\DeclareMathOperator\rbisim{\ensuremath{\mc{R}}} 
+\DeclareMathOperator\impl{\ensuremath{\Rightarrow}} 
+\DeclareMathOperator\teq{\ensuremath{\simeq_{T}}}
+\DeclareMathOperator\nteq{\ensuremath{\nsimeq\!\!_{T}}}
+\DeclareMathOperator\oeq{\ensuremath{\simeq_{O}}}
+\DeclareMathOperator\wbis{\ensuremath{\approx}}
+
+%%%%%%%%%%%%%%%%%%%%% fonts
+\newcommand{\mt}[1]{\ensuremath{\texttt{#1}}}
+\newcommand{\mtt}[1]{\ensuremath{\mathtt{#1}}}
+\newcommand{\mf}[1]{\ensuremath{\mathbf{#1}}}
+\newcommand{\mi}[1]{\ensuremath{\mathit{#1}}}
+\newcommand{\mc}[1]{\ensuremath{\mathcal{#1}}}
+\newcommand{\ms}[1]{\ensuremath{\mathsf{#1}}}
+\newcommand{\mb}[1]{\ensuremath{\mathbb{#1}}}
+
+%%%%%%%%%%%%%%%%%%%%% shorts
+\newcommand{\acron}[0]{\ensuremath{\mbox{FPMAC}}\xspace}
+\newcommand{\acrons}[0]{\ensuremath{\mbox{FPMACs}}\xspace}
+
+\newcommand{\OB}[1]{\ensuremath{\overline{#1}}}
+\newcommand{\subt}[0]{\ensuremath{<:}}
+\newcommand{\xto}[1]{\ensuremath{\xrightarrow{~#1~}}}
+\newcommand{\Xto}[1]{\ensuremath{\xRightarrow{~#1~}}}
+\newcommand{\xtol}[1]{\ensuremath{\xrightarrow{~#1~}\low}}
+\newcommand{\Xtol}[1]{\ensuremath{\xRightarrow{~#1~}\Low}}
+\newcommand{\nXtol}[1]{\ensuremath{\xRightarrow{~#1~}\nLow}}
+\newcommand{\tol}[0]{\ensuremath{\to}} %{\to\low}}
+\newcommand{\low}[0]{\ensuremath{\!\!\!\!\to} }
+\newcommand{\Low}[0]{\ensuremath{\!\!\!\!\Rightarrow} }
+\newcommand{\nLow}[0]{\ensuremath{\!\!\!\!\!\!\!\!/\!\!\Rightarrow} }
+\newcommand{\da}[0]{\ensuremath{^{\downarrow}}}
+\newcommand{\ua}[1]{\ensuremath{\uparrow\!\!(#1)}}
+\newcommand{\Ua}[0]{\ensuremath{\Uparrow}}
+\newcommand{\myset}[2]{\ensuremath{\{#1 ~|~ #2\}}}
+\newcommand{\sta}[1]{\ensuremath{\widehat{#1}}}
+
+\newcommand{\toli}[0]{\ensuremath{\to^{\!\!\!\!\!i}\ }}
+\newcommand{\tole}[0]{\ensuremath{\to^{\!\!\!\!\!e}\ }}
+
+
+\newcommand{\jjr}[0]{Java~Jr.\xspace}
+
+\newcommand{\divr}[0]{\ensuremath{\!\!\Uparrow\xspace}}
+
+\newcommand{\totr}[1]{\ensuremath{\lfloor #1 \rfloor}}
+\newcommand{\toex}[1]{\ensuremath{\lceil #1 \rceil}}
+
+\newcommand{\fun}[2]{\ensuremath{\mtt{#1}(#2)}}
+\newcommand{\dom}[1]{\ensuremath{\fun{dom}{#1}}}
+\newcommand{\mex}[1]{\ensuremath{\fun{m_{ext}}{#1}}}
+\newcommand{\mse}[1]{\ensuremath{\fun{m_{sec}}{#1}}}
+\newcommand{\stu}[0]{\ensuremath{^{\bot}\xspace}}
+\newcommand{\ldiv}[0]{\ensuremath{^{\Uparrow L}\xspace}}
+
+\newcommand{\assline}[1]{\arabic{line}~~ \mtt{#1}\stepcounter{line}}
+
+\newcommand{\sps}[0]{\ms{SP_{sec}}\xspace}
+\newcommand{\spe}[0]{\ms{SP_{ext}}\xspace}
+
+\newcommand{\TL}[1]{\ensuremath{\ms{Tr}(#1)}}
+\newcommand{\trl}[0]{\ensuremath{\ms{Tr^L}}\xspace}
+\newcommand{\trs}[0]{\ensuremath{\ms{Tr^S}}\xspace}
+
+\newcommand{\blk}[0]{\ensuremath{(\ms{unknown},m,s)}\xspace}
+
+\newcommand{\comm}[1]{}
+%%%%%%%%%%%%%%%%%%%%%%%% typing & rules 
+\newcommand{\typerule}[3]{\ensuremath{\begin{array}{c}\textsf{\scriptsize ({#1})} \\#2 \\\hline\raisebox{-3pt}{\ensuremath{#3}}\end{array}}}
+
+\newcommand{\raisedrule}[2][0em]{\leaders\hbox{\rule[#1]{1pt}{#2}}\hfill}
+
+\newcommand{\toprule}[1]{\begin{center}\vspace{1mm}\noindent\raisedrule{0.3mm}\ \raisebox{-0.5ex}{\emph{#1}} \raisedrule{0.3mm}\!\raisedrule{0.3mm}\!\raisedrule{0.3mm}}
+
+\newcommand{\botrule}{\vspace*{2mm}\HRule\end{center}}
+
+\newcommand{\HRule}[0]{\rule{\linewidth}{0.3mm}\vspace*{-1mm}}%\rule{\linewidth}{0.3mm}}
+
+%%%%%%%%%%%%%%%%%%%%%%%% misc
+\newcommand{\MP}[1]{\todo[color=blue!30]{TODO:#1}}
+\newcommand{\myparagraph}[1]{\smallskip \noindent\noindent\textit{#1.}~~}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%% environments
+\newtheorem{assumption}{Assumption}
+\newtheorem{notation}{Notation}
+
+
+\newenvironment{proofsketch}{\trivlist\item[]\emph{Proof Sketch}.\xspace}{\unskip\nobreak\hskip 1em plus 1fil\nobreak$\Box$\parfillskip=0pt\endtrivlist}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%% pictures
+\pgfdeclarelayer{background}
+\pgfdeclarelayer{back2}
+\pgfdeclarelayer{foreground}
+\pgfsetlayers{background,back2,main,foreground}
+
+\newcommand{\tikzpic}[1]{
+\begin{tikzpicture}[shorten >=1pt,auto,node distance=6mm,rounded corners]
+\tikzstyle{state} =[fill=white,minimum size=4pt]
+#1
+\end{tikzpicture}
+}
+\newcommand{\myfig}[3]{\begin{figure} [!h]
+#1
+\caption{\label{fig:#2}#3}
+\end{figure}}
+
+\newcommand{\myfigb}[3]{\begin{figure} [!b]
+#1
+\caption{\label{fig:#2}#3}
+\end{figure}}
+
+%%%%%%%%%%%%%    Easier way to use references   
+\newcommand{\customref}[2]{\hyperref[#2]{#1~\ref*{#2}}}
+
+\newcommand{\myref}[2]{%
+  \ifthenelse{\equal{#1}{lst}}{\customref{Listing}{#2}}{
+  \ifthenelse{\equal{#1}{fig}}{\customref{Fig.}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{def}}{\customref{Definition}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{lem}}{\customref{Lemma}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{thm}}{\customref{Theorem}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{not}}{\customref{Notation}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{prop}}{\customref{Proposition}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{ax}}{\customref{Axiom}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{ex}}{\customref{Example}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{propr}}{\customref{Property}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{ass}}{\customref{Assumption}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{tab}}{\customref{Table}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{sec}}{\hyperref[#2]{Section~\ref*{#2}}}{%
+  \ifthenelse{\equal{#1}{eq}}{\hyperref[#1:#2]{Equation~(\ref*{#1:#2})}}{%
+    \ifthenelse{\equal{#1}{for}}{\hyperref[#1:#2]{Formula~(\ref*{#1:#2})}}{%
+  \autoref{#1:#2}%
+  }}}}}}}}}}}}}}}}
+  
+  
+%use only when citing Example 1 and 2.  The Example 1 is cited with \myref, in order to obtain the right 2, use \myrefdrop
+\newcommand{\myrefand}[2]{%
+  \ifthenelse{\equal{#1}{fig}}{\customref{}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{def}}{\customref{}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{lem}}{\customref{}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{not}}{\customref{}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{thm}}{\customref{}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{prop}}{\customref{}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{ax}}{\customref{}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{ex}}{\customref{}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{propr}}{\customref{}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{ass}}{\customref{}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{tab}}{\customref{}{#1:#2}}{%
+    \ifthenelse{\equal{#1}{lis}}{\customref{}{#1:#2}}{%
+  \ifthenelse{\equal{#1}{sec}}{\hyperref[#1:#2]{\ref*{#1:#2}}}{%
+  \ifthenelse{\equal{#1}{eq}}{\hyperref[#1:#2]{(\ref*{#1:#2})}}{%
+    \ifthenelse{\equal{#1}{for}}{\hyperref[#1:#2]{(\ref*{#1:#2})}}{%
+  \autoref{#1:#2}%
+  }}}}}}}}}}}}}}}}
+  
+\newcommand{\etal}[0]{\textit{et al.}\xspace} 
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%listing options
+\lstdefinelanguage{Java} %thanks to whoever did this
+{morekeywords={abstract, all, and, as, assert, but, check, disj, else, exactly, extends, fact, for, fun, iden, if, iff, implies, in, Int, int, let, lone, module, no, none, not, one, open, or, part, pred, run, seq, set, sig, some, sum, then, univ, package, class, public, private, null, return, new, interface, extern, object, implements, System, static},
+sensitive=true,morecomment=[l][\small\itshape]{--},morecomment=[l][\small\itshape]{//},morecomment=[s][\small\itshape]{/*}{*/},basicstyle=\small,
+%basicstyle=\ttfamily,
+numbers=left,numberstyle=\scriptsize,tabsize=2,numbersep=3pt,breaklines=true,lineskip=-2pt,stepnumber=1,captionpos=b,breaklines=true,breakatwhitespace=false,showspaces=false,showtabs=false,
+%frame=single,
+columns=fullflexible,escapeinside={(*@}{@*)},
+literate={->}{{$\to$}}1 {^}{{$\mspace{-3mu}\widehat{\quad}\mspace{-3mu}$}}1
+{<}{$<$ }2 {>}{$>$ }2 {>=}{$\geq$ }2 {=<}{$\leq$ }2
+{<:}{{$<\mspace{-3mu}:$}}2 {:>}{{$:\mspace{-3mu}>$}}2
+{=>}{{$\Rightarrow$ }}2 {+}{$+$ }2 {++}{{$+\mspace{-8mu}+$ }}2
+{<=>}{{$\Leftrightarrow$ }}2 {+}{$+$ }2 {++}{{$+\mspace{-8mu}+$ }}2
+{\~}{{$\mspace{-3mu}\widetilde{\quad}\mspace{-3mu}$}}1
+{!=}{$\neq$ }2 {*}{${}^{\ast}$}1 %{.}{$\cdot$}1
+{\#}{$\#$}1
+}
+\lstset{language=Java,numbersep=5pt,frame=single}

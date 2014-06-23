@@ -9,12 +9,13 @@
 
 \begin{document}
 %\newcommand{\emphref}[1]{\emph{}}
+\newcommand{\lsttext}[1]{\lstinline$#1$}
 %\begin{flushleft}
 
 \chapter{A Compilation Example}
 
-This chapter firstly describes the MiniML source language (\emph{Section} \ref{sec:MiniML}), a subset of the ML language whose syntax and semantics are reminiscent of those of Standard ML. \emph{Section} \ref{sec:MLExample} then introduces an example program that will be used to show the secure compilation scheme. This chapter continues by describing the LLVM intermediate language to which the first translation occurs (\emph{Section} \ref{sec:LLVM}). This chapter concludes by translating the earlier proposed example program, showing the resulting LLVM code.
-%The secure compilation scheme is shown from an example program written in the source language, MiniML, which is a subset of the ML language. Its syntax and semantics are reminiscent of those used in Standard ML.
+This chapter firstly describes the \mbox{MiniML} source language (\emph{Section} \ref{sec:MiniML}), a subset of the ML language whose syntax and semantics are reminiscent of those of Standard ML. \emph{Section} \ref{sec:MLExample} then introduces an example program that will be used to show the secure compilation scheme. This chapter continues by describing the LLVM intermediate language to which the first translation occurs (\emph{Section} \ref{sec:LLVM}). This chapter concludes by translating the earlier proposed example program, showing the resulting LLVM code.
+%The secure compilation scheme is shown from an example program written in the source language, \mbox{MiniML}, which is a subset of the ML language. Its syntax and semantics are reminiscent of those used in Standard ML.
 
 \section{MiniML\label{sec:MiniML}}
 The ML language is a functional programming language which is well known for its module system. This module system aims to group data and code together into coherent entities, called the modules.
@@ -35,7 +36,7 @@ As it stands, the dictionary type is a type synonym for lists of string pairs, a
 
 Here the idea of a signature comes into play. A signature groups a set of types, values and functions without providing an implementation. It provides a way of abstracting over structures that implement the same logical concept using a different implementation. A possible signature for dictionaries is shown in Listing~\ref{code:SignatureDictionaryExample}.
 ~
-\begin{lstlisting}[frame=single, language=ML, caption=An example structure showing the definition of a dictionary in ML, label=code:SignatureDictionaryExample, numbers=left]
+\begin{lstlisting}[frame=single, language=ML, caption=An example signature showing the declaration of a dictionary in ML, label=code:SignatureDictionaryExample, numbers=left]
 signature DICTIONARYSIGNATURE = sig
    type dictionary
    val emptyDictionary : dictionary
@@ -45,9 +46,9 @@ end
 
 A signature guarantees that two implementations of the same logical concepts are interchangeable for each other by standardizing the way an implementation communicates with the other code. It can also abstract the fact that the current implementation for dictionaries uses lists, as well as obscuring any helper methods that the specific implementation defines in order to simplify its internal workings. This last functionality of a signature is a way to perform \emph{information hiding}.
 
-%In order to simplify this study, the ML language is simplified to its core, resulting in the smaller MiniML language. This will, at first, only feature modules. Later on, It will be extended with more advanced concepts of ML, such as functors.
+%In order to simplify this study, the ML language is simplified to its core, resulting in the smaller \mbox{MiniML} language. This will, at first, only feature modules. Later on, It will be extended with more advanced concepts of ML, such as functors.
 
-The MiniML fragment discussed here was chosen to encorporate the idea of modules, more complex language features will be added later.
+The \mbox{MiniML} fragment discussed here was chosen to encorporate the idea of modules, more complex language features will be added later.
 
 \section{A Cipher In ML\label{sec:MLExample}}
 Figure~\ref{code:Example} presents an example program that consists of the definition of a signature that represents symmetric cyphers, a concept used in cryptography. This example was chosen since the modules related to cryptography are usually under more scrutiny with regards to the privacy of their internal values.
@@ -80,7 +81,7 @@ The \texttt{Caesar} structure is forced to conform to the signature \texttt{SYMM
 
 %This example can later be broadened so that the \texttt{Caesar} structure becomes a functor that is parameterized to use an external module as its PRNG.
 
-\section{LLVM Intermediate Representation}
+\section{LLVM Intermediate Representation \label{sec:LLVM}}
 This section introduces the LLVM intermediate representation. It also specifies the expected LLVM intermediate representation code for the example in Figure~\ref{code:Example}.
 
 \subsection{LLVM}
@@ -89,7 +90,7 @@ From this point on, any form of optimization can be done on the LLVM intermediat
 
 When all required optimizations are performed, one can compile the intermediate language into machine code and perform linking of all necessary code. Any special modification necessary to run on specific target platforms can be shared as well. In order to focus on the security of the compilation, the more aggressive optimization capabilities of LLVM will not be used.
 \\[1em]
-The secure compiler for MiniML will translate MiniML code into this intermediate representation.
+The secure compiler for \mbox{MiniML} will translate \mbox{MiniML} code into this intermediate representation.
 It is possible to write a program in this LLVMs intermediate representation (LLVM IR) using one of three different and equivalent encodings:
 \begin{itemize}
 \item A bitcode format
@@ -104,13 +105,13 @@ The benefit of LLVMs intermediate representation is not limited to the points me
 
 \begin{description}
 \item[Type System] More information about the program is captured by LLVM than when using regular assembly, using LLVMs type system
-\item[SSA] For optimization purposes, the LLVM IR adheres to the \emph{static single assigment} paradigm, or \emph{SSA}. This implies that every register can be assigned a value only once. However, this restriction poses no real hindrance to a functional language as MiniML
+\item[SSA] For optimization purposes, the LLVM IR adheres to the \emph{static single assigment} paradigm, or \emph{SSA}. This implies that every register can be assigned a value only once. However, this restriction poses no real hindrance to a functional language as \mbox{MiniML}
 \item[Register Limitations]  The LLVM intermediate representation abstracts away the fact that real architectures have only a given amount of registers. Instead, one can write a program assuming an infinite amount of registers. This results in many more variables in use than available registers.
 In a later compilation stage this consequence is remedied using the technique of \emph{spilling}. Variable spilling occurs by mapping the variables in use to the smaller set of available registers, saving all variables that could not be assigned to a register in RAM memory in the stack.\todo{This is important for the secure compilation (clearing registers after function calls end). It might be necessary to rework this subsection to stress this more.}
 \end{description}
 
 \subsection{Translating MiniML concepts to LLVM}
-Compiling from MiniML to LLVM IR means the high level abstractions made in MiniML, for example \emph{signatures} and \emph{structures}, must be mapped to lower level constructs that are available in the LLVM intermediate representation. This section presents these different mappings.
+Compiling from \mbox{MiniML} to LLVM IR means the high level abstractions made in \mbox{MiniML}, for example \emph{signatures} and \emph{structures}, must be mapped to lower level constructs that are available in the LLVM intermediate representation. This section presents these different mappings.
 
 \begin{description}
 \item[Structures]
@@ -147,31 +148,45 @@ In order to study the compilation scheme, the example ML code in Figure~\ref{cod
 \begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption=LLVM IR for the example,
 label=llvm:Example]
 define i32 @newcredentials(){
-entry:
-   %0 = call i32 @rand()
-   ret i32 %0
+	%0 = call i32 @newcredentials_internal()
+	ret i32 %0
 }
 
-define i32 @encrypt(i32, i32) { 
+define private i32 @newcredentials_internal(){
+	%0 = call i32 @rand()
+	ret i32 %0
+}
+
+define i32 @encrypt(i32, i32) {
+	%2 = call @encrypt_internal(%0, %1)
+	ret i32 %2
+}
+
+define private i32 @encrypt_internal(i32, i32) { 
 entry:
-   %x = add i32 %0, %1
-   %y = urem i32 26, %x 
-   ret i32 %y
+	%x = add i32 %0, %1
+	%y = urem i32 26, %x 
+	ret i32 %y
 }
 
 define i32 @decrypt(i32, i32) { 
+	%2 = call @decrypt_internal(%0, %1)
+	ret i32 %2
+}
+
+define private i32 @decrypt_internal(i32, i32) { 
 entry:
-   %x = sub i32 %0, %1
-   %y = urem i32 26, %x 
-   ret i32 %y
+	%x = sub i32 %0, %1
+	%y = urem i32 26, %x 
+	ret i32 %y
 }
 
 @.seed = private constant i32 3	
 
 define private i32 @rand() {
 entry:
-   %t = load i32* @.seed
-   ret i32 %t
+	%t = load i32* @.seed
+	ret i32 %t
 }
 \end{lstlisting}
 
@@ -179,47 +194,38 @@ This code, that implicitly is part of a module, consists of a list of \emph{glob
 Every value, be it a global function or a global variable, has a \emph{linkage} type associated with it.
 Linkage types control the accessibility of of variables and functions. The two linkage types in use are \texttt{private}, which makes a value only accessible by objects inside the same module, and the default linkage type, \texttt{external}.
 
-\vbox{The code specifies 5 different global values, corresponding to the 5 definitions in the \texttt{Caesar} structure:
-\begin{itemize}
-\item \texttt{newcredentials} 
-\item \texttt{encrypt}
-\item \texttt{decrypt}
-\item \texttt{seed}
-\item \texttt{rand}
-\end{itemize}}
+The code in Listing \ref{llvm:Example} specifies 5 different global values, corresponding to the 5 definitions in the \texttt{Caesar} structure:
+\begin{description}
+\item[newcredentials] The first translated function is the \texttt{newcredentials} function.
+On lines 1-4 in the code of Figure~\ref{llvm:Example}, a proxy for the function is defined and its return type is declared to be i32, i.e. an integer. Since no linkage type is explictly specified, linkage type `external'  is used.
 
-\subsubsection{newcredentials}
-The first defined function is the \texttt{newcredentials} function.
-On line 1 in the code of Figure~\ref{llvm:Example}, the function is defined and its return type is declared to be i32, i.e. an integer. Since no linkage type is explictly specified, linkage type `external'  is used.
+This proxy acts as a wrapper around the real translation of \texttt{newcredentials} that can be seen on lines 6-9. This proxy is the entry point to the function that is made available to the untrusted code. This proxy can perform the security precautions that have to be taken when taking values from or returning values to the untrusted code.
 
-In its body, it has to perform a call to the rand function, saving the resulting return value. It does so in a temporary local variable called \%0. This is returned using the \emph{ret} assembly function.
+The body of the internal function \texttt{newcredentials\_internal} implements the functionality of the ML \texttt{newcredentials} function.
+\texttt{newcredentials\_internal} performs a call to the rand function, saving the resulting return value. It does so in a temporary local variable called \%0. This is returned using the \emph{ret} assembly function.
 
-\subsubsection{encrypt \& decrypt}
-Next are the \texttt{encrypt} en \texttt{decrypt} functions. The translation starts with the definition on line 7 in the code of Figure~\ref{llvm:Example}.
+\item[encrypt \& decrypt] Next are the \texttt{encrypt} en \texttt{decrypt} functions. The translation starts with the definition on line 11 in the code of Listing~\ref{llvm:Example}. Again, as these functions are available in ML for untrusted code, proxies are provided as entry points where security precautions can be made. These can be found on lines 11-14 and 23-26. The internal functions can be found on lines 16-21 and 28-33.
 
-The definition specifies the return type, as well as the different argument types. Since these are all of type `integer', the type i32 is being used.
+The definition of these proxies as well as the internal functions specify the return type, as well as the different argument types. Since these are all of type `integer', the type i32 is being used.
 
-The body uses the arguments in two calls to arithmetical assembly functions and returns the result.
-
-\subsubsection{seed}
-Afterwards, the variable \texttt{seed} is translated to a global variable. As the structure is opaquely ascribed by the signature \texttt{SYMMETRICCIPHER}, and the variable \texttt{seed} is not specified in this signature, it should be hidden from any outside components.
+The body of the internal function uses the arguments in two calls to arithmetical assembly functions and returns the result.
+\item[seed] The variable \texttt{seed} is translated to a global variable. As the structure is opaquely ascribed by the signature \texttt{SYMMETRICCIPHER}, and the variable \texttt{seed} is not specified in this signature, it should be hidden from any outside components.
 
 To help achieve this protection and mark this information, the linkage type is specified to be \emph{private}.
 
-The definition of \texttt{seed} can be seen on line 21 in the code of Figure~\ref{llvm:Example}
-
-\subsubsection{rand}
-Last, the function \texttt{rand} is defined starting line 23 and onwards in Figure~\ref{llvm:Example}. For the same reasons as the variable \texttt{seed}, its linkage type is set to private.
+The definition of \texttt{seed} can be seen on line 35 in the code of listing~\ref{llvm:Example}
+\item[rand] The function \texttt{rand} is defined starting line 23 and onwards in Figure~\ref{llvm:Example}. For the same reasons as the variable \texttt{seed}, its linkage type is set to private. It also follows that no proxy is necessary for the \texttt{rand} function.
 
 In its body, it returns the value of the seed. Since all global values are pointers, the pointer must be dereferenced using a load operation, saving the value to a local variable. This value is then returned.
+\end{description}
 
 \subsection{MiniML-specific security concerns}
 
 \subsubsection{Register Clearing}
-Any communication in MiniML normally only occurs through information passed along by returns and method calls.
+Any communication in \mbox{MiniML} normally only occurs through information passed along by returns and method calls.
 In the case of low level architecture however, all communication occurs through the unprotected memory, through flags and through the CPU registers.  This means that a low level attacker can try to perform side channel communication.
 
-In order to prevent the leaking of protected data through side channels, it is important to ensure that the information passed through unprotected memory, flags and registers is restricted to that information being passed by the returns and method calls in MiniML.
+In order to prevent the leaking of protected data through side channels, it is important to ensure that the information passed through unprotected memory, flags and registers is restricted to that information being passed by the returns and method calls in \mbox{MiniML}.
 Thus, any callback or return to untrusted code must:
 \begin{itemize}
 \item Clear the flags
@@ -234,7 +240,7 @@ Furthermore, the LLVM IR does not know how many registers it can use, instead as
 
 \subsubsection{Opaque types}
 
-The MiniML language allows a programmer to define ones own types using the type keyword. Taking another look at the Dictionary example of Figure \ref{code:DictionaryStructureExample}, this happens for example on line 2. The modules internal representation of a dictionary is a list of string pairs, but clearly this is some internal choice that the programmer does not want to make explicit, which is why the type synonym 'dictionary' is kept opaque, as can be seen in Figure \ref{code:SignatureDictionaryExample}, line 2, where the external specification of a type is not revealed to be a list of string pairs.
+The \mbox{MiniML} language allows a programmer to define ones own types using the type keyword. Taking another look at the Dictionary example of Figure \ref{code:DictionaryStructureExample}, this happens for example on line 2. The modules internal representation of a dictionary is a list of string pairs, but clearly this is some internal choice that the programmer does not want to make explicit, which is why the type synonym 'dictionary' is kept opaque, as can be seen in Figure \ref{code:SignatureDictionaryExample}, line 2, where the external specification of a type is not revealed to be a list of string pairs.
 
 This is a means of information hiding, if someone were to later rewrite this dictionary structure in such a way that its internal representation becomes a pair of string lists, as in Figure , this would be a perfectly valid change. This change should not result in any changes to the external code, since the specific implementation choice for the dictionary type was not made explicit.
 
@@ -258,29 +264,29 @@ This restriction can be enforced if the code creating a dictionary never returns
 
 \todo{The explanation of why extra type information might prove necessary. However: The argument must be presented in a more careful manner. Furthermore, this also depends on whether a separate list is being used per type or not. If a separate list is being used anyway, instead of a central list of masked objects, then the extra type information proves unnecessary, or rather, it is already implicitly available.}
 
-\subsection{Wrap-up}
+\section{Lessons learnt}
 
-An introduction to the MiniML language, which was chosen because of its special module system and how it specifies security aspects was given. It will be more formally specified in the next chapter.
+This chapter gave an introduction to the \mbox{MiniML} language, which was chosen because of its special module system and how it specifies security aspects. Formalizing the \mbox{MiniML} language semantics will be the topic of \label{chapter:formalspecification}.
 
 Furthermore, LLVM and its intermediate representation was introduced as the target language.
 
-The compilation scheme was described, showing how \emph{structures} can be mapped to LLVM \emph{modules}, followed by a translation of its \emph{fields} and \emph{functions} to global variables and LLVM \emph{functions}.
+The chapter proceeded by describing the compilation scheme, showing how \emph{structures} can be mapped to LLVM \emph{modules}, followed by a translation of its \emph{fields} and \emph{functions} to global variables and LLVM \emph{functions}.
 
 \emph{Signatures} were shown to have no translation to a single LLVM concept, instead having an influence on the translation of the modules that it \emph{seals} in linkage types and more subtle ways.
 
-In order to prevent side channel communication, it is necessary to clear registers and flags when calling or returning to any external code.
+The chapter concluded with a discussion about preventing side channel communication, which makes it necessary to clear registers and flags when calling or returning to any external code.
 
-The existence of opaque types in MiniML means that objects of these opaque types can only be created by methods inside the module that declares the type synonym. To ensure this, the use of masking and the tracking of type information proved necessary.
+The existence of opaque types in \mbox{MiniML} means that objects of these opaque types can only be created by methods inside the module that declares the type synonym. To ensure this, the use of masking and the tracking of type information proved necessary.
 
-\chapter{Formal Specification}
-In this chapter the source language, MiniML, and the target language, LLVM IR, will be formally specified. 
+\chapter{Formal Specification \label{chapter:formalspecification}}
+In this chapter the source language, \mbox{MiniML}, and the target language, LLVM IR, will be formally specified. 
 
-First the syntax of MiniML within which a program can be defined will be introduced. Next, the typing rules that a correct program must adhere to is shown. Lastly, the operational semantics govern what a correct program must do once it runs.
+First the syntax of \mbox{MiniML} within which a program can be defined will be introduced. Next, the typing rules that a correct program must adhere to is shown. Lastly, the operational semantics govern what a correct program must do once it runs.
 \section{MiniML}
 \subsection{Syntax}
 \newcommand{\longspace}{\;\;\;\;\;\;}
 \newcommand{\inlinecode}{\texttt}
-First we introduce the syntax of a MiniML program, as seen in figure~\ref{fig:Syntax}. A program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists \footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
+First we introduce the syntax of a \mbox{MiniML} program, as seen in figure~\ref{fig:Syntax}. A program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists \footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
 This description of a program allows us to first specify a set of signatures as well as a set of module and functors conforming to those signatures.
 \\[2ex]
 A signature $\Sigma$ is a module type and is represented by a list of \emph{declarations}. A declaration $\Delta$ specifies the type of an value identifier or the signature of a module identifier.
@@ -294,7 +300,7 @@ A signature $\Sigma$ is a module type and is represented by a list of \emph{decl
 \begin{aligned}
 \text{Program} ::= \; & \overline{\mathit{Mod}};\;e\\
 \\
-\text{Value Expression }e \; ::= \; &\mathit{num \; n \;} | \; \mathit{false} \; | \; \mathit{true} \\
+\text{Value Expression }e \; ::= \; &\mathit{num \; n \;} % | \; \mathit{false} \; | \; \mathit{true} \\
 &|\;\mathit{id}  \\
 &|\;\mathit{path.id} \\
 &|\;e_{1}e_{2} \\
@@ -302,7 +308,7 @@ A signature $\Sigma$ is a module type and is represented by a list of \emph{decl
 &|\;\lambda(p:\tau)\;.\;e \\
 &|\;\mathit{let }\; p \; = \; e_{1} \; in \; e_{2} \\
 % &|\;\mathit{letrec} \; p \; = \; e_{1} \; in \; e_{2} \\
-&|\; \mathit{if(e_{1}) \; then \; e_{2} \; else \; e_{3}}\\
+%&|\; \mathit{if(e_{1}) \; then \; e_{2} \; else \; e_{3}}\\
 % &|\;\mathit{p.left}\; | \; \mathit{p.right} \\
 % &|\;\mathit{fix\;e} \\
 \\
@@ -333,10 +339,10 @@ A signature $\Sigma$ is a module type and is represented by a list of \emph{decl
 & | \; (\mathit{M_{i}} = \overline{d} : S_{i}) \\
 \\
 \text{Type }\tau \; ::= \; &nat \\
-&| \; \mathit{bool} \\
+% &| \; \mathit{bool} \\
 &| \; \tau_{1} \rightarrow \tau_{2} \\
-&| \; \tau_{1} \times \tau_{2} \\
-&| \; \alpha\\
+% &| \; \tau_{1} \times \tau_{2} \\
+% &| \; \alpha\\
 \\
 \text{Pattern }p \; ::= \; & \mathit{id} \\
 &| \; (p,p)\\
@@ -349,7 +355,7 @@ A signature $\Sigma$ is a module type and is represented by a list of \emph{decl
 \end{figure}
 
 %\subsubsection{Syntax example}
-%We now give an example of a syntactically correct MiniML program.
+%We now give an example of a syntactically correct \mbox{MiniML} program.
 
 %\begin{figure}[!htbp]
 %\begin{verbatim}
@@ -360,7 +366,7 @@ A signature $\Sigma$ is a module type and is represented by a list of \emph{decl
 %\end{figure}
 
 \subsection{Type system}
-Having defined the syntax for MiniML, we are now able to formalize its type system.
+Having defined the syntax for \mbox{MiniML}, we are now able to formalize its type system.
 
 \subsubsection{Type-schemes and contexts}
 First, we introduce the concept of a type-scheme, as seen in figure~\ref{fig:Type-schemesAndContexts}. A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$. This allows any concrete types $\tau$ to 'match' to the type variable. For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
@@ -645,8 +651,76 @@ Transformations"}
 \begin{align*}
 \begin{aligned}
 \compile{\bar{S};\bar{M};e} \makes \compile{\bar{M}}^{\bar{S}};\compile{e}\\ 
-\compile{\bar{M}}^{\bar{S}}\makes \compile{M_{i};S_{i} = \bar{d}};\compile{\bar{M}}^{\bar{S}}\\
-\compile{M_{i}:S_{i} = \bar{d}} \makes \compile{\bar{d}}^{S_{i}} \mathit{\ with\ } S_{i} \in \bar{S}
+\compile{\bar{M}}^{\bar{S}}\makes \compile{M_{i}:S_{i} = \bar{d}};\compile{\bar{M}}^{\bar{S}}\\
+\compile{M_{i}:S_{i} = \bar{d}} \makes \compile{\bar{d}}^{S_{i}} \mathit{\ with\ } S_{i} \in \bar{S} \\
+\compile{d:\bar{d}}^{S_{i}} \makes \compile{d}^{S_{i}};\compile{\bar{d}}^{S_{i}}
 \end{aligned}
 \end{align*}
+
+\chapter{Advanced ML Concepts}
+
+This chapter extends the capabilities of the subset of the ML language. Section~\ref{sec:HOF} introduces \emph{higher-order functions} and discusses how they can be compiled securely. Afterwards, Section~\ref{sec:Functors} explains \emph{functors} and their addition to the high-level language. This chapter continues by showing how the concepts learned while adding higher-order functions can aid the implementation of functors in Section~\ref{sec:Functors}. The impact of these additions to the language is reviewed.
+
+\section{Higher-Order Functions\label{sec:HOF}}
+
+A \emph{higher-order function} is a function that allows other functions to be given as an input or returns a function as its output. \mbox{MiniML} does this by treating functions as first-class values, meaning that functions represent an entity that can be passed around as a parameter or return value and can be assigned to a variable.
+
+Since \mbox{MiniML} uses lexical scoping, functions can be defined as shown in Listing \ref{code:LexicalScopingExample}. The function \lsttext{addCurried} takes an argument \lsttext{x} and as a result returns another function, which makes it a higher order function. The function \lsttext{innerFunction} has access to the non-local or free variable \lsttext{x}, even though it is not defined in the local scope.
+
+\begin{lstlisting}[frame=single, language=ML,caption=The use of lexical scoping calls for closures., label=code:LexicalScopingExample,numbers=left]
+fun addCurried x = 
+  let innerFunction y = x + y in innerFunction
+\end{lstlisting}
+\label{code:LexicalScopingExample}
+
+This raises the need to add the concept of \emph{closures} to \mbox{MiniML}. A closure extends upon the simple function reference by coupling it with a \emph{referencing environment}. 
+When a function is created using a call to \lsttext{addCurried} and possibly saved in a variable to call it later on, this function must be able to access the variable \lsttext{x} that was given as a parameter to \lsttext{addCurried}.
+The function entity created and possibly saved in a variable in other words must keep track of the non-local variables it has access to.
+This list of non-local variables and their values is called the \emph{referencing environment}.
+
+It is possible for these free-variables to be complex data such as arrays or abstract data types, for example the Dictionary from Listing \ref{code:DictionaryStructureExample}. 
+
+The origin of free-variables of the higher-order function could be trusted or untrusted code alike, just as the function can be defined in either trusted or untrusted code.
+This allows for a case by case analysis of the four distinct combinations of pointer and variable(s).
+
+\subsection{Insecure Free-Variables For A Secure Pointer}
+If a closure is created with free-variables stemming from untrusted code, the values of these free-variables should be copied to the referencing environment inside the closure. 
+This need arises because the low level code could otherwise change the value of the free-variable at any time, as it would be located inside untrusted memory, even mid-execution of the higher-order function.
+Listing \ref{code:CopyFreeVariables} gives an example of two functions that are vulnerable to this kind of attack.
+
+\begin{lstlisting}[frame=single, language=ML,caption=Changing Free-Variables inside untrusted memory mid-execution can break contextual equivalence., label=code:CopyFreeVariables,numbers=left]
+fun generateClosure1 freevar =
+  let innerFunction x =
+    (let b = freevar
+    in x + callback 2 + b)
+  in innerFunction
+
+fun generateClosure2 freevar = 
+  let innerFunction x = x + callback 2 + freevar
+  in innerFunction
+\end{lstlisting}
+\label{code:CopyFreeVariables}
+
+The two functions shown in Listing~\ref{code:CopyFreeVariables} are contextually equivalent in \mbox{MiniML}, but whose compiled versions are not contextually equivalent if the free-variables from untrusted code are not copied to the trusted memory. An attack can be set up that distinguishes a module using \lsttext{generateClosure1} from one using \lsttext{generateClosure2} as follows: after calling the closure, the context forces execution to temporarily revert to the unsafe code, for example using a context switch in a multithreaded environment. The context uses this opportunity to change the value of \lsttext{freevar} in the unprotected memory. If the implementation of \lsttext{generateClosure1} was used, then the result of the closure application depends on when exactly execution was temporarily switched to the attackers' context. If this happened after copying the value of \lsttext{freevar} to \lsttext{b}, which is saved in protected memory, then the result of the closure will not reflect the change of value of \lsttext{freevar} by the attackers' context. If the execution switch happens before this copying of \lsttext{freevar} into protected memory, then the result will be computed using the changed value for \lsttext{freevar}.
+In contrast, and thereby breaking contextual equivalence, a version using  \lsttext{generateClosure2} never copies the value of \lsttext{freevar} into protected memory, and therefore the result of the closure will allways be computed using the changed value of \lsttext{freevar}. This breaks contextual equivalence of the compiled code.
+
+This problem is effectively mitigated by ensuring that every value is copied to the secure environment, conforming to a value-passing call semantic.
+
+%what if the free-variable IS a reference. Then we must follow the reference chain all the way?!
+
+\subsection{Cross-boundary Passing Of A Secure Closure }
+If an SPM would pass a closure generated inside its body to the untrusted code, the untrusted code could change the value of the function pointer or inspect or change the values saved in the referencing environment.
+
+Each of these actions break contextual equivalence:
+\begin{description}
+\item[change pointer value] The pointer to the code might be changed to code that makes certain assumptions about the structure used to implement abstract data types. This way, the context could discern between contextually equivalent SPMs in which the assumptions may or may not hold.
+\item[inspect environment values]
+Assumptions about the way abstract data types are structured can be checked by inspecting the environment values.
+\item[change environment values] Changing values in the reference environment allows an attacker to discern between higher order functions which first copy their free-variables and higher order functions that do not, as shown in listing \ref{code:CopyFreeVariables}
+\end{description}
+
+As a result, the closure entity itself should not be passed across the boundary between the SPM and the trusted code. Instead, the closure should be masked, and its corresponding pointer in the masking map is passed to the untrusted code instead.
+In order to later execute the closure, the SPM offers an \emph{closure-evaluation entry point}. This entry point first takes a pointer to a closure in the masking map. Then, because it is located within the SPM, the entry point is able to jump to the function pointer specified by the closure and run the function code.
+
+\section{Functors\label{sec:Functors}}
 \end{document}

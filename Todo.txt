@@ -1,0 +1,1 @@
+Wat met Sharing Constraints? Kunnen er sharing constraints optreden tussen 1 module die secure is, en 1 aangeleverd door de attacker?

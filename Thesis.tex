@@ -4,13 +4,17 @@
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{todonotes}
+\usepackage{hyperref}
 \usepackage{listings}
 \usepackage[style=mla,babel=hyphen,backend=biber]{biblatex}
 
+\input{./tex/cmds}
+
 \begin{document}
 %\newcommand{\emphref}[1]{\emph{}}
-\newcommand{\lsttext}[1]{\lstinline$#1$}
+\newcommand{\lsttext}[1]{\lstinline{#1}}
 %\begin{flushleft}
+
 
 \chapter{A Compilation Example}
 
@@ -659,13 +663,21 @@ Transformations"}
 
 \chapter{Advanced ML Concepts}
 
-This chapter extends the capabilities of the subset of the ML language. Section~\ref{sec:HOF} introduces \emph{higher-order functions} and discusses how they can be compiled securely. Afterwards, Section~\ref{sec:Functors} explains \emph{functors} and their addition to the high-level language. This chapter continues by showing how the concepts learned while adding higher-order functions can aid the implementation of functors in Section~\ref{sec:Functors}. The impact of these additions to the language is reviewed.
+This chapter extends the capabilities of the subset of the ML language. \myref{sec}{sec:HOF} introduces \emph{higher-order functions} and discusses how they can be compiled securely. Afterwards, \myref{sec}{sec:Functors} explains \emph{functors} and their addition to the high-level language. This chapter continues by showing how the concepts learned while adding higher-order functions can aid the low-level implementation of functors in \myref{sec}{sec:Functors}.
+%The impact of these additions to the language is reviewed.
 
 \section{Higher-Order Functions\label{sec:HOF}}
 
 A \emph{higher-order function} is a function that allows other functions to be given as an input or returns a function as its output. \mbox{MiniML} does this by treating functions as first-class values, meaning that functions represent an entity that can be passed around as a parameter or return value and can be assigned to a variable.
 
-Since \mbox{MiniML} uses lexical scoping, functions can be defined as shown in Listing \ref{code:LexicalScopingExample}. The function \lsttext{addCurried} takes an argument \lsttext{x} and as a result returns another function, which makes it a higher order function. The function \lsttext{innerFunction} has access to the non-local or free variable \lsttext{x}, even though it is not defined in the local scope.
+\subsection{Lexical Scoping And Closures}
+An example of a higher-order function is shown in \myref{lst}{code:LexicalScopingExample}. 
+The function \lsttext{addCurried} takes an argument \lsttext{x} and as a result returns another function.
+Therefore, \lsttext{addCurried} is a higher-order function.
+
+Since \mbox{MiniML} uses what in literature is known as \emph{lexical scoping}, the function that addCurried returns is allowed access to the non-local or free variable \lsttext{x}, even though it is not defined within the local scope of the function, because its defined scope \emph{lexically surrounds} the definition of the function.
+
+%Since \mbox{MiniML} uses lexical scoping, functions can be defined as shown in \emph{Listing} \ref{code:LexicalScopingExample}. The function \lsttext{addCurried} takes an argument \lsttext{x} and as a result returns another function. Therefore, it is a higher-order function. The function \lsttext{innerFunction} has access to the non-local or free variable \lsttext{x}, even though it is not defined in the local scope.
 
 \begin{lstlisting}[frame=single, language=ML,caption=The use of lexical scoping calls for closures., label=code:LexicalScopingExample,numbers=left]
 fun addCurried x = 
@@ -673,22 +685,23 @@ fun addCurried x =
 \end{lstlisting}
 \label{code:LexicalScopingExample}
 
-This raises the need to add the concept of \emph{closures} to \mbox{MiniML}. A closure extends upon the simple function reference by coupling it with a \emph{referencing environment}. 
+This raises the need to add the concept of \emph{closures} to \mbox{MiniML}.
+A closure consists of a simple function reference, together with a referencing environment which contains all the different free variables that are available through the lexical scoping rules.
 When a function is created using a call to \lsttext{addCurried} and possibly saved in a variable to call it later on, this function must be able to access the variable \lsttext{x} that was given as a parameter to \lsttext{addCurried}.
 The function entity created and possibly saved in a variable in other words must keep track of the non-local variables it has access to.
 This list of non-local variables and their values is called the \emph{referencing environment}.
 
-It is possible for these free-variables to be complex data such as arrays or abstract data types, for example the Dictionary from Listing \ref{code:DictionaryStructureExample}. 
+It is possible for these free variables to be complex data such as arrays or abstract data types, for example the Dictionary from \myref{lst}{code:DictionaryStructureExample}. 
 
-The origin of free-variables of the higher-order function could be trusted or untrusted code alike, just as the function can be defined in either trusted or untrusted code.
+The origin of free variables of the higher-order function could be trusted or untrusted code alike, just as the function can be defined in either trusted or untrusted code.
 This allows for a case by case analysis of the four distinct combinations of pointer and variable(s).
 
-\subsection{Insecure Free-Variables For A Secure Pointer}
-If a closure is created with free-variables stemming from untrusted code, the values of these free-variables should be copied to the referencing environment inside the closure. 
-This need arises because the low level code could otherwise change the value of the free-variable at any time, as it would be located inside untrusted memory, even mid-execution of the higher-order function.
-Listing \ref{code:CopyFreeVariables} gives an example of two functions that are vulnerable to this kind of attack.
+\subsubsection{Insecure Free Variables For A Secure Pointer}
+If a closure is created with free variables stemming from untrusted code, the values of these free variables should be copied to the referencing environment inside the closure. 
+This need arises because the low level code could otherwise change the value of the free variable at any time, as it would be located inside untrusted memory, even mid-execution of the higher-order function.
+\myref{lst}{code:CopyFreeVariables} gives an example of two functions that are vulnerable to this kind of attack.
 
-\begin{lstlisting}[frame=single, language=ML,caption=Changing Free-Variables inside untrusted memory mid-execution can break contextual equivalence., label=code:CopyFreeVariables,numbers=left]
+\begin{lstlisting}[frame=single, language=ML,caption=Changing Free Variables inside untrusted memory mid-execution can break contextual equivalence., label=code:CopyFreeVariables,numbers=left]
 fun generateClosure1 freevar =
   let innerFunction x =
     (let b = freevar
@@ -701,12 +714,35 @@ fun generateClosure2 freevar =
 \end{lstlisting}
 \label{code:CopyFreeVariables}
 
-The two functions shown in Listing~\ref{code:CopyFreeVariables} are contextually equivalent in \mbox{MiniML}, but whose compiled versions are not contextually equivalent if the free-variables from untrusted code are not copied to the trusted memory. An attack can be set up that distinguishes a module using \lsttext{generateClosure1} from one using \lsttext{generateClosure2} as follows: after calling the closure, the context forces execution to temporarily revert to the unsafe code, for example using a context switch in a multithreaded environment. The context uses this opportunity to change the value of \lsttext{freevar} in the unprotected memory. If the implementation of \lsttext{generateClosure1} was used, then the result of the closure application depends on when exactly execution was temporarily switched to the attackers' context. If this happened after copying the value of \lsttext{freevar} to \lsttext{b}, which is saved in protected memory, then the result of the closure will not reflect the change of value of \lsttext{freevar} by the attackers' context. If the execution switch happens before this copying of \lsttext{freevar} into protected memory, then the result will be computed using the changed value for \lsttext{freevar}.
-In contrast, and thereby breaking contextual equivalence, a version using  \lsttext{generateClosure2} never copies the value of \lsttext{freevar} into protected memory, and therefore the result of the closure will allways be computed using the changed value of \lsttext{freevar}. This breaks contextual equivalence of the compiled code.
+The two functions shown in \myref{lst}{code:CopyFreeVariables} are contextually equivalent in \mbox{MiniML}.
+Their compiled versions however are not contextually equivalent unless the free variables from untrusted code are copied to the trusted memory.
+If no copying of free variables occures, an attacker could set distinguish a module using \lsttext{generateClosure1} from one using \lsttext{generateClosure2} using the following attack:
+\begin{enumerate}
+\item After calling the closure, the attacker forces execution to temporarily be passed back to the unsafe code.
+This is achieved in \myref{lst}{code:CopyFreeVariables} by means of the callback function. 
+Even when no callbacks are available, in a more powerful language providing a multithreaded environment such an execution passing can be forced using a context switch.
+\item The context uses this opportunity and the fact that \lsttext{freevar} is saved in unprotected memory to change the value of \lsttext{freevar}. This not possible in the high-level language, but the low-level language provides no guarantees whatsoever against modification of the unprotected memory.
+\item If the implementation of \lsttext{generateClosure1} was used, then the result of the closure application depends on when exactly execution was temporarily switched to the attackers' context.
+If this happened after copying the value of \lsttext{freevar} to \lsttext{b}, which is saved in protected memory, then the result of the closure will not reflect the change of value of \lsttext{freevar} by the attackers context.
+If the execution switch happens before this copying of \lsttext{freevar} into protected memory, then the result will be computed using the changed value of \lsttext{freevar}.
+
+In contrast, a version using  \lsttext{generateClosure2} never copies the value of \lsttext{freevar} into protected memory. 
+Therefore the result of the closure will allways be computed using the changed value of \lsttext{freevar}.
+\end{enumerate}
+
+The attack described above shows that it is possible to manipulate the low-level versions of the code of \myref{lst}{code:CopyFreeVariables} in such a way that the two different functions do not give the same result. 
+Consequently, this means that the contextual equivalence of the compiled code is broken, whereas the high-level code is unaffected by the attack.
+Surely, the high
 
 This problem is effectively mitigated by ensuring that every value is copied to the secure environment, conforming to a value-passing call semantic.
 
 %what if the free-variable IS a reference. Then we must follow the reference chain all the way?!
+
+\subsubsection{Secure Free Variables For A Secure Pointer}
+
+\subsubsection{Insecure Free Variables For An Insecure Pointer}
+
+\subsubsection{Secure Free Variables For An Insecure Pointer}
 
 \subsection{Cross-boundary Passing Of A Secure Closure }
 If an SPM would pass a closure generated inside its body to the untrusted code, the untrusted code could change the value of the function pointer or inspect or change the values saved in the referencing environment.
@@ -716,7 +752,7 @@ Each of these actions break contextual equivalence:
 \item[change pointer value] The pointer to the code might be changed to code that makes certain assumptions about the structure used to implement abstract data types. This way, the context could discern between contextually equivalent SPMs in which the assumptions may or may not hold.
 \item[inspect environment values]
 Assumptions about the way abstract data types are structured can be checked by inspecting the environment values.
-\item[change environment values] Changing values in the reference environment allows an attacker to discern between higher order functions which first copy their free-variables and higher order functions that do not, as shown in listing \ref{code:CopyFreeVariables}
+\item[change environment values] Changing values in the reference environment allows an attacker to discern between higher order functions which first copy their free variables and higher order functions that do not, as shown in \myref{lst}{code:CopyFreeVariables}.
 \end{description}
 
 As a result, the closure entity itself should not be passed across the boundary between the SPM and the trusted code. Instead, the closure should be masked, and its corresponding pointer in the masking map is passed to the untrusted code instead.

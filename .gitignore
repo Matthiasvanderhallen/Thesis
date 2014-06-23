@@ -15,3 +15,5 @@
 *.ind
 *.synctex.gz
 /UAI/
+
+/ocaml-4.01.0/

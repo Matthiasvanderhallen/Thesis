@@ -122,6 +122,7 @@
 \newcommand{\customref}[2]{\hyperref[#2]{#1~\ref*{#2}}}
 
 \newcommand{\myref}[2]{%
+  \ifthenelse{\equal{#1}{chap}}{\customref{Chapter}{#2}}{
   \ifthenelse{\equal{#1}{lst}}{\customref{Listing}{#2}}{
   \ifthenelse{\equal{#1}{fig}}{\customref{Fig.}{#1:#2}}{%
   \ifthenelse{\equal{#1}{def}}{\customref{Definition}{#1:#2}}{%
@@ -138,7 +139,7 @@
   \ifthenelse{\equal{#1}{eq}}{\hyperref[#1:#2]{Equation~(\ref*{#1:#2})}}{%
     \ifthenelse{\equal{#1}{for}}{\hyperref[#1:#2]{Formula~(\ref*{#1:#2})}}{%
   \autoref{#1:#2}%
-  }}}}}}}}}}}}}}}}
+  }}}}}}}}}}}}}}}}}
   
   
 %use only when citing Example 1 and 2.  The Example 1 is cited with \myref, in order to obtain the right 2, use \myrefdrop

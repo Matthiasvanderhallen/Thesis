@@ -16,11 +16,11 @@
 \newcommand{\surroundrule}[2][0.3em]{
 \leavevmode\raisedrule[#1]{1pt}#2\raisedrule[#1]{1pt}}
 
-\newenvironment{attack}[1]{\par\noindent\hspace{-1ex}\surroundrule{#1}\vspace{-0.5em}\par\par}{\vspace{0.5em}\par\par\noindent\leavevmode\raisedrule[1em]{1pt}\\}
+\newenvironment{attack}[1]{\par\par\noindent\hspace{-1ex}\surroundrule{#1}\vspace{-0.5em}\par\par}{\vspace{0.5em}\par\par\noindent\leavevmode\raisedrule[1em]{1pt}\\}
 %\begin{flushleft}
 
 
-\chapter{A Compilation Example}
+\chapter{A Compilation Example\label{chap:ACompilationExample}}
 
 This chapter firstly describes the \mbox{MiniML} source language (\emph{Section} \ref{sec:MiniML}), a subset of the ML language whose syntax and semantics are reminiscent of those of Standard ML. \emph{Section} \ref{sec:MLExample} then introduces an example program that will be used to show the secure compilation scheme. This chapter continues by describing the LLVM intermediate language to which the first translation occurs (\emph{Section} \ref{sec:LLVM}). This chapter concludes by translating the earlier proposed example program, showing the resulting LLVM code.
 %The secure compilation scheme is shown from an example program written in the source language, \mbox{MiniML}, which is a subset of the ML language. Its syntax and semantics are reminiscent of those used in Standard ML.
@@ -700,6 +700,11 @@ It is possible for these free variables to be complex data such as arrays or abs
 The origin of free variables of the higher-order function could be trusted or untrusted code alike, just as the function can be defined in either trusted or untrusted code.
 This allows for a case by case analysis of the four distinct combinations of pointer and variable(s).
 
+\subsubsection{Secure Free Variables For A Secure Pointer}
+
+In this case, the code that is executed when the closure is called runs within the \emph{SPM} itself.
+The \emph{function pointer} and the \emph{referencing environment} are both in secure memory and are protected from any tampering by the low-level access control model and the checking performed upon compilation.
+
 \subsubsection{Insecure Free Variables For A Secure Pointer}
 If a closure is created with free variables stemming from untrusted code, the values of these free variables should be copied to the referencing environment inside the closure. 
 This need arises because the low level code could otherwise change the value of the free variable at any time, as it would be located inside untrusted memory, even mid-execution of the higher-order function.
@@ -722,6 +727,7 @@ The two functions shown in \myref{lst}{code:CopyFreeVariables} are contextually 
 Their compiled versions however are not contextually equivalent unless the free variables from untrusted code are copied to the trusted memory.
 If no copying of free variables occures, an attacker could set distinguish a module using \lsttext{generateClosure1} from one using \lsttext{generateClosure2} using the following attack:
 
+
 \begin{attack}{Call-by-value Attack}
 \begin{enumerate}
 \item After calling the closure, the attacker forces execution to temporarily be passed back to the unsafe code.
@@ -742,29 +748,48 @@ The attack described above shows that it is possible to manipulate the low-level
 Consequently, this means that the contextual equivalence of the compiled code is broken, whereas the high-level code is unaffected by the attack.
 After all, the high-level language doesn't allow the memory location of the parameter that was passed to be changed which is a necessary access right to perform step two of the attack.
 
-This problem is effectively mitigated by ensuring that every value is copied to the secure environment, conforming to a value-passing call semantic.
+This problem is effectively mitigated by ensuring that upon \emph{application} of the closure every value is copied to the secure environment, conforming to a value-passing call semantic.
+
+%Todo: Remark that this is necessary for complex data in regular function calling as well.
 
 %Todo: what if the free-variable IS a reference. Then we must follow the reference chain all the way?! No, we follow high-level semantics, and Ref's make MiniML storage aware. ≈If a Reference to storage is created by the attackers context, and this reference is passed as a parameter, it is okay for the attacker to change the value in the storage location, as long as the location remains the same. 
 
-\subsubsection{Secure Free Variables For A Secure Pointer}
-
 \subsubsection{Insecure Free Variables For An Insecure Pointer}
+
+This combination entails no interaction between the attackers context and the \emph{SPM} beyond the regular means of function calling.
+This means that it is not necessary to introduce security measures beyond those discussed in the previous chapters.
+How closures and their values are represented is only important to the extent to which implementation for this case and the other cases might be shared by tackling the problem in a generic way.
 
 \subsubsection{Secure Free Variables For An Insecure Pointer}
 
+As stated in \myref{chap}{chap:ACompilationExample}, objects created by secure code should not leave the safety of secure memory provided by the low-level acces control model.
+Instead, these values passed must be masked and represented in the insecure code by their masking index.
+These same measures are of course necessary when working within the context of closures.
+As long as we obey these measures, and represent secure free variables in the referencing environment by their masking index, they are not susceptible to tampering, illegal disclosure or any other manipulation attacks.
+The only way to interact with these secure free variables is by passing them as parameters to modifying functions from within the \emph{SPM}.
+This analysis shows that the added power of closures does not require any new security measures for this interaction between \emph{SPM} and the attackers context.
+
+
 \subsection{Cross-boundary Passing Of A Secure Closure }
-If an SPM would pass a closure generated inside its body to the untrusted code, the untrusted code could change the value of the function pointer or inspect or change the values saved in the referencing environment.
+If an SPM would pass a closure generated inside its body to the untrusted code, the untrusted code could change the value of the function pointer and inspect or change the values saved in the referencing environment.
 
 Each of these actions break contextual equivalence:
 \begin{description}
-\item[change pointer value] The pointer to the code might be changed to code that makes certain assumptions about the structure used to implement abstract data types. This way, the context could discern between contextually equivalent SPMs in which the assumptions may or may not hold.
+\item[change pointer value] The pointer to the code might be changed to code that makes certain assumptions about the structure used to implement abstract data types.
+This way, the context could discern between contextually equivalent SPMs in which the assumptions may or may not hold.
 \item[inspect environment values]
 Assumptions about the way abstract data types are structured can be checked by inspecting the environment values.
 \item[change environment values] Changing values in the reference environment allows an attacker to discern between higher order functions which first copy their free variables and higher order functions that do not, as shown in \myref{lst}{code:CopyFreeVariables}.
 \end{description}
 
-As a result, the closure entity itself should not be passed across the boundary between the SPM and the trusted code. Instead, the closure should be masked, and its corresponding pointer in the masking map is passed to the untrusted code instead.
-In order to later execute the closure, the SPM offers an \emph{closure-evaluation entry point}. This entry point first takes a pointer to a closure in the masking map. Then, because it is located within the SPM, the entry point is able to jump to the function pointer specified by the closure and run the function code.
+As a result, the closure entity itself should not be passed across the boundary between the SPM and the trusted code.
+Instead, the closure should be masked, and its corresponding pointer in the masking map is passed to the untrusted code.
+In order to later execute the closure, the SPM should offer an \emph{closure-evaluation entry point}.
+This entry point first takes a pointer to a closure in the masking map.
+Then, because it is located within the SPM, the entry point is able to jump to the function pointer specified by the closure and run the function code.
+
+\subsubsection{The Closure-Evaluation Entry Point}
+
 
 \section{Functors\label{sec:Functors}}
 \end{document}

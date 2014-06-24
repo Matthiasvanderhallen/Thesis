@@ -1,5 +1,6 @@
 \newcounter{line}
 
+\newcommand{\raiseline}[3][0em]{\leaders\hbox{\rule[#1]{1pt}{#2}}\hfill}
 
 \DeclareMathOperator\compat{\ensuremath{\raisebox{1mm}{$\frown$}}}
 \DeclareMathOperator\nsimeq{\ensuremath{\simeq\!\!\!\!\!/\ }}
@@ -73,7 +74,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%% typing & rules 
 \newcommand{\typerule}[3]{\ensuremath{\begin{array}{c}\textsf{\scriptsize ({#1})} \\#2 \\\hline\raisebox{-3pt}{\ensuremath{#3}}\end{array}}}
 
-\newcommand{\raisedrule}[2][0em]{\leaders\hbox{\rule[#1]{1pt}{#2}}\hfill}
+%\newcommand{\raisedrule}[2][0em]{\leaders\hbox{\rule[#1]{1pt}{#2}}\hfill}
+\newcommand{\raisedrule}[2][0em]{\leavevmode\leaders\hbox{\rule[#1]{1pt}{#2}}\hfill\kern0pt}
 
 \newcommand{\toprule}[1]{\begin{center}\vspace{1mm}\noindent\raisedrule{0.3mm}\ \raisebox{-0.5ex}{\emph{#1}} \raisedrule{0.3mm}\!\raisedrule{0.3mm}\!\raisedrule{0.3mm}}
 

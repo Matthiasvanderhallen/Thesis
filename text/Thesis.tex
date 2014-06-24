@@ -13,6 +13,10 @@
 \begin{document}
 %\newcommand{\emphref}[1]{\emph{}}
 \newcommand{\lsttext}[1]{\lstinline{#1}}
+\newcommand{\surroundrule}[2][0.3em]{
+\leavevmode\raisedrule[#1]{1pt}#2\raisedrule[#1]{1pt}}
+
+\newenvironment{attack}[1]{\par\noindent\hspace{-1ex}\surroundrule{#1}\vspace{-0.5em}\par\par}{\vspace{0.5em}\par\par\noindent\leavevmode\raisedrule[1em]{1pt}\\}
 %\begin{flushleft}
 
 
@@ -31,7 +35,7 @@ structure Dictionary = struct
    type dictionary = (string, string) list
    val emptyDictionary = []
    fun insert(x, y, d) = (x,y)::d
-end
+end 
 \end{lstlisting}
 
 Listing~\ref{code:DictionaryStructureExample} firstly defines a type dictionary, which is defined to be a type synonym for a list of string pairs, a value representing the empty dictionary (\texttt{emptyDictionary}) and a function for inserting data into the dictionary (\texttt{insert}).
@@ -717,6 +721,8 @@ fun generateClosure2 freevar =
 The two functions shown in \myref{lst}{code:CopyFreeVariables} are contextually equivalent in \mbox{MiniML}.
 Their compiled versions however are not contextually equivalent unless the free variables from untrusted code are copied to the trusted memory.
 If no copying of free variables occures, an attacker could set distinguish a module using \lsttext{generateClosure1} from one using \lsttext{generateClosure2} using the following attack:
+
+\begin{attack}{Call-by-value Attack}
 \begin{enumerate}
 \item After calling the closure, the attacker forces execution to temporarily be passed back to the unsafe code.
 This is achieved in \myref{lst}{code:CopyFreeVariables} by means of the callback function. 
@@ -729,14 +735,16 @@ If the execution switch happens before this copying of \lsttext{freevar} into pr
 In contrast, a version using  \lsttext{generateClosure2} never copies the value of \lsttext{freevar} into protected memory. 
 Therefore the result of the closure will allways be computed using the changed value of \lsttext{freevar}.
 \end{enumerate}
+\end{attack}
+
 
 The attack described above shows that it is possible to manipulate the low-level versions of the code of \myref{lst}{code:CopyFreeVariables} in such a way that the two different functions do not give the same result. 
 Consequently, this means that the contextual equivalence of the compiled code is broken, whereas the high-level code is unaffected by the attack.
-Surely, the high
+After all, the high-level language doesn't allow the memory location of the parameter that was passed to be changed which is a necessary access right to perform step two of the attack.
 
 This problem is effectively mitigated by ensuring that every value is copied to the secure environment, conforming to a value-passing call semantic.
 
-%what if the free-variable IS a reference. Then we must follow the reference chain all the way?!
+%Todo: what if the free-variable IS a reference. Then we must follow the reference chain all the way?! No, we follow high-level semantics, and Ref's make MiniML storage aware. ≈If a Reference to storage is created by the attackers context, and this reference is passed as a parameter, it is okay for the attacker to change the value in the storage location, as long as the location remains the same. 
 
 \subsubsection{Secure Free Variables For A Secure Pointer}
 

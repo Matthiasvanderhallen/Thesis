@@ -771,6 +771,7 @@ This analysis shows that the added power of closures does not require any new se
 
 
 \subsection{Cross-boundary Passing Of A Secure Closure }
+This section explores the security measures that must be taken when the closure itself, which is a first class value, is passed as an object across the boundary between \emph{SPM} and the attackers context.
 If an SPM would pass a closure generated inside its body to the untrusted code, the untrusted code could change the value of the function pointer and inspect or change the values saved in the referencing environment.
 
 Each of these actions break contextual equivalence:
@@ -790,6 +791,8 @@ Then, because it is located within the SPM, the entry point is able to jump to t
 
 \subsubsection{The Closure-Evaluation Entry Point}
 
+Because closures can be passed freely it is possible for insecure code within the attackers context to make use of the closure, and execute the underlying function.
+Execution of a closure is also called the \emph{application} of the closure. 
 
 \section{Functors\label{sec:Functors}}
 \end{document}

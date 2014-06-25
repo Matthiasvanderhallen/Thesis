@@ -20,15 +20,18 @@
 %\begin{flushleft}
 
 
+\hypersetup{colorlinks=false, pdfborder={0 0 0}}
+
 \chapter{A Compilation Example\label{chap:ACompilationExample}}
 
-This chapter firstly describes the \mbox{MiniML} source language (\emph{Section} \ref{sec:MiniML}), a subset of the ML language whose syntax and semantics are reminiscent of those of Standard ML. \emph{Section} \ref{sec:MLExample} then introduces an example program that will be used to show the secure compilation scheme. This chapter continues by describing the LLVM intermediate language to which the first translation occurs (\emph{Section} \ref{sec:LLVM}). This chapter concludes by translating the earlier proposed example program, showing the resulting LLVM code.
+This chapter firstly describes the \mbox{MiniML} source language (\myref{sec}{sec:MiniML}), a subset of the ML language whose syntax and semantics are reminiscent of those of Standard ML.
+\myref{sec}{sec:MLExample} then introduces an example program that will be used to show the secure compilation scheme. This chapter continues by describing the LLVM intermediate language to which the first translation occurs (\myref{sec}{sec:LLVM}). This chapter concludes by translating the earlier proposed example program, showing the resulting LLVM code.
 %The secure compilation scheme is shown from an example program written in the source language, \mbox{MiniML}, which is a subset of the ML language. Its syntax and semantics are reminiscent of those used in Standard ML.
 
 \section{MiniML\label{sec:MiniML}}
 The ML language is a functional programming language which is well known for its module system. This module system aims to group data and code together into coherent entities, called the modules.
 
-A \emph{structure} is the most basic type of module. It can be defined using the \texttt{struct...end} construct and provides a set of bindings for types, values and functions. A structure specifies a name for the binding and the corresponding value, called \emph{implementation}. Structures provide the possibility of grouping related code and data, fulfilling the need of \emph{encapsulation} in software. However, the need for \emph{data abstraction} is not yet fulfilled. Listing~\ref{code:DictionaryStructureExample} shows how a dictionary of strings to strings might be implemented by a module.
+A \emph{structure} is the most basic type of module. It can be defined using the \texttt{struct...end} construct and provides a set of bindings for types, values and functions. A structure specifies a name for the binding and the corresponding value, called \emph{implementation}. Structures provide the possibility of grouping related code and data, fulfilling the need of \emph{encapsulation} in software. However, the need for \emph{data abstraction} is not yet fulfilled. \myref{lst}{code:DictionaryStructureExample} shows how a dictionary of strings to strings might be implemented by a module.
 ~
 \begin{lstlisting}[frame=single, language=ML,caption=An example structure showing the definition of a dictionary in ML, label=code:DictionaryStructureExample,numbers=left]
 structure Dictionary = struct
@@ -38,11 +41,11 @@ structure Dictionary = struct
 end 
 \end{lstlisting}
 
-Listing~\ref{code:DictionaryStructureExample} firstly defines a type dictionary, which is defined to be a type synonym for a list of string pairs, a value representing the empty dictionary (\texttt{emptyDictionary}) and a function for inserting data into the dictionary (\texttt{insert}).
+\myref{lst}{code:DictionaryStructureExample} firstly defines a type dictionary, which is defined to be a type synonym for a list of string pairs, a value representing the empty dictionary (\texttt{emptyDictionary}) and a function for inserting data into the dictionary (\texttt{insert}).
 
 As it stands, the dictionary type is a type synonym for lists of string pairs, and any such list could be used where a dictionary is expected. However, the concept of a dictionary does not require users to know that the dictionary type is implemented as a list of string pairs. According to the principle of data abstraction, it is favourable to hide this information from the user of the dictionary module.
 
-Here the idea of a signature comes into play. A signature groups a set of types, values and functions without providing an implementation. It provides a way of abstracting over structures that implement the same logical concept using a different implementation. A possible signature for dictionaries is shown in Listing~\ref{code:SignatureDictionaryExample}.
+Here the idea of a signature comes into play. A signature groups a set of types, values and functions without providing an implementation. It provides a way of abstracting over structures that implement the same logical concept using a different implementation. A possible signature for dictionaries is shown in \myref{lst}{code:SignatureDictionaryExample}.
 ~
 \begin{lstlisting}[frame=single, language=ML, caption=An example signature showing the declaration of a dictionary in ML, label=code:SignatureDictionaryExample, numbers=left]
 signature DICTIONARYSIGNATURE = sig
@@ -59,8 +62,8 @@ A signature guarantees that two implementations of the same logical concepts are
 The \mbox{MiniML} fragment discussed here was chosen to encorporate the idea of modules, more complex language features will be added later.
 
 \section{A Cipher In ML\label{sec:MLExample}}
-Figure~\ref{code:Example} presents an example program that consists of the definition of a signature that represents symmetric cyphers, a concept used in cryptography. This example was chosen since the modules related to cryptography are usually under more scrutiny with regards to the privacy of their internal values.
-The code in Figure~\ref{code:Example} defines a signature \texttt{SYMMETRICCIPHER}. This signature describes the common traits between modules that implement a symmetric cipher.
+\myref{lst}{code:Example} presents an example program that consists of the definition of a signature that represents symmetric cyphers, a concept used in cryptography. This example was chosen since the modules related to cryptography are usually under more scrutiny with regards to the privacy of their internal values.
+The code in \myref{lst}{code:Example} defines a signature \texttt{SYMMETRICCIPHER}. This signature describes the common traits between modules that implement a symmetric cipher.
 In order to implement a symmetric cipher, one must have a credential, i.e. the key, and two functions, \texttt{encrypt} and \texttt{decrypt}, which take data and credentials.
 The \texttt{encrypt} function takes the raw data and encodes it in a way only those with knowledge of the correct credentials can later use the \texttt{decrypt} function to transform the encoded data back into the raw data.
 
@@ -82,7 +85,7 @@ structure Caesar :> SYMMETRICCIPHER = struct
 end
 \end{lstlisting}
 
-From line 8 of Listing~\ref{code:Example} onwards the definition of a structure called \texttt{Caesar} is given. \texttt{Caesar} implements the \texttt{SYMMETRICCYPHER} signature.
+From line 8 of \myref{lst}{code:Example} onwards the definition of a structure called \texttt{Caesar} is given. \texttt{Caesar} implements the \texttt{SYMMETRICCYPHER} signature.
 In this context, \texttt{Caesar} provides the \texttt{newcredential}, \texttt{encrypt} and \texttt{decrypt} functions. For internal use it also possesses the necessary characteristics of a pseudorandom number generator, namely a seed value and a rand function that provides a pseudorandom number. It is necessary to hide the seed value from users since this would allow attackers to predict the output of the pseudorandom number generator.
 
 The \texttt{Caesar} structure is forced to conform to the signature \texttt{SYMMETRICCIPHER} by means of \emph{opaque ascription (\texttt{:>})}. This not only forces the module to implement all the necessary elements of the signature, but it also restricts the means of interaction with the module to those elements that are explicitly mentioned in the interface. It is this notion of \emph{opaque ascription} that dictates what it means for this module to be secure. Concretely, to be secure, this module hides its \texttt{rand} function and its seed value from any outside code, only allowing the code internal to the structure to access this value or call the function.
@@ -90,7 +93,7 @@ The \texttt{Caesar} structure is forced to conform to the signature \texttt{SYMM
 %This example can later be broadened so that the \texttt{Caesar} structure becomes a functor that is parameterized to use an external module as its PRNG.
 
 \section{LLVM Intermediate Representation \label{sec:LLVM}}
-This section introduces the LLVM intermediate representation. It also specifies the expected LLVM intermediate representation code for the example in Figure~\ref{code:Example}.
+This section introduces the LLVM intermediate representation. It also specifies the expected LLVM intermediate representation code for the example in \myref{lst}{code:Example}.
 
 \subsection{LLVM}
 LLVM, short for \emph{Low Level Virtual Machine} is the name of a project providing many different and closely affiliated utilities concerned with the compilation process. One of the important utilities being used in this work is LLVMs intermediate representation. This intermediate representation is defined in an attempt towards providing a shared abstraction that the compilers of many languages can use. 
@@ -151,7 +154,7 @@ Translations of the fields happens as global constants within a module. Since th
 \end{description}
 
 \section{Translation Example: The Caesar Cipher}
-In order to study the compilation scheme, the example ML code in Figure~\ref{code:Example} is translated to LLVM IR. The translation to LLVM intermediate representation is given in code in Listing~\ref{llvm:Example}
+In order to study the compilation scheme, the example ML code in \myref{lst}{code:Example} is translated to LLVM IR. The translation to LLVM intermediate representation is given in code in \myref{lst}{llvm:Example}
 
 \begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption=LLVM IR for the example,
 label=llvm:Example]
@@ -202,17 +205,17 @@ This code, that implicitly is part of a module, consists of a list of \emph{glob
 Every value, be it a global function or a global variable, has a \emph{linkage} type associated with it.
 Linkage types control the accessibility of of variables and functions. The two linkage types in use are \texttt{private}, which makes a value only accessible by objects inside the same module, and the default linkage type, \texttt{external}.
 
-The code in Listing \ref{llvm:Example} specifies 5 different global values, corresponding to the 5 definitions in the \texttt{Caesar} structure:
+The code in \myref{lst}{llvm:Example} specifies 5 different global values, corresponding to the 5 definitions in the \texttt{Caesar} structure:
 \begin{description}
 \item[newcredentials] The first translated function is the \texttt{newcredentials} function.
-On lines 1-4 in the code of Figure~\ref{llvm:Example}, a proxy for the function is defined and its return type is declared to be i32, i.e. an integer. Since no linkage type is explictly specified, linkage type `external'  is used.
+On lines 1-4 in the code of \myref{lst}{llvm:Example}, a proxy for the function is defined and its return type is declared to be i32, i.e. an integer. Since no linkage type is explictly specified, linkage type `external'  is used.
 
 This proxy acts as a wrapper around the real translation of \texttt{newcredentials} that can be seen on lines 6-9. This proxy is the entry point to the function that is made available to the untrusted code. This proxy can perform the security precautions that have to be taken when taking values from or returning values to the untrusted code.
 
 The body of the internal function \texttt{newcredentials\_internal} implements the functionality of the ML \texttt{newcredentials} function.
 \texttt{newcredentials\_internal} performs a call to the rand function, saving the resulting return value. It does so in a temporary local variable called \%0. This is returned using the \emph{ret} assembly function.
 
-\item[encrypt \& decrypt] Next are the \texttt{encrypt} en \texttt{decrypt} functions. The translation starts with the definition on line 11 in the code of Listing~\ref{llvm:Example}. Again, as these functions are available in ML for untrusted code, proxies are provided as entry points where security precautions can be made. These can be found on lines 11-14 and 23-26. The internal functions can be found on lines 16-21 and 28-33.
+\item[encrypt \& decrypt] Next are the \texttt{encrypt} en \texttt{decrypt} functions. The translation starts with the definition on line 11 in the code of \myref{lst}{llvm:Example}. Again, as these functions are available in ML for untrusted code, proxies are provided as entry points where security precautions can be made. These can be found on lines 11-14 and 23-26. The internal functions can be found on lines 16-21 and 28-33.
 
 The definition of these proxies as well as the internal functions specify the return type, as well as the different argument types. Since these are all of type `integer', the type i32 is being used.
 
@@ -221,8 +224,8 @@ The body of the internal function uses the arguments in two calls to arithmetica
 
 To help achieve this protection and mark this information, the linkage type is specified to be \emph{private}.
 
-The definition of \texttt{seed} can be seen on line 35 in the code of listing~\ref{llvm:Example}
-\item[rand] The function \texttt{rand} is defined starting line 23 and onwards in Figure~\ref{llvm:Example}. For the same reasons as the variable \texttt{seed}, its linkage type is set to private. It also follows that no proxy is necessary for the \texttt{rand} function.
+The definition of \texttt{seed} can be seen on line 35 in the code of listing~\myref{lst}{llvm:Example}
+\item[rand] The function \texttt{rand} is defined starting line 23 and onwards in \myref{lst}{llvm:Example}. For the same reasons as the variable \texttt{seed}, its linkage type is set to private. It also follows that no proxy is necessary for the \texttt{rand} function.
 
 In its body, it returns the value of the seed. Since all global values are pointers, the pointer must be dereferenced using a load operation, saving the value to a local variable. This value is then returned.
 \end{description}
@@ -248,7 +251,7 @@ Furthermore, the LLVM IR does not know how many registers it can use, instead as
 
 \subsubsection{Opaque types}
 
-The \mbox{MiniML} language allows a programmer to define ones own types using the type keyword. Taking another look at the Dictionary example of Figure \ref{code:DictionaryStructureExample}, this happens for example on line 2. The modules internal representation of a dictionary is a list of string pairs, but clearly this is some internal choice that the programmer does not want to make explicit, which is why the type synonym 'dictionary' is kept opaque, as can be seen in Figure \ref{code:SignatureDictionaryExample}, line 2, where the external specification of a type is not revealed to be a list of string pairs.
+The \mbox{MiniML} language allows a programmer to define ones own types using the type keyword. Taking another look at the Dictionary example of \myref{lst}{code:DictionaryStructureExample}, this happens for example on line 2. The modules internal representation of a dictionary is a list of string pairs, but clearly this is some internal choice that the programmer does not want to make explicit, which is why the type synonym 'dictionary' is kept opaque, as can be seen in \myref{lst}{code:SignatureDictionaryExample}, line 2, where the external specification of a type is not revealed to be a list of string pairs.
 
 This is a means of information hiding, if someone were to later rewrite this dictionary structure in such a way that its internal representation becomes a pair of string lists, as in Figure , this would be a perfectly valid change. This change should not result in any changes to the external code, since the specific implementation choice for the dictionary type was not made explicit.
 
@@ -264,7 +267,7 @@ end
 \caption{An alternative structure defining a dictionary.}
 \end{figure}
 
-Even more so, one would expect the two programs/modules to be contextually equivalent! However, clearly, if no checking is performed on functions expecting something of type dictionary, a low level attacker could discriminate between the two using the following tactic: call a function expecting a dictionary argument with a self-created list of string pairs. If it gives the expected results, the dictionary implementation being used is the one given in Figure \ref{code:DictionaryStructureExample}. If not, it is the module described in Figure \ref{code:DictionaryStructureExample2}, expecting a pair of string lists. This breaks contextual equivalence.
+Even more so, one would expect the two programs/modules to be contextually equivalent! However, clearly, if no checking is performed on functions expecting something of type dictionary, a low level attacker could discriminate between the two using the following tactic: call a function expecting a dictionary argument with a self-created list of string pairs. If it gives the expected results, the dictionary implementation being used is the one given in \myref{lst}{code:DictionaryStructureExample}. If not, it is the module described in \myref{lst}{code:DictionaryStructureExample2}, expecting a pair of string lists. This breaks contextual equivalence.
 
 The code must assure that any object, passing as an argument of type dictionary, was in fact created by the module code itself (using the emptydictionary method). If not, it should raise an error (even if the object has the correct type according to the synonyms) in order to prevent an attack on centextual equivalence in the same spirit as the one described above.
 
@@ -294,7 +297,7 @@ First the syntax of \mbox{MiniML} within which a program can be defined will be 
 \subsection{Syntax}
 \newcommand{\longspace}{\;\;\;\;\;\;}
 \newcommand{\inlinecode}{\texttt}
-First we introduce the syntax of a \mbox{MiniML} program, as seen in figure~\ref{fig:Syntax}. A program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists \footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
+First we introduce the syntax of a \mbox{MiniML} program, as seen in \myref{fig}{fig:Syntax}. A program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists\footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
 This description of a program allows us to first specify a set of signatures as well as a set of module and functors conforming to those signatures.
 \\[2ex]
 A signature $\Sigma$ is a module type and is represented by a list of \emph{declarations}. A declaration $\Delta$ specifies the type of an value identifier or the signature of a module identifier.
@@ -377,7 +380,7 @@ A signature $\Sigma$ is a module type and is represented by a list of \emph{decl
 Having defined the syntax for \mbox{MiniML}, we are now able to formalize its type system.
 
 \subsubsection{Type-schemes and contexts}
-First, we introduce the concept of a type-scheme, as seen in figure~\ref{fig:Type-schemesAndContexts}. A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$. This allows any concrete types $\tau$ to 'match' to the type variable. For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
+First, we introduce the concept of a type-scheme, as seen in \myref{fig}{fig:Type-schemesAndContexts}. A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$. This allows any concrete types $\tau$ to 'match' to the type variable. For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
 
 This concept of a type-scheme will later be used to provide %\todo{explain further}
 let-polymorphism.  Note that the definition of a Type-Scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
@@ -436,7 +439,7 @@ Type-scheme generalisation is the opposite process of type-scheme specialization
 
 
 \subsubsection{Typing judgements}
-To type check our program, the type checker will perform typing judgements. These typing judgements, which can bee seen in figure~\ref{fig:TypingJudgements}, are relations between the context and parts of the syntax. They convey the meaning that an expression or other part of the syntax is well-typed in the context $\Gamma$. The typing of a module body and its definitions generates a new typing context $\Gamma'$ for the module. In this resulting context, the declarations must be well-typed.
+To type check our program, the type checker will perform typing judgements. These typing judgements, which can bee seen in \myref{fig}{fig:TypingJudgements}, are relations between the context and parts of the syntax. They convey the meaning that an expression or other part of the syntax is well-typed in the context $\Gamma$. The typing of a module body and its definitions generates a new typing context $\Gamma'$ for the module. In this resulting context, the declarations must be well-typed.
 
 The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a context $\Gamma$. A context is well-formed if the keyset of the lookup table it represents conforms to the standard notion of a set, meaning every key is used only once.
 
@@ -633,7 +636,7 @@ let \; p_{1} \; = \; e_{1} \; in \;
 \section{LLVM Intermediate Representation}
 The LLVM Intermediate Representation is a language very reminiscent of assembly. 
 \subsubsection{Syntax}
-In Figure~\ref{fig:LLVMSyntax}, the reduced syntax of LLVM is given\todo{Formalize this citation into the correct style}\todo{Expand the syntax}.\footnote{Taken from "Formalizing the LLVM Intermediate
+In \myref{fig}{fig:LLVMSyntax}, the reduced syntax of LLVM is given\todo{Formalize this citation into the correct style}\todo{Expand the syntax}.\footnote{Taken from "Formalizing the LLVM Intermediate
 Representation for Verified Program
 Transformations"}
 \begin{figure}[!htb]
@@ -667,12 +670,12 @@ Transformations"}
 
 \chapter{Advanced ML Concepts}
 
-This chapter extends the capabilities of the subset of the ML language. \myref{sec}{sec:HOF} introduces \emph{higher-order functions} and discusses how they can be compiled securely. Afterwards, \myref{sec}{sec:Functors} explains \emph{functors} and their addition to the high-level language. This chapter continues by showing how the concepts learned while adding higher-order functions can aid the low-level implementation of functors in \myref{sec}{sec:Functors}.
+This chapter extends the capabilities of the subset of the ML language. \myref{sec}{sec:HOF} introduces \emph{higher-order functions} and discusses how they can be compiled securely. Afterwards, \myref{sec}{sec:Functors} explains \emph{functors} and their addition to the high-level language. This chapter continues by showing how the concepts learnt while adding higher-order functions can aid the low-level implementation of functors in \myref{sec}{sec:Functors}.
 %The impact of these additions to the language is reviewed.
 
 \section{Higher-Order Functions\label{sec:HOF}}
 
-A \emph{higher-order function} is a function that allows other functions to be given as an input or returns a function as its output. \mbox{MiniML} does this by treating functions as first-class values, meaning that functions represent an entity that can be passed around as a parameter or return value and can be assigned to a variable.
+A \emph{higher-order function} is a function that allows other functions to be given as input or returns a function as output. \mbox{MiniML} by treats functions as first-class values, meaning that functions represent an entity that can be passed around as a parameter or return value and can be assigned to a variable.
 
 \subsection{Lexical Scoping And Closures}
 An example of a higher-order function is shown in \myref{lst}{code:LexicalScopingExample}. 
@@ -681,7 +684,7 @@ Therefore, \lsttext{addCurried} is a higher-order function.
 
 Since \mbox{MiniML} uses what in literature is known as \emph{lexical scoping}, the function that addCurried returns is allowed access to the non-local or free variable \lsttext{x}, even though it is not defined within the local scope of the function, because its defined scope \emph{lexically surrounds} the definition of the function.
 
-%Since \mbox{MiniML} uses lexical scoping, functions can be defined as shown in \emph{Listing} \ref{code:LexicalScopingExample}. The function \lsttext{addCurried} takes an argument \lsttext{x} and as a result returns another function. Therefore, it is a higher-order function. The function \lsttext{innerFunction} has access to the non-local or free variable \lsttext{x}, even though it is not defined in the local scope.
+%Since \mbox{MiniML} uses lexical scoping, functions can be defined as shown in \myref{lst}{code:LexicalScopingExample}. The function \lsttext{addCurried} takes an argument \lsttext{x} and as a result returns another function. Therefore, it is a higher-order function. The function \lsttext{innerFunction} has access to the non-local or free variable \lsttext{x}, even though it is not defined in the local scope.
 
 \begin{lstlisting}[frame=single, language=ML,caption=The use of lexical scoping calls for closures., label=code:LexicalScopingExample,numbers=left]
 fun addCurried x = 
@@ -690,8 +693,8 @@ fun addCurried x =
 \label{code:LexicalScopingExample}
 
 This raises the need to add the concept of \emph{closures} to \mbox{MiniML}.
-A closure consists of a simple function reference, together with a referencing environment which contains all the different free variables that are available through the lexical scoping rules.
-When a function is created using a call to \lsttext{addCurried} and possibly saved in a variable to call it later on, this function must be able to access the variable \lsttext{x} that was given as a parameter to \lsttext{addCurried}.
+A closure consists of a simple function reference together with a referencing environment which contains all the free variables that are available due to the lexical scoping rules.
+When a function is created using a call to \lsttext{addCurried} (and possibly saved in a variable to call it later on) this function must be able to access the variable \lsttext{x} that was given as a parameter to \lsttext{addCurried}.
 The function entity created and possibly saved in a variable in other words must keep track of the non-local variables it has access to.
 This list of non-local variables and their values is called the \emph{referencing environment}.
 
@@ -710,7 +713,7 @@ If a closure is created with free variables stemming from untrusted code, the va
 This need arises because the low level code could otherwise change the value of the free variable at any time, as it would be located inside untrusted memory, even mid-execution of the higher-order function.
 \myref{lst}{code:CopyFreeVariables} gives an example of two functions that are vulnerable to this kind of attack.
 
-\begin{lstlisting}[frame=single, language=ML,caption=Changing Free Variables inside untrusted memory mid-execution can break contextual equivalence., label=code:CopyFreeVariables,numbers=left]
+\begin{lstlisting}[frame=single, language=ML,caption=Changing free variables inside untrusted memory mid-execution can break contextual equivalence., label=code:CopyFreeVariables,numbers=left]
 fun generateClosure1 freevar =
   let innerFunction x =
     (let b = freevar
@@ -732,7 +735,7 @@ If no copying of free variables occures, an attacker could set distinguish a mod
 \begin{enumerate}
 \item After calling the closure, the attacker forces execution to temporarily be passed back to the unsafe code.
 This is achieved in \myref{lst}{code:CopyFreeVariables} by means of the callback function. 
-Even when no callbacks are available, in a more powerful language providing a multithreaded environment such an execution passing can be forced using a context switch.
+Even when no callbacks are available this type of attack remains possible. For example, in a more powerful language providing a multithreaded environment, such an execution passing can be forced using a context switch.
 \item The context uses this opportunity and the fact that \lsttext{freevar} is saved in unprotected memory to change the value of \lsttext{freevar}. This not possible in the high-level language, but the low-level language provides no guarantees whatsoever against modification of the unprotected memory.
 \item If the implementation of \lsttext{generateClosure1} was used, then the result of the closure application depends on when exactly execution was temporarily switched to the attackers' context.
 If this happened after copying the value of \lsttext{freevar} to \lsttext{b}, which is saved in protected memory, then the result of the closure will not reflect the change of value of \lsttext{freevar} by the attackers context.
@@ -746,7 +749,7 @@ Therefore the result of the closure will allways be computed using the changed v
 
 The attack described above shows that it is possible to manipulate the low-level versions of the code of \myref{lst}{code:CopyFreeVariables} in such a way that the two different functions do not give the same result. 
 Consequently, this means that the contextual equivalence of the compiled code is broken, whereas the high-level code is unaffected by the attack.
-After all, the high-level language doesn't allow the memory location of the parameter that was passed to be changed which is a necessary access right to perform step two of the attack.
+After all, the high-level language does not allow the memory location of the parameter that was passed to be changed which is a necessary access right to perform step two of the attack.
 
 This problem is effectively mitigated by ensuring that upon \emph{application} of the closure every value is copied to the secure environment, conforming to a value-passing call semantic.
 
@@ -764,10 +767,10 @@ How closures and their values are represented is only important to the extent to
 
 As stated in \myref{chap}{chap:ACompilationExample}, objects created by secure code should not leave the safety of secure memory provided by the low-level acces control model.
 Instead, these values passed must be masked and represented in the insecure code by their masking index.
-These same measures are of course necessary when working within the context of closures.
+These same measures are necessary when working with closures.
 As long as we obey these measures, and represent secure free variables in the referencing environment by their masking index, they are not susceptible to tampering, illegal disclosure or any other manipulation attacks.
-The only way to interact with these secure free variables is by passing them as parameters to modifying functions from within the \emph{SPM}.
-This analysis shows that the added power of closures does not require any new security measures for this interaction between \emph{SPM} and the attackers context.
+The only way to interact with these secure free variables is by passing them as parameters to functions within the \emph{SPM}.
+This shows that the added power of closures does not require any new security measures for this interaction between \emph{SPM} and the attackers context.
 
 
 \subsection{Cross-boundary Passing Of A Secure Closure }
@@ -776,22 +779,22 @@ If an \emph{SPM} would pass a closure generated inside its body to the untrusted
 
 Each of these actions break contextual equivalence:
 \begin{description}
-\item[change pointer value] The pointer to the code might be changed to code that makes certain assumptions about the structure used to implement abstract data types.
+\item[Change pointer value.] The pointer to the code might be changed to code that makes certain assumptions about the structure used to implement abstract data types.
 This way, the context could discern between contextually equivalent SPMs in which the assumptions may or may not hold. \todo{provide vulnerability example}
-\item[inspect environment values]
+\item[Inspect environment values.]
 Assumptions about the way abstract data types are structured can be checked by inspecting the environment values. \todo{provide vulnerability example}
-\item[change environment values] Changing values in the reference environment allows an attacker to discern between higher order functions which first copy their free variables and higher order functions that do not, as shown in \myref{lst}{code:CopyFreeVariables}.
+\item[Change environment values.] Changing values in the reference environment allows an attacker to discern between higher order functions which first copy their free variables and higher order functions that do not, as shown in \myref{lst}{code:CopyFreeVariables}.
 \end{description}
 
 As a result, the closure entity itself should not be passed across the boundary between the \emph{SPM} and the trusted code.
-Instead, the closure should be masked, and its corresponding pointer in the masking map is passed to the untrusted code.
+Instead, the closure should be masked, and its corresponding index in the masking map is passed to the untrusted code.
 In order to later execute the closure, the \emph{SPM} should offer an \emph{closure-evaluation entry point}.
 This entry point first takes a pointer to a closure in the masking map.
 Then, because it is located within the \emph{SPM}, the entry point is able to jump to the function pointer specified by the closure and run the function code.
 
 \subsubsection{The Closure-Evaluation Entry Point}
 
-Because closures can be passed freely it is possible for insecure code within the attackers context to obtain a closure value.
+Because closures can be passed freely, it is possible for insecure code to obtain a closure value.
 Of course this insecure code is allowed to make use of the closure, and execute the underlying function.
 Execution of a closure is also called the \emph{evaluation} of the closure.
 Application of a secure closure by the code in this context is not possible in a direct and straightforward way: the context is not capable of jumping to the code representing the closure because the code that corresponds to the closure might not be located at an entry point of the \emph{SPM} and because it has only knowledge of the masking index of the closure.

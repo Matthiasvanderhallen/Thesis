@@ -772,27 +772,46 @@ This analysis shows that the added power of closures does not require any new se
 
 \subsection{Cross-boundary Passing Of A Secure Closure }
 This section explores the security measures that must be taken when the closure itself, which is a first class value, is passed as an object across the boundary between \emph{SPM} and the attackers context.
-If an SPM would pass a closure generated inside its body to the untrusted code, the untrusted code could change the value of the function pointer and inspect or change the values saved in the referencing environment.
+If an \emph{SPM} would pass a closure generated inside its body to the untrusted code, the untrusted code could change the value of the function pointer and inspect or change the values saved in the referencing environment.
 
 Each of these actions break contextual equivalence:
 \begin{description}
 \item[change pointer value] The pointer to the code might be changed to code that makes certain assumptions about the structure used to implement abstract data types.
-This way, the context could discern between contextually equivalent SPMs in which the assumptions may or may not hold.
+This way, the context could discern between contextually equivalent SPMs in which the assumptions may or may not hold. \todo{provide vulnerability example}
 \item[inspect environment values]
-Assumptions about the way abstract data types are structured can be checked by inspecting the environment values.
+Assumptions about the way abstract data types are structured can be checked by inspecting the environment values. \todo{provide vulnerability example}
 \item[change environment values] Changing values in the reference environment allows an attacker to discern between higher order functions which first copy their free variables and higher order functions that do not, as shown in \myref{lst}{code:CopyFreeVariables}.
 \end{description}
 
-As a result, the closure entity itself should not be passed across the boundary between the SPM and the trusted code.
+As a result, the closure entity itself should not be passed across the boundary between the \emph{SPM} and the trusted code.
 Instead, the closure should be masked, and its corresponding pointer in the masking map is passed to the untrusted code.
-In order to later execute the closure, the SPM should offer an \emph{closure-evaluation entry point}.
+In order to later execute the closure, the \emph{SPM} should offer an \emph{closure-evaluation entry point}.
 This entry point first takes a pointer to a closure in the masking map.
-Then, because it is located within the SPM, the entry point is able to jump to the function pointer specified by the closure and run the function code.
+Then, because it is located within the \emph{SPM}, the entry point is able to jump to the function pointer specified by the closure and run the function code.
 
 \subsubsection{The Closure-Evaluation Entry Point}
 
-Because closures can be passed freely it is possible for insecure code within the attackers context to make use of the closure, and execute the underlying function.
-Execution of a closure is also called the \emph{application} of the closure. 
+Because closures can be passed freely it is possible for insecure code within the attackers context to obtain a closure value.
+Of course this insecure code is allowed to make use of the closure, and execute the underlying function.
+Execution of a closure is also called the \emph{evaluation} of the closure.
+Application of a secure closure by the code in this context is not possible in a direct and straightforward way: the context is not capable of jumping to the code representing the closure because the code that corresponds to the closure might not be located at an entry point of the \emph{SPM} and because it has only knowledge of the masking index of the closure.
+
+To allow insecure code to execute a closure, the \emph{SPM} offers one generic \emph{closure-evaluation entry point}. This entry point should:
+
+\begin{enumerate}
+\item Take a masked index as a parameter
+\item Allow for an unspecified amount of other parameters to be passed as well, which will be relayed as parameters to the function represented by the closure.
+\item Copy the parameters provided by the attackers context in order to prevent \emph{call-by-value attacks} as shown in \myref{lst}{code:CopyFreeVariables}.
+\item Look up the masked index and retrieve the closure being referenced, i.e. the function pointer and the referencing environment containing the free variables.
+\item Jump to the function pointer providing copies of any parameters it might require, as well as the referencing environment.
+\item When execution of the closure is finished, the closure-evaluation entry point provides cleanup of the copied values and performs the tasks necessary for all entry points to the \emph{SPM} code such as register and flag emptying.
+\end{enumerate}
+
+The code that implements these different requirements and responsabilities is shown in \myref{lst}{llvm:EvalEntryPoint}.
+
+\begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption=The generic closure-evaluation entry point.,
+label=llvm:EvalEntryPoint]
+\end{lstlisting}\todo{Todo: copy (cleaned up) code.}
 
 \section{Functors\label{sec:Functors}}
 \end{document}

@@ -1,5 +1,13 @@
-\documentclass[10pt,a4paper]{report}
-\usepackage[utf8]{inputenc}
+\documentclass[10pt,a4paper,master=cws, masteroption=ai,english,inputenc=utf8]{kulemt}
+\setup{title={Secure Compilation of ML Modules},
+       author={Matthias van der Hallen},
+       promotor={Prof. Dr. Ir. Frank Piessens},
+       assessor={Onbekend},
+       assistant={Marco Patrignani}}
+\setup{filingcard, translatedtitle=,
+        udc=621.1,
+        shortabstract={A short abstract}}
+%\usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
@@ -22,16 +30,39 @@
 
 \hypersetup{colorlinks=false, pdfborder={0 0 0}}
 
+\begin{preface}
+\end{preface}
+
+\tableofcontents*
+
+\begin{abstract}
+The \texttt{abstract} environment contains a more extensive overview of
+the work. But it should be limited to one page.
+\end{abstract}
+
+\begin{abstract*}
+\end{abstract*}
+
+
+\mainmatter
 \chapter{A Compilation Example\label{chap:ACompilationExample}}
 
 This chapter firstly describes the \mbox{MiniML} source language (\myref{sec}{sec:MiniML}), a subset of the ML language whose syntax and semantics are reminiscent of those of Standard ML.
-\myref{sec}{sec:MLExample} then introduces an example program that will be used to show the secure compilation scheme. This chapter continues by describing the LLVM intermediate language to which the first translation occurs (\myref{sec}{sec:LLVM}). This chapter concludes by translating the earlier proposed example program, showing the resulting LLVM code.
+\myref{sec}{sec:MLExample} then introduces an example program that will be used to show the secure compilation scheme.
+This chapter continues by describing the LLVM intermediate language to which the first translation occurs (\myref{sec}{sec:LLVM}).
+This chapter concludes by translating the earlier proposed example program, showing the resulting LLVM code.
 %The secure compilation scheme is shown from an example program written in the source language, \mbox{MiniML}, which is a subset of the ML language. Its syntax and semantics are reminiscent of those used in Standard ML.
 
 \section{MiniML\label{sec:MiniML}}
-The ML language is a functional programming language which is well known for its module system. This module system aims to group data and code together into coherent entities, called the modules.
+The ML language is a functional programming language which is well known for its module system.
+This module system aims to group data and code together into coherent entities, called the modules.
 
-A \emph{structure} is the most basic type of module. It can be defined using the \texttt{struct...end} construct and provides a set of bindings for types, values and functions. A structure specifies a name for the binding and the corresponding value, called \emph{implementation}. Structures provide the possibility of grouping related code and data, fulfilling the need of \emph{encapsulation} in software. However, the need for \emph{data abstraction} is not yet fulfilled. \myref{lst}{code:DictionaryStructureExample} shows how a dictionary of strings to strings might be implemented by a module.
+A \emph{structure} is the most basic type of module.
+It can be defined using the \texttt{struct...end} construct and provides a set of bindings for types, values and functions.
+A structure specifies a name for the binding and the corresponding value, called \emph{implementation}.
+Structures provide the possibility of grouping related code and data, fulfilling the need of \emph{encapsulation} in software.
+However, the need for \emph{data abstraction} is not yet fulfilled.
+\myref{lst}{code:DictionaryStructureExample} shows how a dictionary of strings to strings might be implemented by a module.
 ~
 \begin{lstlisting}[frame=single, language=ML,caption=An example structure showing the definition of a dictionary in ML, label=code:DictionaryStructureExample,numbers=left]
 structure Dictionary = struct
@@ -43,9 +74,14 @@ end
 
 \myref{lst}{code:DictionaryStructureExample} firstly defines a type dictionary, which is defined to be a type synonym for a list of string pairs, a value representing the empty dictionary (\texttt{emptyDictionary}) and a function for inserting data into the dictionary (\texttt{insert}).
 
-As it stands, the dictionary type is a type synonym for lists of string pairs, and any such list could be used where a dictionary is expected. However, the concept of a dictionary does not require users to know that the dictionary type is implemented as a list of string pairs. According to the principle of data abstraction, it is favourable to hide this information from the user of the dictionary module.
+As it stands, the dictionary type is a type synonym for lists of string pairs, and any such list could be used where a dictionary is expected.
+However, the concept of a dictionary does not require users to know that the dictionary type is implemented as a list of string pairs.
+According to the principle of data abstraction, it is favourable to hide this information from the user of the dictionary module.
 
-Here the idea of a signature comes into play. A signature groups a set of types, values and functions without providing an implementation. It provides a way of abstracting over structures that implement the same logical concept using a different implementation. A possible signature for dictionaries is shown in \myref{lst}{code:SignatureDictionaryExample}.
+Here the idea of a signature comes into play.
+A signature groups a set of types, values and functions without providing an implementation.
+It provides a way of abstracting over structures that implement the same logical concept using a different implementation.
+A possible signature for dictionaries is shown in \myref{lst}{code:SignatureDictionaryExample}.
 ~
 \begin{lstlisting}[frame=single, language=ML, caption=An example signature showing the declaration of a dictionary in ML, label=code:SignatureDictionaryExample, numbers=left]
 signature DICTIONARYSIGNATURE = sig
@@ -55,15 +91,21 @@ signature DICTIONARYSIGNATURE = sig
 end
 \end{lstlisting}
 
-A signature guarantees that two implementations of the same logical concepts are interchangeable for each other by standardizing the way an implementation communicates with the other code. It can also abstract the fact that the current implementation for dictionaries uses lists, as well as obscuring any helper methods that the specific implementation defines in order to simplify its internal workings. This last functionality of a signature is a way to perform \emph{information hiding}.
+A signature guarantees that two implementations of the same logical concepts are interchangeable for each other by standardizing the way an implementation communicates with the other code.
+It can also abstract the fact that the current implementation for dictionaries uses lists, as well as obscuring any helper methods that the specific implementation defines in order to simplify its internal workings.
+This last functionality of a signature is a way to perform \emph{information hiding}.
 
-%In order to simplify this study, the ML language is simplified to its core, resulting in the smaller \mbox{MiniML} language. This will, at first, only feature modules. Later on, It will be extended with more advanced concepts of ML, such as functors.
+%In order to simplify this study, the ML language is simplified to its core, resulting in the smaller \mbox{MiniML} language.
+%This will, at first, only feature modules.
+%Later on, It will be extended with more advanced concepts of ML, such as functors.
 
 The \mbox{MiniML} fragment discussed here was chosen to encorporate the idea of modules, more complex language features will be added later.
 
 \section{A Cipher In ML\label{sec:MLExample}}
-\myref{lst}{code:Example} presents an example program that consists of the definition of a signature that represents symmetric cyphers, a concept used in cryptography. This example was chosen since the modules related to cryptography are usually under more scrutiny with regards to the privacy of their internal values.
-The code in \myref{lst}{code:Example} defines a signature \texttt{SYMMETRICCIPHER}. This signature describes the common traits between modules that implement a symmetric cipher.
+\myref{lst}{code:Example} presents an example program that consists of the definition of a signature that represents symmetric cyphers, a concept used in cryptography.
+This example was chosen since the modules related to cryptography are usually under more scrutiny with regards to the privacy of their internal values.
+The code in \myref{lst}{code:Example} defines a signature \texttt{SYMMETRICCIPHER}.
+This signature describes the common traits between modules that implement a symmetric cipher.
 In order to implement a symmetric cipher, one must have a credential, i.e. the key, and two functions, \texttt{encrypt} and \texttt{decrypt}, which take data and credentials.
 The \texttt{encrypt} function takes the raw data and encodes it in a way only those with knowledge of the correct credentials can later use the \texttt{decrypt} function to transform the encoded data back into the raw data.
 
@@ -85,21 +127,32 @@ structure Caesar :> SYMMETRICCIPHER = struct
 end
 \end{lstlisting}
 
-From line 8 of \myref{lst}{code:Example} onwards the definition of a structure called \texttt{Caesar} is given. \texttt{Caesar} implements the \texttt{SYMMETRICCYPHER} signature.
-In this context, \texttt{Caesar} provides the \texttt{newcredential}, \texttt{encrypt} and \texttt{decrypt} functions. For internal use it also possesses the necessary characteristics of a pseudorandom number generator, namely a seed value and a rand function that provides a pseudorandom number. It is necessary to hide the seed value from users since this would allow attackers to predict the output of the pseudorandom number generator.
+From line 8 of \myref{lst}{code:Example} onwards the definition of a structure called \texttt{Caesar} is given.
+\texttt{Caesar} implements the \texttt{SYMMETRICCYPHER} signature.
+In this context, \texttt{Caesar} provides the \texttt{newcredential}, \texttt{encrypt} and \texttt{decrypt} functions.
+For internal use it also possesses the necessary characteristics of a pseudorandom number generator, namely a seed value and a rand function that provides a pseudorandom number.
+It is necessary to hide the seed value from users since this would allow attackers to predict the output of the pseudorandom number generator.
 
-The \texttt{Caesar} structure is forced to conform to the signature \texttt{SYMMETRICCIPHER} by means of \emph{opaque ascription (\texttt{:>})}. This not only forces the module to implement all the necessary elements of the signature, but it also restricts the means of interaction with the module to those elements that are explicitly mentioned in the interface. It is this notion of \emph{opaque ascription} that dictates what it means for this module to be secure. Concretely, to be secure, this module hides its \texttt{rand} function and its seed value from any outside code, only allowing the code internal to the structure to access this value or call the function.
+The \texttt{Caesar} structure is forced to conform to the signature \texttt{SYMMETRICCIPHER} by means of \emph{opaque ascription (\texttt{:>})}.
+This not only forces the module to implement all the necessary elements of the signature, but it also restricts the means of interaction with the module to those elements that are explicitly mentioned in the interface.
+It is this notion of \emph{opaque ascription} that dictates what it means for this module to be secure.
+Concretely, to be secure, this module hides its \texttt{rand} function and its seed value from any outside code, only allowing the code internal to the structure to access this value or call the function.
 
 %This example can later be broadened so that the \texttt{Caesar} structure becomes a functor that is parameterized to use an external module as its PRNG.
 
 \section{LLVM Intermediate Representation \label{sec:LLVM}}
-This section introduces the LLVM intermediate representation. It also specifies the expected LLVM intermediate representation code for the example in \myref{lst}{code:Example}.
+This section introduces the LLVM intermediate representation.
+It also specifies the expected LLVM intermediate representation code for the example in \myref{lst}{code:Example}.
 
 \subsection{LLVM}
-LLVM, short for \emph{Low Level Virtual Machine} is the name of a project providing many different and closely affiliated utilities concerned with the compilation process. One of the important utilities being used in this work is LLVMs intermediate representation. This intermediate representation is defined in an attempt towards providing a shared abstraction that the compilers of many languages can use. 
+LLVM, short for \emph{Low Level Virtual Machine} is the name of a project providing many different and closely affiliated utilities concerned with the compilation process.
+One of the important utilities being used in this work is LLVMs intermediate representation.
+This intermediate representation is defined in an attempt towards providing a shared abstraction that the compilers of many languages can use.
 From this point on, any form of optimization can be done on the LLVM intermediate representation, and thus might be shared between the different high-level languages.
 
-When all required optimizations are performed, one can compile the intermediate language into machine code and perform linking of all necessary code. Any special modification necessary to run on specific target platforms can be shared as well. In order to focus on the security of the compilation, the more aggressive optimization capabilities of LLVM will not be used.
+When all required optimizations are performed, one can compile the intermediate language into machine code and perform linking of all necessary code.
+Any special modification necessary to run on specific target platforms can be shared as well.
+In order to focus on the security of the compilation, the more aggressive optimization capabilities of LLVM will not be used.
 \\[1em]
 The secure compiler for \mbox{MiniML} will translate \mbox{MiniML} code into this intermediate representation.
 It is possible to write a program in this LLVMs intermediate representation (LLVM IR) using one of three different and equivalent encodings:
@@ -112,17 +165,24 @@ It is possible to write a program in this LLVMs intermediate representation (LLV
 This thesis will use the textual assembly language as representation for LLVM IR programs, because this makes examples and results more understandable and human readable.
 While it is possible to generate LLVM IR programs using the LLVM API, this work chooses to generate the human readable intermediate code itself, because it offers more direct control over the resulting translation.
 
-The benefit of LLVMs intermediate representation is not limited to the points mentioned above. The LLVM intermediate representation works at a higher level of abstraction than standard assembly does. Two important additional aspects make the intermediate representation used by LLVM of a higher level of abstraction than standard assembly code:
+The benefit of LLVMs intermediate representation is not limited to the points mentioned above.
+The LLVM intermediate representation works at a higher level of abstraction than standard assembly does.
+Two important additional aspects make the intermediate representation used by LLVM of a higher level of abstraction than standard assembly code:
 
 \begin{description}
 \item[Type System] More information about the program is captured by LLVM than when using regular assembly, using LLVMs type system
-\item[SSA] For optimization purposes, the LLVM IR adheres to the \emph{static single assigment} paradigm, or \emph{SSA}. This implies that every register can be assigned a value only once. However, this restriction poses no real hindrance to a functional language as \mbox{MiniML}
-\item[Register Limitations]  The LLVM intermediate representation abstracts away the fact that real architectures have only a given amount of registers. Instead, one can write a program assuming an infinite amount of registers. This results in many more variables in use than available registers.
-In a later compilation stage this consequence is remedied using the technique of \emph{spilling}. Variable spilling occurs by mapping the variables in use to the smaller set of available registers, saving all variables that could not be assigned to a register in RAM memory in the stack.\todo{This is important for the secure compilation (clearing registers after function calls end). It might be necessary to rework this subsection to stress this more.}
+\item[SSA] For optimization purposes, the LLVM IR adheres to the \emph{static single assigment} paradigm, or \emph{SSA}.
+This implies that every register can be assigned a value only once. However, this restriction poses no real hindrance to a functional language as \mbox{MiniML}
+\item[Register Limitations]  The LLVM intermediate representation abstracts away the fact that real architectures have only a given amount of registers.
+Instead, one can write a program assuming an infinite amount of registers.
+This results in many more variables in use than available registers.
+In a later compilation stage this consequence is remedied using the technique of \emph{spilling}.
+Variable spilling occurs by mapping the variables in use to the smaller set of available registers, saving all variables that could not be assigned to a register in RAM memory in the stack.\todo{This is important for the secure compilation (clearing registers after function calls end). It might be necessary to rework this subsection to stress this more.}
 \end{description}
 
 \subsection{Translating MiniML concepts to LLVM}
-Compiling from \mbox{MiniML} to LLVM IR means the high level abstractions made in \mbox{MiniML}, for example \emph{signatures} and \emph{structures}, must be mapped to lower level constructs that are available in the LLVM intermediate representation. This section presents these different mappings.
+Compiling from \mbox{MiniML} to LLVM IR means the high level abstractions made in \mbox{MiniML}, for example \emph{signatures} and \emph{structures}, must be mapped to lower level constructs that are available in the LLVM intermediate representation.
+This section presents these different mappings.
 
 \begin{description}
 \item[Structures]
@@ -692,6 +752,18 @@ fun addCurried x =
 \end{lstlisting}
 \label{code:LexicalScopingExample}
 
+%fun addCurried x = someSPMFunction x
+%This is an example of currying.
+%Effectively it says:
+%fun addCurried x = \y z-> someSPMFunction x y z
+%And thus it is owned by the insecure code
+%Complex arguments in x are copied when the function is effectively called.
+%In the other case, where the secure code creates the closure, complex arguments are already
+%copied at the function call of the function creating the closure
+%
+%It is possible to discern between these two cases. This is no problem (I think).
+
+
 This raises the need to add the concept of \emph{closures} to \mbox{MiniML}.
 A closure consists of a simple function reference together with a referencing environment which contains all the free variables that are available due to the lexical scoping rules.
 When a function is created using a call to \lsttext{addCurried} (and possibly saved in a variable to call it later on) this function must be able to access the variable \lsttext{x} that was given as a parameter to \lsttext{addCurried}.
@@ -817,4 +889,7 @@ label=llvm:EvalEntryPoint]
 \end{lstlisting}\todo{Todo: copy (cleaned up) code.}
 
 \section{Functors\label{sec:Functors}}
+
+\chapter{References\label{chap:References}}
+\chapter{Complex Data\label{chap:ComplexData}}
 \end{document}

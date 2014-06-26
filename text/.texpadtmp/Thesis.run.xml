@@ -59,6 +59,7 @@
       <file>biblatex.cfg</file>
       <file>english-mla.lbx</file>
       <file>english.lbx</file>
+      <file>dutch.lbx</file>
     </requires>
   </internal>
   <external package="biblatex" priority="5" active="0">

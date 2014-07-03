@@ -15,6 +15,9 @@
 \usepackage{hyperref}
 \usepackage{listings}
 \usepackage[style=mla,babel=hyphen,backend=biber]{biblatex}
+%\usepackage{courier}
+
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
 
 \input{./tex/cmds}
 
@@ -24,7 +27,7 @@
 \newcommand{\surroundrule}[2][0.3em]{
 \leavevmode\raisedrule[#1]{1pt}#2\raisedrule[#1]{1pt}}
 
-\newenvironment{attack}[1]{\par\par\noindent\hspace{-1ex}\surroundrule{#1}\vspace{-0.5em}\par\par}{\vspace{0.5em}\par\par\noindent\leavevmode\raisedrule[1em]{1pt}\\}
+\newenvironment{attack}[1]{\par\par\noindent\hspace{-1ex}\surroundrule{#1}\vspace{-0.5em}\par\par}{~\vspace{0.5em}\par\par\noindent\leavevmode\raisedrule[1em]{1pt}\\}
 %\begin{flushleft}
 
 
@@ -68,7 +71,7 @@ However, the need for \emph{data abstraction} is not yet fulfilled.
 structure Dictionary = struct
    type dictionary = (string, string) list
    val emptyDictionary = []
-   fun insert(x, y, d) = (x,y)::d
+   fun insert(d, x, y) = (x,y)::d
 end 
 \end{lstlisting}
 
@@ -87,7 +90,7 @@ A possible signature for dictionaries is shown in \myref{lst}{code:SignatureDict
 signature DICTIONARYSIGNATURE = sig
    type dictionary
    val emptyDictionary : dictionary
-   val insert: string -> string -> dictionary
+   val insert: dictionary-> string -> string
 end
 \end{lstlisting}
 
@@ -320,7 +323,7 @@ This is a means of information hiding, if someone were to later rewrite this dic
 structure Dictionary = struct
    type dictionary = (string list, string list)
    val emptyDictionary = []
-   fun insert(x, y, (fst,snd)) = (x::fst, y::snd)
+   fun insert((fst,snd), x, y) = (x::fst, y::snd)
 end
 \end{lstlisting}
 \label{code:DictionaryStructureExample2}
@@ -737,7 +740,7 @@ This chapter extends the capabilities of the subset of the ML language. \myref{s
 
 A \emph{higher-order function} is a function that allows other functions to be given as input or returns a function as output. \mbox{MiniML} by treats functions as first-class values, meaning that functions represent an entity that can be passed around as a parameter or return value and can be assigned to a variable.
 
-\subsection{Lexical Scoping And Closures}
+\smallskip
 An example of a higher-order function is shown in \myref{lst}{code:LexicalScopingExample}. 
 The function \lsttext{addCurried} takes an argument \lsttext{x} and as a result returns another function.
 Therefore, \lsttext{addCurried} is a higher-order function.
@@ -772,17 +775,58 @@ This list of non-local variables and their values is called the \emph{referencin
 
 It is possible for these free variables to be complex data such as arrays or abstract data types, for example the Dictionary from \myref{lst}{code:DictionaryStructureExample}. 
 
-The origin of free variables of the higher-order function could be trusted or untrusted code alike, just as the function can be defined in either trusted or untrusted code.
-This allows for a case by case analysis of the four distinct combinations of pointer and variable(s).
+Security concerns regarding higher-order functions present themselves in several different ways:
 
-\subsubsection{Secure Free Variables For A Secure Pointer}
+\begin{itemize}
+\item The code of the function can be defined within trusted code or untrusted code.
+\item When is closure saved within trusted memory or within untrusted memory?
+\item Every free variable of a higher order function can originate from trusted or untrusted code alike.
+How do the origin of the free variable and the location of the closure interact?
+\item Closures can be passed around as a value, enabling them to cross the security boundary.
+\end{itemize}
+
+This thesis will assume that the referencing environment is saved in the trusted memory when the closure is created in secure code, and in untrusted memory when it is created in untrusted code.
+The creation of a closure happens when a function is used as a value.
+For example, \myref{lst}{code:LexicalScopingExample} returns the \lsttext{innerFunction} that it defines as a value.
+If \myref{lst}{code:LexicalScopingExample} is located in secure code, its referencing environment and pointer is saved in trusted memory.
+If it were located in insecure code, the closure would be located in untrusted code.
+The location of a closure in memory defines the security status of a closure: A secure closure is one that is saved in trusted memory.
+
+For module functions, whose name can be used to pass them as a value, the code where their name is used defines the security status.
+For example in \myref{lst}{code:implicit}, the closure that represents the add function is considered to be created by the code of \myref{lst}{code:implicit}.
+This is explained by looking at the unsugared version of this code, as shown in \myref{lst}{code:explicit}.
+In this desugared form, it is clear that the code presented in \myref{lst}{code:explicit} creates the closure.
+The desugared form finds its justification in examples where the function is already passed one or more of its parameters while leaving the remaining parameters unspecified, a technique called \emph{currying}.
+This technique allows for the function insert, defined by the dictionary code of \myref{lst}{code:DictionaryStructureExample}, to be passed as a value with the dictionary into which the key-value pair must be inserted already defined using this code: \lsttext{let closureValue = insert emptyDictionary}.
+
+\begin{lstlisting}[frame=single, language=ML,caption=Passing a predefined function., label=code:LexicalScopingExample,numbers=left]
+foldl (add) emptyList values
+\end{lstlisting}
+\label{code:implicit}
+
+\begin{lstlisting}[frame=single, language=ML,caption={Passing a predefined function, unsugared.}, label=code:LexicalScopingExample,numbers=left]
+foldl (\x y -> add x y) emptyList values
+\end{lstlisting}
+\label{code:explicit}
+
+Now that the security status of closures had properly been defined and the closure value itself is assigned to trusted or untrusted memory, it is possible to look at the other problems of higher-order function handling, such as the origin of free variables, or the passing of closures across the security boundary.
+
+
+%Whether or not something is a secure closure is determined by the code that creates the closure.
+
+%Are even the predefined functions represented as closures?
+
+%The origin of free variables of the higher-order function could be trusted or untrusted code alike, just as the function can be defined in either trusted or untrusted code.
+%This allows for a case by case analysis of the four distinct combinations of pointer and variable(s).
+
+\subsection{Secure Free Variables For A Secure Closure}
 
 In this case, the code that is executed when the closure is called runs within the \emph{SPM} itself.
 The \emph{function pointer} and the \emph{referencing environment} are both in secure memory and are protected from any tampering by the low-level access control model and the checking performed upon compilation.
 
-\subsubsection{Insecure Free Variables For A Secure Pointer}
-If a closure is created with free variables stemming from untrusted code, the values of these free variables should be copied to the referencing environment inside the closure. 
-This need arises because the low level code could otherwise change the value of the free variable at any time, as it would be located inside untrusted memory, even mid-execution of the higher-order function.
+\subsection{Insecure Free Variables For A Secure Closure}
+If a closure is created by trusted code with free variables stemming from untrusted code, the values of these free variables should be copied to the referencing environment inside the closure. This is in contrast to the more straightforward low-level solution of having a pointer in the referencing environment to the original value in insecure memory.
+This need for copying arises because the low level code could otherwise change the value of the free variable at any time, as it would be located inside untrusted memory, even mid-execution of the higher-order function.
 \myref{lst}{code:CopyFreeVariables} gives an example of two functions that are vulnerable to this kind of attack.
 
 \begin{lstlisting}[frame=single, language=ML,caption=Changing free variables inside untrusted memory mid-execution can break contextual equivalence., label=code:CopyFreeVariables,numbers=left]
@@ -829,24 +873,25 @@ This problem is effectively mitigated by ensuring that upon \emph{application} o
 
 %Todo: what if the free-variable IS a reference. Then we must follow the reference chain all the way?! No, we follow high-level semantics, and Ref's make MiniML storage aware. ≈If a Reference to storage is created by the attackers context, and this reference is passed as a parameter, it is okay for the attacker to change the value in the storage location, as long as the location remains the same. 
 
-\subsubsection{Insecure Free Variables For An Insecure Pointer}
+\subsection{Insecure Free Variables For An Insecure Closure}
 
 This combination entails no interaction between the attackers context and the \emph{SPM} beyond the regular means of function calling.
 This means that it is not necessary to introduce security measures beyond those discussed in the previous chapters.
 How closures and their values are represented is only important to the extent to which implementation for this case and the other cases might be shared by tackling the problem in a generic way.
 
-\subsubsection{Secure Free Variables For An Insecure Pointer}
+\subsection{Secure Free Variables For An Insecure Closure}
 
-As stated in \myref{chap}{chap:ACompilationExample}, objects created by secure code should not leave the safety of secure memory provided by the low-level acces control model.
+As stated in \myref{chap}{chap:ACompilationExample}, values originating from secure code should not leave the safety of secure memory provided by the low-level acces control model.
 Instead, these values passed must be masked and represented in the insecure code by their masking index.
 These same measures are necessary when working with closures.
 As long as we obey these measures, and represent secure free variables in the referencing environment by their masking index, they are not susceptible to tampering, illegal disclosure or any other manipulation attacks.
 The only way to interact with these secure free variables is by passing them as parameters to functions within the \emph{SPM}.
 This shows that the added power of closures does not require any new security measures for this interaction between \emph{SPM} and the attackers context.
 
-
+\todo{Should I move this subsection upwards, to right after the discussion of secure closures, or is it more logical to first explain all different free-variable/ closure security status combinations?}
 \subsection{Cross-boundary Passing Of A Secure Closure }
-This section explores the security measures that must be taken when the closure itself, which is a first class value, is passed as an object across the boundary between \emph{SPM} and the attackers context.
+Now that it is possible to have a secure closure as a first class value, it can be passed as an object across the boundary between \emph{SPM} and the attackers context.
+This section explores the security measures that must be taken when this occurs.
 If an \emph{SPM} would pass a closure generated inside its body to the untrusted code, the untrusted code could change the value of the function pointer and inspect or change the values saved in the referencing environment.
 
 Each of these actions break contextual equivalence:
@@ -859,12 +904,13 @@ Assumptions about the way abstract data types are structured can be checked by i
 \end{description}
 
 As a result, the closure entity itself should not be passed across the boundary between the \emph{SPM} and the trusted code.
-Instead, the closure should be masked, and its corresponding index in the masking map is passed to the untrusted code.
+Instead, the closure should be masked, and its corresponding index in the masking map of the \emph{SPM} is passed to the untrusted code.
+%The code pointer inside the closure now points to 
 In order to later execute the closure, the \emph{SPM} should offer an \emph{closure-evaluation entry point}.
 This entry point first takes a pointer to a closure in the masking map.
 Then, because it is located within the \emph{SPM}, the entry point is able to jump to the function pointer specified by the closure and run the function code.
 
-\subsubsection{The Closure-Evaluation Entry Point}
+\subsection{The Closure-Evaluation Entry Point}
 
 Because closures can be passed freely, it is possible for insecure code to obtain a closure value.
 Of course this insecure code is allowed to make use of the closure, and execute the underlying function.
@@ -886,7 +932,14 @@ The code that implements these different requirements and responsabilities is sh
 
 \begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption=The generic closure-evaluation entry point.,
 label=llvm:EvalEntryPoint]
-\end{lstlisting}\todo{Todo: copy (cleaned up) code.}
+fun closureEvalEntryPoint(maskingIndex, spilledParameterPointer)
+    if(! checkIfClosure(maskingMap, maskingIndex)){ //fails if the index does not exist or does not reference a closure.
+        closure = lookUp (maskingIndex) maskingMap //lookUp
+        secureSpilledParameterPointer = copy(spilledParameterPointer)
+        jump (getFunctionPointer(closure))
+        cleanup()
+end 
+\end{lstlisting}
 
 \section{Functors\label{sec:Functors}}
 

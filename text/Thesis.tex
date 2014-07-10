@@ -942,6 +942,17 @@ end
 \end{lstlisting}
 
 \section{Functors\label{sec:Functors}}
+This section introduces the ML concept of functors. Functors can be seen as \emph{functions} from structures to structures.
+They accept a structure that conforms to a given signature and create a structure as a result.
+
+Functors are a way of parametrizing structures.
+They can be used to implement a module dependent on an outside module showing certain behavior with limited considerations of the way that this behavior is implemented.
+This method of abstraction can be used to create for example generic data structures. An example of a functor is shown in \myref{lst}{code:functor}.
+
+\begin{lstlisting}[frame=single,numbers=left, language=ML, caption=The generic closure-evaluation entry point.,
+label=code:functor]
+\end{lstlisting}
+
 
 \chapter{References\label{chap:References}}
 \chapter{Complex Data\label{chap:ComplexData}}

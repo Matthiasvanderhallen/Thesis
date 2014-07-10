@@ -68,11 +68,12 @@ However, the need for \emph{data abstraction} is not yet fulfilled.
 \myref{lst}{code:DictionaryStructureExample} shows how a dictionary of strings to strings might be implemented by a module.
 ~
 \begin{lstlisting}[frame=single, language=ML,caption=An example structure showing the definition of a dictionary in ML, label=code:DictionaryStructureExample,numbers=left]
-structure Dictionary = struct
-   type dictionary = (string, string) list
-   val emptyDictionary = []
-   fun insert(d, x, y) = (x,y)::d
-end 
+structure Dictionary =
+    struct
+        type dictionary = (string * string) list
+        val emptyDictionary = []
+        fun insert(d, x, y) = (x,y)::d
+    end
 \end{lstlisting}
 
 \myref{lst}{code:DictionaryStructureExample} firstly defines a type dictionary, which is defined to be a type synonym for a list of string pairs, a value representing the empty dictionary (\texttt{emptyDictionary}) and a function for inserting data into the dictionary (\texttt{insert}).
@@ -87,11 +88,12 @@ It provides a way of abstracting over structures that implement the same logical
 A possible signature for dictionaries is shown in \myref{lst}{code:SignatureDictionaryExample}.
 ~
 \begin{lstlisting}[frame=single, language=ML, caption=An example signature showing the declaration of a dictionary in ML, label=code:SignatureDictionaryExample, numbers=left]
-signature DICTIONARYSIGNATURE = sig
-   type dictionary
-   val emptyDictionary : dictionary
-   val insert: dictionary-> string -> string
-end
+signature DICTIONARYSIGNATURE =
+    sig
+        type dictionary
+        val emptyDictionary : dictionary
+        val insert: dictionary * string * string -> dictionary
+    end
 \end{lstlisting}
 
 A signature guarantees that two implementations of the same logical concepts are interchangeable for each other by standardizing the way an implementation communicates with the other code.
@@ -113,21 +115,23 @@ In order to implement a symmetric cipher, one must have a credential, i.e. the k
 The \texttt{encrypt} function takes the raw data and encodes it in a way only those with knowledge of the correct credentials can later use the \texttt{decrypt} function to transform the encoded data back into the raw data.
 
 \begin{lstlisting}[frame=single, language=ML,numbers=left, label=code:Example, caption=Example of a security sensitive module specifying and implementing a symmetric cypher.]
-signature SYMMETRICCIPHER = sig 
-    type cred
-    val newcredentials : cred
-    val encrypt: int -> cred -> int
-    val decrypt: int -> cred -> int
-end
+signature SYMMETRICCIPHER =
+    sig 
+        type cred
+        val newcredentials : cred
+        val encrypt: int -> cred -> int
+        val decrypt: int -> cred -> int
+    end
 
-structure Caesar :> SYMMETRICCIPHER = struct
-    type cred = int
-    fun newcredentials = rand
-    fun encrypt(a,cred) = (a + cred)%26
-    fun decrypt(a, cred) = (a - cred)%26
-    val seed = 3
-    fun rand = time.now * seed
-end
+structure Caesar :> SYMMETRICCIPHER =
+    struct
+        type cred = int
+        fun newcredentials = rand
+        fun encrypt(a,cred) = (a + cred)%26
+        fun decrypt(a, cred) = (a - cred)%26
+        val seed = 3
+        fun rand = time.now * seed
+    end
 \end{lstlisting}
 
 From line 8 of \myref{lst}{code:Example} onwards the definition of a structure called \texttt{Caesar} is given.
@@ -320,11 +324,12 @@ This is a means of information hiding, if someone were to later rewrite this dic
 
 \begin{figure}[!htb]
 \begin{lstlisting}[frame=single, language=ML]
-structure Dictionary = struct
-   type dictionary = (string list, string list)
-   val emptyDictionary = []
-   fun insert((fst,snd), x, y) = (x::fst, y::snd)
-end
+structure Dictionary =
+    struct
+        type dictionary = (string list * string list)
+        val emptyDictionary = ([],[])
+        fun insert((fst,snd), x, y) = (x::fst, y::snd)
+    end
 \end{lstlisting}
 \label{code:DictionaryStructureExample2}
 \caption{An alternative structure defining a dictionary.}
@@ -947,12 +952,89 @@ They accept a structure that conforms to a given signature and create a structur
 
 Functors are a way of parametrizing structures.
 They can be used to implement a module dependent on an outside module showing certain behavior with limited considerations of the way that this behavior is implemented.
-This method of abstraction can be used to create for example generic data structures. An example of a functor is shown in \myref{lst}{code:functor}.
+This method of abstraction can be used to create for example generic data structures.
+For example, a problem one might have with our dictionary example in Chapter 1, \myref{lst}{code:DictionaryStructureExample}, is that it is not really type independent.
+Using functors, it is possible to rewrite the dictionary example in a way that describes how dictionaries work regardless of whether the key is of type string, int, or any other type.
+The rewritten dictionary using functors is shown in \myref{lst}{code:DictionaryFunctor}.
 
-\begin{lstlisting}[frame=single,numbers=left, language=ML, caption=The generic closure-evaluation entry point.,
-label=code:functor]
+\begin{lstlisting}[frame=single,numbers=left, language=ML, caption=A generic dictionary that can take any type of the EQUAL typeclass as its key.,
+label=code:DictionaryFunctor]
+signature DICTIONARY =
+    sig
+        type key
+        type 'a dictionary
+        val emptyDictionary : 'a dictionary
+        val insert : 'a dictionary -> key -> 'a -> 'a dictionary
+    end
+
+signature EQUAL =
+    sig
+        type t
+        val equal : t -> t -> bool
+    end
+
+structure StringEqual: EQUAL = 
+    struct
+        type t = string
+        fun equal t1 t2  = case String.compare(t1,t2)
+                                of EQUAL => true
+                                 | _ => false
+    end
+    
+functor DictionaryFn (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
+    struct
+        type key = KeyStruct.t
+        type 'a dictionary = (key * 'a) list
+        val emptyDictionary = []
+        fun insert d x y = (x,y)::d
+    end
+    
+structure StringDict = DictionaryFn(StringEqual);
+\end{lstlisting}
+%https://www.cs.cmu.edu/~rwh/introsml/modules/subfun.htm
+%http://www.cs.cmu.edu/~15150/previous-semesters/2012-spring/resources/lectures/20.pdf
+%http://www.disi.unige.it/person/MoggiE/LP/SML/SML-harper/functors.htm
+%http://caml.inria.fr/pub/papers/xleroy-applicative_functors-popl95.pdf
+\todo{Edit custom environment so that listings don't pagebreak}
+
+\begin{lstlisting}[frame=single,numbers=left, language=ML, caption=The alternative implementations of the dictionary,
+label=code:DictionaryFunctorAlternative]
+functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
+    struct
+        type key = KeyStruct.t
+        type 'a dictionary = (key list * 'a list)
+        val emptyDictionary = ([],[])
+        fun insert (a,b) x y = (x::a,y::b)
+    end
 \end{lstlisting}
 
+In order to parametrize over the type of key, the dictionary signature of \myref{lst}{code:SignatureDictionaryExample} was expanded with an extra type named \lsttext{key}, as shown in line 3 of \myref{lst}{code:DictionaryFunctor}.
+On top of that, lines 9-13 specify a signature \lsttext{EQUAL} that defines the interface to which a type must comply in order to be a possible key for a dictionary.
+Lines 15-21 specify a structure \lsttext{StringEqual} that conforms to the signature needed to act as a key type for a dictionary.
+
+Finally, lines 23-29 show how we define a functor.
+First the argument structures and their corresponding signatures are specified, in this case \lsttext{KeyStruct}, which must be of signature \lsttext{EQUAL}.
+Next, the structure resulting from functor application is bound to the \lsttext{DICTIONARY} signature using opaque ascription.
+The choice for opaque ascription ensures that the specific implementation of dictionaries, i.e. as a list of pairs or a pair of lists, remains hidden and that the dictionary type remains an abstract type whose values only can be created by the dictionary structure that results from the functor application.
+
+However, the signature \lsttext{DICTIONARY} hides the implementation of the \lsttext{key} type.
+This is a problem, since a user must be able to create values of type \lsttext{key} and pass them to insert function.
+The type of values that is put inside the dictionary does not suffer from the same problem as its type is specified parametrically as type variable \lsttext{'a} in the type definition \lsttext{type 'a dictionary}.
+
+This problem can not be solved by specifying the type inside the \lsttext{DICTIONARY} signature, since then it loses the flexibility of allowing any type of key.
+Neither can it be made a type variable in the type definition \lsttext{type 'a dictionary} since not \emph{all} types can act as a key for dictionaries: only those for which an equality check makes sense can be used as a \lsttext{key} type.
+In other words, specifying the key as a type variable (\lsttext{type ('key, 'a) dictionary}) is insatisfactory because the ability to put constraints on the chosen type is lost.
+
+Instead, the problem is solved by modifying our opaque ascription when it is applied to the structure resulting from the functor \lsttext{DictionaryFn}, by specifying that they \lsttext{key} type is equal to the type \lsttext{t} specified in the \lsttext{KeyStruct} that was passed as the functors argument.
+This modification makes the type of key freely available, yet still dependent on the specific key structure that was used when the dictionary structure was created using the functor.
+
+The last line of \myref{lst}{code:DictionaryFunctor} shows how the functor \lsttext{DictionaryFn} is eventually applied to the \lsttext{StringEqual} structure, resulting in a dictionary structure saved as \lsttext{StringDict} that uses \lsttext{string} as type for its keys, and compares them using the regular \lsttext{String.compare} function.
+This way of specifying a functor allows for very easy change of the \lsttext{key} type, as well as the way that they are compared.
+For example, it would require only a very minimal change to create a dictionary that disregards capitalization when comparing its \lsttext{key}s of type \lsttext{string}, and it is even possible to cleanly use this alternative implementation in conjunction with the case-sensitive implementation.
+
+\smallskip
+
+\noindent As was shown in line 31 of \myref{lst}{code:DictionaryFunctor}, in order to implement functors, it is necessary that structures become values, so that they can be passed to functors to create new structures.
 
 \chapter{References\label{chap:References}}
 \chapter{Complex Data\label{chap:ComplexData}}

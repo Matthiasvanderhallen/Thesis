@@ -23,7 +23,7 @@ structure Dictionary2:>DICTIONARYSIGNATURE =
 val t = fn (x,y) => x;
 Dictionary.emptyDictionary;
 Dictionary.insert(it,"1",1);  
-Dictionary.insert(it,"2","3");
+Dictionary.insert(it,"2",2);
 t(it);
 
 Dictionary2.emptyDictionary;

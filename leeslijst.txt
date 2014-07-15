@@ -1,0 +1,40 @@
+Module Systems and ML: 
+http://courses.cs.washington.edu/courses/cse341/04wi/lectures/09-ml-modules.html
+
+Separate Compilation for Standard ML
+http://www.cs.cmu.edu/~rwh/courses/modules/papers/appel-macqueen94/paper.pdf
+
+A Separate Compilation Extension to Standard ML
+http://www.cs.cmu.edu/~tom7/papers/smlsc2-ml06.pdf
+
+MixML:
+http://www.mpi-sws.org/~rossberg/mixml/
+
+Mixin’ Up the ML Module System
+http://www.mpi-sws.org/~rossberg/mixml/mixml-toplas.pdf
+
+ML Module Mania: A Type-Safe, 
+Separately Compiled, Extensible Interpreter
+http://www.cs.tufts.edu/~nr/pubs/maniaws-abstract.html
+
+Design Considerations for ML-Style Module Systems
+http://kysmykseka.net/kysmyk/Wizardry/Maths/Comp%20Sci%20Math/Benjamin_C._Pierce-Advanced_topics_in_types_and_programming_languages-The_MIT_Press(2004).pdf
+
+google: Separate compilation ML
+google: functors and separate compilation ML
+
+Separate Compilation in SML#:
+http://www.pllab.riec.tohoku.ac.jp/smlsharp/docs/1.0/en/Ch8.S6.html
+
+What is a Recursive Module?* 
+http://www.cs.cmu.edu/~rwh/courses/modules/papers/crary-etal99/paper.pdf
+
+Separate Compilation in OCaml
+http://web.mit.edu/16.399/www/project/OCaml/programs/separate-compilation/doc/separate-compilation.pdf
+
+True Higher-Order Modules, Separate Compilation, and
+Signature Calculi∗
+http://people.cs.uchicago.edu/~gkuan/dissertation-proposal.pdf
+
+Lectures on ML
+http://www.cs.cornell.edu/Courses/cs312/2007sp/lectures/lec07.html

@@ -41,7 +41,7 @@
   >
 ]>
 <requests version="1.0">
-  <internal package="biblatex" priority="9" active="0">
+  <internal package="biblatex" priority="9" active="1">
     <generic>latex</generic>
     <provides type="dynamic">
       <file>Thesis.bcf</file>
@@ -53,16 +53,15 @@
       <file>blx-dm.def</file>
       <file>blx-compat.def</file>
       <file>biblatex.def</file>
-      <file>mla.bbx</file>
+      <file>numeric.bbx</file>
       <file>standard.bbx</file>
-      <file>mla.cbx</file>
+      <file>numeric.cbx</file>
       <file>biblatex.cfg</file>
-      <file>english-mla.lbx</file>
       <file>english.lbx</file>
       <file>dutch.lbx</file>
     </requires>
   </internal>
-  <external package="biblatex" priority="5" active="0">
+  <external package="biblatex" priority="5" active="1">
     <generic>biber</generic>
     <cmdline>
       <binary>biber</binary>
@@ -79,6 +78,9 @@
     </provides>
     <requires type="dynamic">
       <file>Thesis.bcf</file>
+    </requires>
+    <requires type="editable">
+      <file>bibliography.bib</file>
     </requires>
   </external>
 </requests>

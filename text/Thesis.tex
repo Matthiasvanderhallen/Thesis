@@ -14,12 +14,17 @@
 \usepackage{todonotes}
 \usepackage{hyperref}
 \usepackage{listings}
-\usepackage[style=mla,babel=hyphen,backend=biber]{biblatex}
+%\usepackage[style=mla,babel=hyphen,backend=biber]{biblatex}
+\usepackage{natbib}
 %\usepackage{courier}
 
 \lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
-
+\lstset{language=ML}
+\lstset{
+ morekeywords={where}
+}
 \input{./tex/cmds}
+%\bibliography{bibliography}
 
 \begin{document}
 %\newcommand{\emphref}[1]{\emph{}}
@@ -804,15 +809,13 @@ In this desugared form, it is clear that the code presented in \myref{lst}{code:
 The desugared form finds its justification in examples where the function is already passed one or more of its parameters while leaving the remaining parameters unspecified, a technique called \emph{currying}.
 This technique allows for the function insert, defined by the dictionary code of \myref{lst}{code:DictionaryStructureExample}, to be passed as a value with the dictionary into which the key-value pair must be inserted already defined using this code: \lsttext{let closureValue = insert emptyDictionary}.
 
-\begin{lstlisting}[frame=single, language=ML,caption=Passing a predefined function., label=code:LexicalScopingExample,numbers=left]
+\begin{lstlisting}[frame=single, language=ML,caption=Passing a predefined function., label=code:implicit,numbers=left]
 foldl (add) emptyList values
 \end{lstlisting}
-\label{code:implicit}
 
-\begin{lstlisting}[frame=single, language=ML,caption={Passing a predefined function, unsugared.}, label=code:LexicalScopingExample,numbers=left]
+\begin{lstlisting}[frame=single, language=ML,caption={Passing a predefined function, unsugared.}, label=code:explicit,numbers=left]
 foldl (\x y -> add x y) emptyList values
 \end{lstlisting}
-\label{code:explicit}
 
 Now that the security status of closures had properly been defined and the closure value itself is assigned to trusted or untrusted memory, it is possible to look at the other problems of higher-order function handling, such as the origin of free variables, or the passing of closures across the security boundary.
 
@@ -858,7 +861,7 @@ If no copying of free variables occures, an attacker could set distinguish a mod
 This is achieved in \myref{lst}{code:CopyFreeVariables} by means of the callback function. 
 Even when no callbacks are available this type of attack remains possible. For example, in a more powerful language providing a multithreaded environment, such an execution passing can be forced using a context switch.
 \item The context uses this opportunity and the fact that \lsttext{freevar} is saved in unprotected memory to change the value of \lsttext{freevar}. This not possible in the high-level language, but the low-level language provides no guarantees whatsoever against modification of the unprotected memory.
-\item If the implementation of \lsttext{generateClosure1} was used, then the result of the closure application depends on when exactly execution was temporarily switched to the attackers' context.
+\item If the implementation of \lsttext{generateClosure1} was used, then the result of the closure application depends on when exactly execution was temporarily switched to the attackers context.
 If this happened after copying the value of \lsttext{freevar} to \lsttext{b}, which is saved in protected memory, then the result of the closure will not reflect the change of value of \lsttext{freevar} by the attackers context.
 If the execution switch happens before this copying of \lsttext{freevar} into protected memory, then the result will be computed using the changed value of \lsttext{freevar}.
 
@@ -958,7 +961,7 @@ Using functors, it is possible to rewrite the dictionary example in a way that d
 The rewritten dictionary using functors is shown in \myref{lst}{code:DictionaryFunctor}.
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption=A generic dictionary that can take any type of the EQUAL typeclass as its key.,
-label=code:DictionaryFunctor]
+label=code:DictionaryFunctor, morekeywords={where}]
 signature DICTIONARY =
     sig
         type key
@@ -998,7 +1001,7 @@ structure StringDict = DictionaryFn(StringEqual);
 \todo{Edit custom environment so that listings don't pagebreak}
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption=The alternative implementations of the dictionary,
-label=code:DictionaryFunctorAlternative]
+label=code:DictionaryFunctorAlternative, morekeywords={where}]
 functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
     struct
         type key = KeyStruct.t
@@ -1023,9 +1026,9 @@ The type of values that is put inside the dictionary does not suffer from the sa
 
 This problem can not be solved by specifying the type inside the \lsttext{DICTIONARY} signature, since then it loses the flexibility of allowing any type of key.
 Neither can it be made a type variable in the type definition \lsttext{type 'a dictionary} since not \emph{all} types can act as a key for dictionaries: only those for which an equality check makes sense can be used as a \lsttext{key} type.
-In other words, specifying the key as a type variable (\lsttext{type ('key, 'a) dictionary}) is insatisfactory because the ability to put constraints on the chosen type is lost.
+In other words, specifying the key as a type variable (\lsttext{type ('key, 'a) dictionary}) is unsatisfactory because the ability to put constraints on the chosen type is lost.
 
-Instead, the problem is solved by modifying our opaque ascription when it is applied to the structure resulting from the functor \lsttext{DictionaryFn}, by specifying that they \lsttext{key} type is equal to the type \lsttext{t} specified in the \lsttext{KeyStruct} that was passed as the functors argument.
+Instead, the problem is solved by modifying our opaque ascription when it is applied to the structure resulting from the functor \lsttext{DictionaryFn}, by specifying that they \lsttext{key} type is equal to the type \lsttext{t} specified in the \lsttext{KeyStruct} that was passed as the functors argument. (Line 23)
 This modification makes the type of key freely available, yet still dependent on the specific key structure that was used when the dictionary structure was created using the functor.
 
 The last line of \myref{lst}{code:DictionaryFunctor} shows how the functor \lsttext{DictionaryFn} is eventually applied to the \lsttext{StringEqual} structure, resulting in a dictionary structure saved as \lsttext{StringDict} that uses \lsttext{string} as type for its keys, and compares them using the regular \lsttext{String.compare} function.
@@ -1033,11 +1036,97 @@ This way of specifying a functor allows for very easy change of the \lsttext{key
 For example, it would require only a very minimal change to create a dictionary that disregards capitalization when comparing its \lsttext{key}s of type \lsttext{string}, and it is even possible to cleanly use this alternative implementation in conjunction with the case-sensitive implementation.
 
 \smallskip
-
-\noindent As was shown in line 31 of \myref{lst}{code:DictionaryFunctor}, in order to implement functors, it is necessary that structures become values, so that they can be passed to functors to create new structures.
+\subsubsection{Compilation Of Functors}
+\noindent As was shown in line 31 of \myref{lst}{code:DictionaryFunctor}, in order to implement functors, it is necessary that structures become values, so that they can be passed to functors to create new structures. 
+(However, they are not first-class values: they are bound to names using the special \lsttext{structure} keyword, and can only be returned by functors, not by any other expression.)
+%todo: not by any Core language expression.
 In the high-level language, structures can simply be represented by their name.
-\todo{remark: It is possible to compile away functors (And signatures). See: M. Elsman, Static Interpretation of Modules}
+%\todo{remark: It is possible to compile away functors (And signatures). See: M. Elsman, Static Interpretation of Modules}
+Compilation to the low-level language has several distinct possibilities of handling structures and functors:
+\begin{itemize}
+    \item Structures, signatures, functors and functor applications can be compiled away, a technique called \emph{Static Interpretation}.\cite{Elsman}
+    This approach is taken by MLKit\footnote{http://www.elsman.com/mlkit/}.
+    As a result, multiple applications of the same functor result in multiple generations of the functors body, specialized for every combination of parameters.
+    \item Structures can be compiled, keeping the values defined by the structures together in the low-level language in a record like manner called a \emph{frame}.
+    Functors can then be compiled using generic code, which receives a reference to the frame representing the structure that is passed as parameter.
+    The code of these functors dynamically calls the functions inside the structure received as an argument.
+\end{itemize}
 
-\chapter{References\label{chap:References}}
+The second option is chosen, since it does not duplicate code and is the more standard way of implementing compilation of the Module language of ML.
+This means that the values of functors are implemented as stubs that take 
+a reference to a frame, and use this frame to call the correct structure values.
+
+\smallskip\noindent
+Two main points have to be discussed when considering functors within the context of abstract compilation:
+The first point that needs to be addressed asks what the security status is of the result of functor application.
+When is the structure resulting from a functor considered to be part of the SPM, and when is it part of the insecure context? This is discussed in \myref{sec}{sec:SecurityStatus}.
+
+The second point, discussed in \myref{sec}{sec:LowLevelRepresentation} is whether the representational difference of structures when passing them as an argument to a functor in the high-level language and the low-level language can be exploited to compromise the \emph{SPM} and break contextual equivalence.
+
+
+\subsection{Security Status Of The Resulting Structure\label{sec:SecurityStatus}}
+This first question concerning the security status of the result of functor application has a simple, yet perhaps surprising answer.
+The structure that results from a functor has the same security status as the functor that is applied itself.
+To see why this is the logical choice, consider the example of a dictionary in \myref{lst}{code:DictionaryFunctor}, and the two possible sources for the functor code:
+\begin{description}
+\item[Functor in secure code:] Suppose \lsttext{DictionaryFn} is defined in secure code.
+Regardless of whether its argument, \lsttext{KeyStruct}, was defined in secure code or in insecure code, the specific implementation of this dictionary is supposed to be abstract.
+This means that values of types that are defined by the functor can only be returned to the context as masked values.
+In its implementation, the functor can freely call functions of the (possibly insecure) structure, it must however take the same precautions as any callback to insecure code.
+%todo: How do we discriminate between structures that are inside the spm and those that are outside the spm? Do we simply check the pointer value against the region? (This is presumably very unsafe).
+%todo: How do we represent the structure that was created? It can be used as a parameter for a functor *again*
+%todo: Suppose StringEqualCaseSensitive and StringEqualCaseInsensitive are given as argument 
+A possibly surprising conclusion is that this argument holds, regardless of whether the functor application was done within the secure code or within the insecure code.
+\item[Functor in insecure code:] Suppose \lsttext{DictionaryFn} is defined in insecure code.
+Now the choices made by when implementating the dictionary are not expected to be abstract. There is no implementation hiding in this case.
+This is supported by the consideration that one could write out the non-parametrized structure that would result of functor application in MiniML by hand. 
+This structure is a part of insecure code, and of course one would expect that the security status does not change simply due to the use of functors.
+\end{description}
+
+\subsection{Low-Level Representation Of Structures\label{sec:LowLevelRepresentation}}
+In order to pass structures to functors as an argument, structures are represented in the low-level language as a tuple of structure name, and a list of pointers that represent the structure values\todo{Explain the need of trimming, and solve the corresponding trimming problem}.
+This low-level representations are called \emph{frames}.
+These frames reside in the memory section corresponding to their security status, for example
+structures corresponding to the \emph{SPM} have their frame saved in the protected memory.
+This prevents tampering with the frames that correspond to secure structures by the attackers context, such as changing the pointers to the different structure values or changing their order.
+In order to explore the possibility of contextual equivalence breaking due to the representation of structures differing between high-level and low-level, the possible combinations of functor and structure security are explored here case by case.
+%Since functor application results in a structure as well, these structures must also be representable as frames.
+%In order to allow this, frames consist of a type indicator that identifies it as a structure defined using the struct keyword, or a structure resulting from functor application.
+
+%todo: Trimming problem, problem with iterated functor applying. (When applying a secure functor, the resulting structure must be saved in the list of structures in secure memory. This consists of a pointer to the functor
+%todo: suppose functor application is done in the insecure code. Structure is in secure code. Regardless of where the functor is located, the linker knows what signature it expects and can trim down the 
+%Origin problem: What is the origin of the structure. Is it a pointer in the insecure memory, or is it a masking index?
+%Fresh type names at every application, even to the same arguments! http://books.google.be/books?id=oPaAAahVu_kC&pg=PA345&lpg=PA345&dq=functors+sml+each+new+application+provides+fresh+types&source=bl&ots=g-VRLSeChc&sig=v4t4Ch42F-pktGaLpqgMq51K92k&hl=en&sa=X&ei=YvfGU92vHYrR7Aa89oGoDw&ved=0CCsQ6AEwAQ#v=onepage&q=functors%20sml%20each%20new%20application%20provides%20fresh%20types&f=false
+%note whether the application was really performed!
+\begin{description}
+\item[Secure functor and secure structure] 
+%In this case, at the moment of functor application a new frame is created representing the result of this functor application. This consists of 
+The \emph{frame} representing a structure is located in the same part of memory as the structure was defined.
+Since in this combination both the functor code and the frame are located inside protected memory, no tampering is possible.
+When functor code is called with a reference to the frame in secure memory, the functor code will be able to read the the frame directly, because the functor is part of the \emph{SPM}. It can then call any value of the structure using the pointer provided by the frame.
+\item[Secure Functor with insecure structure]
+When a secure functor is applied to an insecure structure, its result is a secure structure that calls functions provided by the insecure structure.
+The resulting structure \emph{depends} on the insecure structure.
+It must call these functions using the same precautions as regular callbacks to the attacker's context.
+Of course the pointers that that represent these functions can be manipulated by attacker because the frame is now located in insecure memory.
+However, because contextually equivalent implementations of the functor must perform the same callbacks with the same arguments in the high-level language in the same order, their compiled versions will always use the same value pointers provided by the insecure frame, with the same parameters. 
+As a result, the regular precautions, such as clearing registers, switching the stack and masking values that pass from secure code to the insecure context, are sufficient to ensure contextual equivalence of the low-level.
+%todo: OR depends on values
+\item[Insecure Functor with insecure structure]
+In this case, both the functor code and the frame are located inside unprotected memory.
+The structure that results from the application is considered to be part of the attacker's context.
+The use of values from the insecure structure by code inside the insecure functor can happen without any security precautions, as the expected behavior is simply equivalent to that of an unparametrized module in the attacker's context that depends on another module of this same context.
+\item[Insecure Functor with secure structure]
+Because the code of the functor is now located outside of the \emph{SPM}, special care needs to be taken when the functor depends on values provided by the structure.
+Because the frame $Fr_{s}$ representing the structure is now in secure memory, the functor cannot manipulate this frame or perform reads on this frame.
+In order for insecure functors to call these functions, a generic entry point is provided by the \emph{SPM} that takes a reference to a frame and an index value. 
+%todo: possible variant: this generic entry point takes all arguments and 'wraps around' the function that is to be called.
+As a result, a pointer to the correct entry point is returned to the insecure code, which it can then call with the necessary arguments.
+\end{description}
+
+\chapter{References\label{chap:References}\label{test}}
 \chapter{Complex Data\label{chap:ComplexData}}
+
+\bibliographystyle{alpha}
+\bibliography{bibliography}
 \end{document}

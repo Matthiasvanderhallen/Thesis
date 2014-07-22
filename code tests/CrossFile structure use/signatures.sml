@@ -11,3 +11,9 @@ signature EQUAL =
         type t
         val equal : t -> t -> bool
     end
+
+signature EQUALB = 
+    sig 
+        type t
+        val equal : t -> t -> bool
+    end

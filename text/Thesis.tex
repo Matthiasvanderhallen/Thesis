@@ -18,7 +18,7 @@
 \usepackage{natbib}
 %\usepackage{courier}
 
-\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
+\lstset{basicstyle=\ttfamily,breaklines=true, keepspaces=true, columns=flexible, numberstyle=\small}
 \lstset{language=ML}
 \lstset{
  morekeywords={where}
@@ -950,15 +950,20 @@ end
 \end{lstlisting}
 
 \section{Functors\label{sec:Functors}}
-This section introduces the ML concept of functors. Functors can be seen as \emph{functions} from structures to structures.
+This section introduces the MiniML concept of functors. Functors can be seen as \emph{functions} from structures to structures.
 They accept a structure that conforms to a given signature and create a structure as a result.
 
 Functors are a way of parametrizing structures.
 They can be used to implement a module dependent on an outside module showing certain behavior with limited considerations of the way that this behavior is implemented.
-This method of abstraction can be used to create for example generic data structures.
-For example, a problem one might have with our dictionary example in Chapter 1, \myref{lst}{code:DictionaryStructureExample}, is that it is not really type independent.
-Using functors, it is possible to rewrite the dictionary example in a way that describes how dictionaries work regardless of whether the key is of type string, int, or any other type.
-The rewritten dictionary using functors is shown in \myref{lst}{code:DictionaryFunctor}.
+This method of abstraction can be used to create generic data structures.
+For example, a problem with the dictionary example in Chapter 1, \myref{lst}{code:DictionaryStructureExample}, is that it is not really type independent. 
+Only values of type string are allowed as keys.
+
+Ideally, how a dictionary works would be described in a generic way that doesn't care whether the key is of type string, int or any other type.
+Instead, it needs only the assurance that some specific functionality is provided by the type.
+This is possible using functors.
+%Using functors, it is possible to rewrite the dictionary example in a way that describes how dictionaries work regardless of whether the key is of type string, int, or any other type.
+The generic dictionary using functors is shown in \myref{lst}{code:DictionaryFunctor}.
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption=A generic dictionary that can take any type of the EQUAL typeclass as its key.,
 label=code:DictionaryFunctor, morekeywords={where}]
@@ -968,6 +973,7 @@ signature DICTIONARY =
         type 'a dictionary
         val emptyDictionary : 'a dictionary
         val insert : 'a dictionary -> key -> 'a -> 'a dictionary
+        val lookup : 'a dictionary -> key -> 'a
     end
 
 signature EQUAL =
@@ -981,7 +987,7 @@ structure StringEqual: EQUAL =
         type t = string
         fun equal t1 t2  = case String.compare(t1,t2)
                                 of EQUAL => true
-                                 | _ => false
+                                | _ => false
     end
     
 functor DictionaryFn (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
@@ -990,6 +996,10 @@ functor DictionaryFn (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.
         type 'a dictionary = (key * 'a) list
         val emptyDictionary = []
         fun insert d x y = (x,y)::d
+        fun lookup |[] x = error
+                   |(key,val):ds x = if(KeyStruct.equal key x)
+                                     then val
+                                     else (lookup ds x)
     end
     
 structure StringDict = DictionaryFn(StringEqual);
@@ -998,16 +1008,20 @@ structure StringDict = DictionaryFn(StringEqual);
 %http://www.cs.cmu.edu/~15150/previous-semesters/2012-spring/resources/lectures/20.pdf
 %http://www.disi.unige.it/person/MoggiE/LP/SML/SML-harper/functors.htm
 %http://caml.inria.fr/pub/papers/xleroy-applicative_functors-popl95.pdf
-\todo{Edit custom environment so that listings don't pagebreak}
+%\todo{Edit custom environment so that listings don't pagebreak}
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption=The alternative implementations of the dictionary,
-label=code:DictionaryFunctorAlternative, morekeywords={where}]
+label=code:DictionaryFunctorAlternative, morekeywords={where}, basicstyle=\ttfamily]
 functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
     struct
         type key = KeyStruct.t
         type 'a dictionary = (key list * 'a list)
         val emptyDictionary = ([],[])
         fun insert (a,b) x y = (x::a,y::b)
+        fun lookup |[] x = error
+                   |(key:ks, val:vs) x = if(KeyStruct.equal key x)
+                                         then val
+                                         else (lookup (ks,vs) x)
     end
 \end{lstlisting}
 
@@ -1016,7 +1030,7 @@ On top of that, lines 9-13 specify a signature \lsttext{EQUAL} that defines the 
 Lines 15-21 specify a structure \lsttext{StringEqual} that conforms to the signature needed to act as a key type for a dictionary.
 
 Finally, lines 23-29 show how we define a functor.
-First the argument structures and their corresponding signatures are specified, in this case \lsttext{KeyStruct}, which must be of signature \lsttext{EQUAL}.
+First the argument structures and their corresponding signatures are specified, in this case \lsttext{KeyStruct}, whose signature must match signature \lsttext{EQUAL}.
 Next, the structure resulting from functor application is bound to the \lsttext{DICTIONARY} signature using opaque ascription.
 The choice for opaque ascription ensures that the specific implementation of dictionaries, i.e. as a list of pairs or a pair of lists, remains hidden and that the dictionary type remains an abstract type whose values only can be created by the dictionary structure that results from the functor application.
 
@@ -1036,13 +1050,37 @@ This way of specifying a functor allows for very easy change of the \lsttext{key
 For example, it would require only a very minimal change to create a dictionary that disregards capitalization when comparing its \lsttext{key}s of type \lsttext{string}, and it is even possible to cleanly use this alternative implementation in conjunction with the case-sensitive implementation.
 
 \smallskip
+%\subsubsection{Signature Matching}
+%Every structure expression has a corresponding \emph{principal signature}.
+%The principal signature of a structure expression consists of all type specifications and all values with their corresponding types.
+
+%When a structure is ascribed a signature, its principal signature must match with the ascribed signature.
+%In this matching, the principal signature is called the \emph{candidate}, while the ascribed signature is called the \emph{target}.
+
+%For a \emph{candidate} signature to match its \emph{target}, any value or type specification in the \emph{target} signature must have an equivalent specification in the \emph{candidate} signature.
+%\begin{enumerate}
+%\item For types, this means that for each type in the \emph{target}, there is a type in the \emph{candidate} with the same name.
+%If \emph{target} carries a definition for the type, \emph{candidate} must provide the same definition.
+%\item For values, this means that for each value in the \emph{target}, there exists a value with the same name in the \emph{candidate} whose type is at least as general as the corresponding type in the \emph{target}.
+%\end{enumerate}
+
+%These signature matching constraints allow the expression of a structure to have a principal signature that is more broad than its ascribed signature.
+%It can define more types or values, and provide existing values with more general types.
+
+\noindent Note that in the example above, the structure \lsttext{StringEqual} was a valid parameter to functor \lsttext{DictionaryFn} because \lsttext{StringEqual}s signature matched to the \lsttext{EQUAL} signature that the functor expected. In the example of \myref{lst}{code:DictionaryFunctor} this is straightforward, the transparent ascription of \lsttext{StringEqual} with signature \lsttext{EQUAL} already assures this.
+However, the signature matching relation allows the \emph{candidate} signature to be more broad than the \emph{target} signature.
+For functor application this means that the argument structure that is passed can define more types or values than the functor expects.
+The existence of these types and values however is not assured and the functor can not use them in its body.
+
+\smallskip
 \subsubsection{Compilation Of Functors}
 \noindent As was shown in line 31 of \myref{lst}{code:DictionaryFunctor}, in order to implement functors, it is necessary that structures become values, so that they can be passed to functors to create new structures. 
-(However, they are not first-class values: they are bound to names using the special \lsttext{structure} keyword, and can only be returned by functors, not by any other expression.)
+However, they are not first-class values: they are bound to names using the special \lsttext{structure} keyword, and can only be returned by functors, not by any Core language expression.
+%todo explain
 %todo: not by any Core language expression.
-In the high-level language, structures can simply be represented by their name.
+In the source language, structures can simply be represented by their name.
 %\todo{remark: It is possible to compile away functors (And signatures). See: M. Elsman, Static Interpretation of Modules}
-Compilation to the low-level language has several distinct possibilities of handling structures and functors:
+Compilation to the target language has several distinct possibilities of handling structures and functors:
 \begin{itemize}
     \item Structures, signatures, functors and functor applications can be compiled away, a technique called \emph{Static Interpretation}.\cite{Elsman}
     This approach is taken by MLKit\footnote{http://www.elsman.com/mlkit/}.
@@ -1058,18 +1096,23 @@ a reference to a frame, and use this frame to call the correct structure values.
 
 \smallskip\noindent
 Two main points have to be discussed when considering functors within the context of abstract compilation:
-The first point that needs to be addressed asks what the security status is of the result of functor application.
-When is the structure resulting from a functor considered to be part of the SPM, and when is it part of the insecure context? This is discussed in \myref{sec}{sec:SecurityStatus}.
+%The first point that needs to be addressed asks what the security status is of the result of functor application.
+Firstly, when is the output structure considered to be part of the SPM, and when is it part of the insecure context?
+This is discussed in \myref{sec}{sec:SecurityStatus}.
 
-The second point, discussed in \myref{sec}{sec:LowLevelRepresentation} is whether the representational difference of structures when passing them as an argument to a functor in the high-level language and the low-level language can be exploited to compromise the \emph{SPM} and break contextual equivalence.
+The second point, considers the representational difference of structurs in the source and target language.
+\myref{sec}{sec:LowLevelRepresentation} expands on the representation and discusses whether this different representation can be exploited by an attacker.
+%discussed in \myref{sec}{sec:LowLevelRepresentation} is whether the representational difference of structures when passing them as an argument to a functor in the high-level language and the low-level language can be exploited to compromise the \emph{SPM} and break contextual equivalence.
 
 
 \subsection{Security Status Of The Resulting Structure\label{sec:SecurityStatus}}
 This first question concerning the security status of the result of functor application has a simple, yet perhaps surprising answer.
-The structure that results from a functor has the same security status as the functor that is applied itself.
+The output structure resulting from a functor has the same security status as the generating functor.
 To see why this is the logical choice, consider the example of a dictionary in \myref{lst}{code:DictionaryFunctor}, and the two possible sources for the functor code:
 \begin{description}
-\item[Functor in secure code:] Suppose \lsttext{DictionaryFn} is defined in secure code.
+\item[Functor in secure code:] 
+Suppose \lsttext{DictionaryFn} is defined in secure code.
+This is the case when it is part of a library that is offered as an \emph{SPM}.
 Regardless of whether its argument, \lsttext{KeyStruct}, was defined in secure code or in insecure code, the specific implementation of this dictionary is supposed to be abstract.
 This means that values of types that are defined by the functor can only be returned to the context as masked values.
 In its implementation, the functor can freely call functions of the (possibly insecure) structure, it must however take the same precautions as any callback to insecure code.

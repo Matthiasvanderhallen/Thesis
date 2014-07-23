@@ -14,9 +14,13 @@
 \usepackage{todonotes}
 \usepackage{hyperref}
 \usepackage{listings}
+\usepackage{float}
 %\usepackage[style=mla,babel=hyphen,backend=biber]{biblatex}
 \usepackage{natbib}
 %\usepackage{courier}
+
+\setlength\parindent{0pt}
+
 
 \lstset{basicstyle=\ttfamily,breaklines=true, keepspaces=true, columns=flexible, numberstyle=\small}
 \lstset{language=ML}
@@ -1126,12 +1130,96 @@ This is supported by the consideration that one could write out the non-parametr
 This structure is a part of insecure code, and of course one would expect that the security status does not change simply due to the use of functors.
 \end{description}
 
-\subsection{Low-Level Representation Of Structures\label{sec:LowLevelRepresentation}}
-In order to pass structures to functors as an argument, structures are represented in the low-level language as a tuple of structure name, and a list of pointers that represent the structure values\todo{Explain the need of trimming, and solve the corresponding trimming problem}.
-This low-level representations are called \emph{frames}.
+\subsection{Target Representation Of Structures\label{sec:LowLevelRepresentation}}
+In order to pass structures to functors as an argument, structures are represented in the target language as a tuple of structure name, and a list of pointers that represent the structure values\todo{Explain the need of trimming, and solve the corresponding trimming problem}.
+This target representations are called \emph{frames}.
+
 These frames reside in the memory section corresponding to their security status, for example
 structures corresponding to the \emph{SPM} have their frame saved in the protected memory.
 This prevents tampering with the frames that correspond to secure structures by the attackers context, such as changing the pointers to the different structure values or changing their order.
+
+\subsubsection{The Structure Of Frames}
+Structures in MiniML are either defined using the \lsttext{struct} construct or are the result of functor applications to a structure (\myref{fig}{fig:FunctorGrammarExcerpt}).
+Both cases must be represented in the target language using frames.
+
+\begin{figure}[htb]
+\begin{align*}
+\begin{aligned}
+\mathit{Structure\ }S ::= &\ \mathit{structure\ } \mathit{id} = \mathit{struct\ }\cdots \mathit{\ end}\\
+& |\mathit{structure\ } \mathit{id} = F(S)\\
+\\
+\mathit{Functor\ }F ::=&\mathit{functor\ } \mathit{id} = \mathit{struct\ }\cdots\mathit{\ end}
+\end{aligned}
+\end{align*}
+\caption{Excerpt from the MiniML syntax related to structures\label{fig:FunctorGrammarExcerpt}.}
+\end{figure}
+
+In their most basic form, when defined using the \lsttext{struct} construct, structures are a collection of values.
+Frames represent these structures as a combination of structure name and a list of pointers to the values, sorted in alphabetic order.
+For example, the frame representation of the \lsttext{StringEqual} structure is shown in \myref{fig}{fig:StringEqualFrame}.
+Values inside these structures are now accessible using knowledge of the frame location and the index of the accessed value in the list of pointers.
+
+\begin{figure}[H]
+\centering
+%\includegraphics[]{img/StringEqual.png}
+\begin{tabular}{|c|}
+\hline
+StringEqual \\
+\hline
+*equal \\
+\hline
+\end{tabular}
+\caption{The frame representation of the \lsttext{StringEqual} structure.\label{fig:StringEqualFrame}}
+\end{figure}
+
+To represent functors and the output structure of their application, more information has to be saved. 
+For one, functors have an argument, another structure on which it can depend.
+To represent the result of a functor application, one needs to track which structure was passed as an argument, i.e. its frame location, as well as the values defined by the functor.
+The functor has access to values inside the argument structure using the combination of frame location and the index of the necessary value in the list of pointers inside that frame.
+
+When accessing these values, the functor can only compute this index based on the values specified in the expected argument signature.
+However, as mentioned in \myref{sec}{sec:Functors}, the argument structure can define more values than specified in the argument signature.
+Clearly the functor should not access these values.
+Yet the index of an expected value as computed from the argument signature could be different from the effective index of the corresponding value in the frame.
+
+As a result, the view of the argument structure to the functor must be \emph{trimmed} to that specified the expected signature. 
+Because the signature of the argument structure as well as the expected signature are known at compile time, this \emph{trimming} process can be performed at compile time.
+The results of this trimming process can be saved in the mapping $i_{expected} \mapsto i_{effective}$.
+
+Concluding, frames that represent the results of functor applications consist of:
+\begin{enumerate}
+\item Functor name
+\item A pointer to the frame of the argument structure
+\item The trimming map
+\item The list of pointers to the values
+\end{enumerate}
+The frame representing \lsttext{StringDict} from \myref{lst}{code:DictionaryFunctor} is shown in \myref{fig}{fig:StringDictFrame}.
+
+Because the argument structure is represented by a pointer to its corresponding frame, a functor can easily be applied to a structure that already results from functor application.
+This allows iterative function application without any additional modifications.
+
+\begin{figure}[htb]
+\centering
+\begin{tabular}{|c|}
+\hline
+StringDict \\
+\hline
+*StringEqual\\
+*TrimMap\\
+\hline
+*emptyDictionary \\
+*insert \\ 
+*lookup \\
+\hline
+\end{tabular}
+\caption{The frame representation of the \lsttext{StringDict} structure, the output of applying functor \lsttext{DictionaryFn} to structure \lsttext{StringEqual}.\label{fig:StringDictFrame}}
+\end{figure}
+
+In order to distinguish frames that represent simple structures from those that represent structures resulting from functor application, the type of frame is tracked using a single number right at the start of the frame.
+For clarity, this value is not shown in the figures representing frames.
+
+\subsubsection{Security Consequences}
+
 In order to explore the possibility of contextual equivalence breaking due to the representation of structures differing between high-level and low-level, the possible combinations of functor and structure security are explored here case by case.
 %Since functor application results in a structure as well, these structures must also be representable as frames.
 %In order to allow this, frames consist of a type indicator that identifies it as a structure defined using the struct keyword, or a structure resulting from functor application.
@@ -1146,7 +1234,7 @@ In order to explore the possibility of contextual equivalence breaking due to th
 %In this case, at the moment of functor application a new frame is created representing the result of this functor application. This consists of 
 The \emph{frame} representing a structure is located in the same part of memory as the structure was defined.
 Since in this combination both the functor code and the frame are located inside protected memory, no tampering is possible.
-When functor code is called with a reference to the frame in secure memory, the functor code will be able to read the the frame directly, because the functor is part of the \emph{SPM}. It can then call any value of the structure using the pointer provided by the frame.
+When functor code is called with a reference to the frame in secure memory, the functor code would be able to read the the frame directly, because the functor is part of the \emph{SPM}. It could then call any value of the structure using the pointer provided by the frame.
 \item[Secure Functor with insecure structure]
 When a secure functor is applied to an insecure structure, its result is a secure structure that calls functions provided by the insecure structure.
 The resulting structure \emph{depends} on the insecure structure.

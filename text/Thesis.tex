@@ -964,7 +964,7 @@ This method of abstraction can be used to create generic data structures.
 For example, using functors the dictionary example from \myref{chap}{chap:ACompilationExample} can be made into a more generic data structure. 
 The dictionary structure as given in \myref{lst}{code:DictionaryStructureExample} is not really type independent since only values of type string are allowed to be used as keys.
 
-Ideally however, how a dictionary works would be described in a generic way that doesn't care whether the key is of type string, int or any other type.
+Ideally however, how a dictionary works would be described in a generic way that does not care whether the key is of type string, int or any other type.
 Instead, it needs only the assurance that some specific functionality is provided by the type.
 %This is possible using functors.
 %Using functors, it is possible to rewrite the dictionary example in a way that describes how dictionaries work regardless of whether the key is of type string, int, or any other type.
@@ -1135,13 +1135,16 @@ Also, if functors are compiled away, the code for each resulting structure can o
 This would result in either losing the ability to apply a secure functor outside of secure code, or having the code representing secure functors outside of secure memory.
 
 \smallskip
-Choosing the second option means that all values of functors are implemented as stubs that take a reference to a frame. 
-These stubs are added as \emph{entry points} to the SPM.
-The stubs can implement any generic code, and use the information inside the frame to call any necessary values defined by the argument structure.
+Choosing the second option means that all values of functors are implemented as stubs that take a pointer to a frame as an additional argument.
+If the functor is located in the secure code segment, the memory locations of these stubs are added as \emph{entry points} to the SPM to make the stubs callable by secure and insecure code alike.
+
+The stubs can implement any generic code, and use the information inside the passed frame to call any necessary values defined by the argument structure.
+
+\smallskip
 
 Referencing structures differently in the source and target language raises new security issues when considering functors.
-In the source language, structures can simply be represented by their name.
-In the target language however, structures are represented using frames.
+In the source language, structures can simply be referenced by their name.
+In the target language however, structures are translated to frames and are referenced by indicating the location of the frame in memory $loc_{frame}$.
 
 %\smallskip\noindent
 %Two main points have to be discussed when considering functors within the context of abstract compilation:
@@ -1150,7 +1153,7 @@ In the target language however, structures are represented using frames.
 %This is discussed in \myref{sec}{sec:SecurityStatus}.
 %The second point, considers 
 
-\myref{sec}{sec:LowLevelRepresentation} expands on the representation and discusses whether this different representation can be exploited by an attacker.
+\myref{sec}{sec:LowLevelRepresentation} expands on the representation and references of structures in the target language, and discusses whether this different representation can be exploited by an attacker.
 %discussed in \myref{sec}{sec:LowLevelRepresentation} is whether the representational difference of structures when passing them as an argument to a functor in the high-level language and the low-level language can be exploited to compromise the \emph{SPM} and break contextual equivalence.
 
 \subsection{Target Representation Of Structures\label{sec:LowLevelRepresentation}}

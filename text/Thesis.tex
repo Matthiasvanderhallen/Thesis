@@ -955,14 +955,14 @@ end
 
 \section{Functors\label{sec:Functors}}
 This section introduces the MiniML concept of functors. Functors can be seen as \emph{functions} from structures to structures.
-They accept a structure that conforms to a given signature and create a structure as a result.
+They accept a structure that conforms to a given signature and create a different structure as a result.
 
 Functors are a way of parametrizing structures.
-They can be used to implement a module dependent on an outside module showing certain behavior with limited considerations of the way that this behavior is implemented.
+They can be used to implement a module dependent on another module showing certain behavior with limited considerations of the way that this behavior is implemented.
 This method of abstraction can be used to create generic data structures.
 
 For example, using functors the dictionary example from \myref{chap}{chap:ACompilationExample} can be made into a more generic data structure. 
-The dictionary structure as given in \myref{lst}{code:DictionaryStructureExample} is not really type independent since only values of type string are allowed to be used as keys.
+The dictionary structure as given in \myref{lst}{code:DictionaryStructureExample} is not type independent since only values of type string are allowed to be used as keys.
 
 Ideally however, how a dictionary works would be described in a generic way that does not care whether the key is of type string, int or any other type.
 Instead, it needs only the assurance that some specific functionality is provided by the type.
@@ -1044,9 +1044,10 @@ However, the signature \lsttext{DICTIONARY} hides the implementation of the \lst
 This is a problem, since a user must be able to create values of type \lsttext{key} and pass them to insert function.
 The type of values that is put inside the dictionary does not suffer from the same problem as its type is specified parametrically as type variable \lsttext{'a} in the type definition \lsttext{type 'a dictionary}.
 
-This problem can not be solved by specifying the type inside the \lsttext{DICTIONARY} signature, since then it loses the flexibility of allowing any type of key.
-Neither can it be made a type variable in the type definition \lsttext{type 'a dictionary} since not \emph{all} types can act as a key for dictionaries: only those for which an equality check makes sense can be used as a \lsttext{key} type.
-In other words, specifying the key as a type variable (\lsttext{type ('key, 'a) dictionary}) is unsatisfactory because the ability to put constraints on the chosen type is lost.
+This problem can not be solved by specifying the type inside the \lsttext{DICTIONARY} signature, since then it loses the flexibility of allowing multiple different types of keys.
+Nor can it be made a type variable in the type definition \lsttext{type 'a dictionary} because type variables are \emph{universally quantified}. 
+This means any type can replace them, whereas a dictionary only makes sense if an equality check is possible on the type of its keys.
+In other words, specifying the key as a type variable (\lsttext{type ('key, 'a) dictionary}) is unsatisfactory because then the ability to put constraints on the chosen type is lost.
 
 Instead, the problem is solved by modifying our opaque ascription when it is applied to the structure resulting from the functor \lsttext{DictionaryFn}, by specifying that they \lsttext{key} type is equal to the type \lsttext{t} specified in the \lsttext{KeyStruct} that was passed as the functors argument. (Line 24)
 This modification makes the type of key freely available, yet still dependent on the specific key structure that was used when the dictionary structure was created using the functor.
@@ -1084,11 +1085,11 @@ As was shown in line 36 of \myref{lst}{code:DictionaryFunctor}, where the \lstte
 However, they are not first-class values: they are bound to names using the special \lsttext{structure} keyword, and can only be returned by functors, not by any \emph{Core} language expression.
 As all conditional expressions are part of the \emph{Core} language, structure bindings are always unconditional, which means every structure binding is determined fully before compile time.
 
-\subsection{Security Status Of The Resulting Structure\label{sec:FunctorSecurityStatus}}
+\subsection{Security Status of the Resulting Structure\label{sec:FunctorSecurityStatus}}
 Now that functors are added to the MiniML language, it is necessary to determine the security status of functors. 
 When is the output structure of a functor considered to be part of the SPM, and when is it part of the insecure context?
 This first question has a simple, yet perhaps surprising answer:
-The output structure resulting from a functor has its security status determined by the location of the source code defining the functor.
+The output structure resulting from a functor has its security status determined by the location of the code defining the functor.
 
 To see why this is the logical choice, consider the example definitions of a dictionary functor in \myref{lst}{code:DictionaryFunctor} and \myref{lst}{code:DictionaryFunctorAlternative}, and the two possible locations for the functor source code:
 \begin{description}
@@ -1113,7 +1114,7 @@ This structure would then be a part of insecure code, and of course one would ex
 A possibly surprising conclusion is that this argument holds, regardless of whether the functor application was done within the secure code or within the insecure code.
 As a consequence, application of a functor inside the attackers context can result in the creation of an additional secure structure.
 
-\subsection{Compilation Of Functors\label{sec:FunctorCompilation}}
+\subsection{Compilation of Functors\label{sec:FunctorCompilation}}
 With the security status of functors determined in \myref{sec}{sec:FunctorSecurityStatus}, %it is possible to think about how to implement functors in the target language.
 this section aims to give an overview of the possible methods for implementing functors.
 %todo explain
@@ -1132,7 +1133,11 @@ Compilation to the target language has two distinct possibilities of handling st
 
 The second option is chosen, since it does not duplicate code and is the more standard way of implementing compilation of the Module language of ML.
 Also, if functors are compiled away, the code for each resulting structure can only be generated when compiling the functor application.
-This would result in either losing the ability to apply a secure functor outside of secure code, or having the code representing secure functors outside of secure memory.
+This would result in either:
+\begin{itemize}
+\item losing the ability to apply a secure functor outside of secure code
+\item having the code representing secure functors outside of secure memory.
+\end{itemize}
 
 \smallskip
 Choosing the second option means that all values of functors are implemented as stubs that take a pointer to a frame as an additional argument.
@@ -1156,7 +1161,7 @@ In the target language however, structures are translated to frames and are refe
 \myref{sec}{sec:LowLevelRepresentation} expands on the representation and references of structures in the target language, and discusses whether this different representation can be exploited by an attacker.
 %discussed in \myref{sec}{sec:LowLevelRepresentation} is whether the representational difference of structures when passing them as an argument to a functor in the high-level language and the low-level language can be exploited to compromise the \emph{SPM} and break contextual equivalence.
 
-\subsection{Target Representation Of Structures\label{sec:LowLevelRepresentation}}
+\subsection{Target Representation of Structures\label{sec:LowLevelRepresentation}}
 In order to pass structures to functors as an argument, structures are represented in the target language as a tuple of structure name, and a list of pointers that represent the structure values\todo{Explain the need of trimming, and solve the corresponding trimming problem}.
 This target representations are called \emph{frames}.
 
@@ -1164,7 +1169,7 @@ These frames reside in the memory section corresponding to their security status
 structures corresponding to the \emph{SPM} have their frame saved in the protected memory.
 This prevents tampering with the frames that correspond to secure structures by the attackers context, such as changing the pointers to the different structure values or changing their order.
 
-\subsubsection{The Structure Of Frames}
+\subsubsection{The Structure of Frames}
 Structures in MiniML are either defined using the \lsttext{struct} construct or are the result of functor applications to a structure (\myref{fig}{fig:FunctorGrammarExcerpt}).
 Both cases must be represented in the target language using frames.
 
@@ -1275,7 +1280,7 @@ In order to explore the possibility of contextual equivalence breaking due to th
 The \emph{frame} representing a structure is located in the same part of memory as the structure was defined.
 Since in this combination both the functor code and the frame are located inside protected memory, no tampering is possible.
 When functor code is called with a reference to the frame in secure memory, the functor code is able to read the the frame directly, because the functor is part of the \emph{SPM}. It can then call any value of the structure using the pointer provided by the frame.
-\item[Secure Functor with insecure structure]
+\item[Secure functor with insecure structure]
 When a secure functor is applied to an insecure structure, its result is a secure structure that calls functions provided by the insecure structure.
 The resulting structure \emph{depends} on the insecure structure.
 It must call these functions using the same precautions as regular callbacks to the attacker's context.
@@ -1283,11 +1288,11 @@ Of course the pointers that that represent these functions can be manipulated by
 However, because contextually equivalent implementations of the functor must perform the same callbacks with the same arguments in the source language in the same order, their target language versions will always use the same value pointers provided by the insecure frame, with the same parameters in the same order.
 As a result, the regular precautions, such as clearing registers, switching the stack and masking values that pass from secure code to the insecure context, are sufficient to ensure contextual equivalence of the functors in the target language.
 %todo: OR depends on values
-\item[Insecure Functor with insecure structure]
+\item[Insecure functor with insecure structure]
 In this case, both the functor code and the frame are located inside unprotected memory.
 The structure that results from the application is considered to be part of the attacker's context.
 The use of values from the insecure structure by code inside the insecure functor can happen without any security precautions, as the expected behavior is simply equivalent to that of an unparametrized module in the attacker's context that depends on another module of this same context.
-\item[Insecure Functor with secure structure]
+\item[Insecure functor with secure structure]
 Because the code of the functor is now located outside of the \emph{SPM}, special care needs to be taken when the functor depends on values provided by the structure.
 Because the frame $Fr_{s}$ representing the structure is now in secure memory, the functor cannot manipulate this frame or perform reads on this frame.
 In order for insecure functors to call these functions, a generic wrapper is provided by the \emph{SPM} that takes as argument a $loc_{frame}$ and an $index_{val}$, as well as any arguments that would otherwise be passed directly.

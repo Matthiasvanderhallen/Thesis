@@ -1279,14 +1279,14 @@ In order to explore the possibility of contextual equivalence breaking due to th
 %In this case, at the moment of functor application a new frame is created representing the result of this functor application. This consists of 
 The \emph{frame} representing a structure is located in the same part of memory as the structure was defined.
 Since in this combination both the functor code and the frame are located inside protected memory, no tampering is possible.
-When functor code is called with a reference to the frame in secure memory, the functor code is able to read the the frame directly, because the functor is part of the \emph{SPM}. It can then call any value of the structure using the pointer provided by the frame.
+When functor code is called with a reference to the frame in secure memory, the functor code is able to read the frame directly, because the functor is part of the \emph{SPM}. It can then call any value of the structure using the pointer provided by the frame.
 \item[Secure functor with insecure structure]
 When a secure functor is applied to an insecure structure, its result is a secure structure that calls functions provided by the insecure structure.
 The resulting structure \emph{depends} on the insecure structure.
 It must call these functions using the same precautions as regular callbacks to the attacker's context.
-Of course the pointers that that represent these functions can be manipulated by the attacker because the frame is now located in insecure memory.
+Of course the pointers that represent these functions can be manipulated by the attacker because the frame is now located in insecure memory.
 However, because contextually equivalent implementations of the functor must perform the same callbacks with the same arguments in the source language in the same order, their target language versions will always use the same value pointers provided by the insecure frame, with the same parameters in the same order.
-As a result, the regular precautions, such as clearing registers, switching the stack and masking values that pass from secure code to the insecure context, are sufficient to ensure contextual equivalence of the functors in the target language.
+As a result, the regular precautions, such as clearing registers, switching the stack and masking values that pass from secure code to the insecure context, are sufficient to ensure preservation of contextual equivalence of the functors in the target language.
 %todo: OR depends on values
 \item[Insecure functor with insecure structure]
 In this case, both the functor code and the frame are located inside unprotected memory.

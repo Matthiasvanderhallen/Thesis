@@ -960,14 +960,16 @@ They accept a structure that conforms to a given signature and create a structur
 Functors are a way of parametrizing structures.
 They can be used to implement a module dependent on an outside module showing certain behavior with limited considerations of the way that this behavior is implemented.
 This method of abstraction can be used to create generic data structures.
-For example, a problem with the dictionary example in Chapter 1, \myref{lst}{code:DictionaryStructureExample}, is that it is not really type independent. 
-Only values of type string are allowed as keys.
 
-Ideally, how a dictionary works would be described in a generic way that doesn't care whether the key is of type string, int or any other type.
+For example, using functors the dictionary example from \myref{chap}{chap:ACompilationExample} can be made into a more generic data structure. 
+The dictionary structure as given in \myref{lst}{code:DictionaryStructureExample} is not really type independent since only values of type string are allowed to be used as keys.
+
+Ideally however, how a dictionary works would be described in a generic way that doesn't care whether the key is of type string, int or any other type.
 Instead, it needs only the assurance that some specific functionality is provided by the type.
-This is possible using functors.
+%This is possible using functors.
 %Using functors, it is possible to rewrite the dictionary example in a way that describes how dictionaries work regardless of whether the key is of type string, int, or any other type.
-The generic dictionary using functors is shown in \myref{lst}{code:DictionaryFunctor}.
+The generic dictionary using functors is shown in \myref{lst}{code:DictionaryFunctor}. 
+Its alternative implementation is shown as well in \myref{lst}{code:DictionaryFunctorAlternative}.
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption=A generic dictionary that can take any type of the EQUAL typeclass as its key.,
 label=code:DictionaryFunctor, morekeywords={where}]
@@ -1030,10 +1032,10 @@ functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t
 \end{lstlisting}
 
 In order to parametrize over the type of key, the dictionary signature of \myref{lst}{code:SignatureDictionaryExample} was expanded with an extra type named \lsttext{key}, as shown in line 3 of \myref{lst}{code:DictionaryFunctor}.
-On top of that, lines 9-13 specify a signature \lsttext{EQUAL} that defines the interface to which a type must comply in order to be a possible key for a dictionary.
+On top of that, lines 10-14 specify a signature \lsttext{EQUAL} that defines the interface to which a type must comply in order to be a possible key for a dictionary.
 Lines 15-21 specify a structure \lsttext{StringEqual} that conforms to the signature needed to act as a key type for a dictionary.
 
-Finally, lines 23-29 show how we define a functor.
+Finally, lines 24-34 show how we define a functor.
 First the argument structures and their corresponding signatures are specified, in this case \lsttext{KeyStruct}, whose signature must match signature \lsttext{EQUAL}.
 Next, the structure resulting from functor application is bound to the \lsttext{DICTIONARY} signature using opaque ascription.
 The choice for opaque ascription ensures that the specific implementation of dictionaries, i.e. as a list of pairs or a pair of lists, remains hidden and that the dictionary type remains an abstract type whose values only can be created by the dictionary structure that results from the functor application.
@@ -1046,7 +1048,7 @@ This problem can not be solved by specifying the type inside the \lsttext{DICTIO
 Neither can it be made a type variable in the type definition \lsttext{type 'a dictionary} since not \emph{all} types can act as a key for dictionaries: only those for which an equality check makes sense can be used as a \lsttext{key} type.
 In other words, specifying the key as a type variable (\lsttext{type ('key, 'a) dictionary}) is unsatisfactory because the ability to put constraints on the chosen type is lost.
 
-Instead, the problem is solved by modifying our opaque ascription when it is applied to the structure resulting from the functor \lsttext{DictionaryFn}, by specifying that they \lsttext{key} type is equal to the type \lsttext{t} specified in the \lsttext{KeyStruct} that was passed as the functors argument. (Line 23)
+Instead, the problem is solved by modifying our opaque ascription when it is applied to the structure resulting from the functor \lsttext{DictionaryFn}, by specifying that they \lsttext{key} type is equal to the type \lsttext{t} specified in the \lsttext{KeyStruct} that was passed as the functors argument. (Line 24)
 This modification makes the type of key freely available, yet still dependent on the specific key structure that was used when the dictionary structure was created using the functor.
 
 The last line of \myref{lst}{code:DictionaryFunctor} shows how the functor \lsttext{DictionaryFn} is eventually applied to the \lsttext{StringEqual} structure, resulting in a dictionary structure saved as \lsttext{StringDict} that uses \lsttext{string} as type for its keys, and compares them using the regular \lsttext{String.compare} function.
@@ -1078,9 +1080,9 @@ The existence of these types and values however is not assured and the functor c
 
 \smallskip
 
-As was shown in line 31 of \myref{lst}{code:DictionaryFunctor}, in order to implement functors, it is necessary that structures become values, so that they can be passed to functors to create new structures. 
+As was shown in line 36 of \myref{lst}{code:DictionaryFunctor}, where the \lsttext{DictionaryFn} functor is applied, the addition of functors requires that structures become values, so that they can be passed to functors to create new structures.
 However, they are not first-class values: they are bound to names using the special \lsttext{structure} keyword, and can only be returned by functors, not by any \emph{Core} language expression.
-As all conditional expressions are part of the \emph{Core} language, structure bindings are always unconditional, every structure binding is determined fully before compile time. 
+As all conditional expressions are part of the \emph{Core} language, structure bindings are always unconditional, which means every structure binding is determined fully before compile time.
 
 \subsection{Security Status Of The Resulting Structure\label{sec:FunctorSecurityStatus}}
 Now that functors are added to the MiniML language, it is necessary to determine the security status of functors. 
@@ -1088,31 +1090,36 @@ When is the output structure of a functor considered to be part of the SPM, and 
 This first question has a simple, yet perhaps surprising answer:
 The output structure resulting from a functor has its security status determined by the location of the source code defining the functor.
 
-To see why this is the logical choice, consider the example of a dictionary in \myref{lst}{code:DictionaryFunctor}, and the two possible locations for the functor source code:
+To see why this is the logical choice, consider the example definitions of a dictionary functor in \myref{lst}{code:DictionaryFunctor} and \myref{lst}{code:DictionaryFunctorAlternative}, and the two possible locations for the functor source code:
 \begin{description}
 \item[In secure code:] 
-Suppose \lsttext{DictionaryFn} is defined in secure code.
-This could happen for example when it is part of a library that is offered as an \emph{SPM}.
+Suppose \lsttext{DictionaryFn} is defined in secure code, for example when it is part of a library that is offered as an \emph{SPM}.
+This library could choose to implement the \lsttext{DictionaryFn} as in \myref{lst}{code:DictionaryFunctor} (line 24-34) or as in \myref{lst}{code:DictionaryFunctorAlternative}.
 Regardless of whether its argument, \lsttext{KeyStruct}, was defined in secure code or in insecure code, the specific implementation of this dictionary is supposed to be abstract.
+The resulting dictionary structure is secure.
 This means that values of types that are defined by the functor can only be returned to the context as masked values.
 In its implementation, the functor can freely call functions of the (possibly insecure) structure, it must however take the same precautions as any callback to insecure code.
 %todo: How do we discriminate between structures that are inside the spm and those that are outside the spm? Do we simply check the pointer value against the region? (This is presumably very unsafe).
 %todo: How do we represent the structure that was created? It can be used as a parameter for a functor *again*
 %todo: Suppose StringEqualCaseSensitive and StringEqualCaseInsensitive are given as argument 
 \item[In insecure code:] Suppose \lsttext{DictionaryFn} is defined in insecure code.
-Now the choices made by when implementating the dictionary are not expected to be abstract. There is no implementation hiding in this case.
-This is supported by the consideration that one could write out the non-parametrized structure that would result of functor application in MiniML by hand. 
-This structure is a part of insecure code, and of course one would expect that the security status does not change simply due to the use of functors.
+Now the choices made when implementating the dictionary are not expected to be abstract. There is no implementation hiding in this case.
+
+This is supported by the consideration that one could replace the functor code with the written out, non-parametrized structure that would result from functor application.
+% write out the non-parametrized structure that would result of functor application in MiniML by hand.
+This structure would then be a part of insecure code, and of course one would expect that the security status of structures does not change simply due to the use of functors.
 \end{description}
 
 A possibly surprising conclusion is that this argument holds, regardless of whether the functor application was done within the secure code or within the insecure code.
 As a consequence, application of a functor inside the attackers context can result in the creation of an additional secure structure.
 
 \subsection{Compilation Of Functors\label{sec:FunctorCompilation}}
-With the security status of functors determined in \myref{sec}{sec:FunctorSecurityStatus}, it is possible to think about how to implement functors in the target language.
+With the security status of functors determined in \myref{sec}{sec:FunctorSecurityStatus}, %it is possible to think about how to implement functors in the target language.
+this section aims to give an overview of the possible methods for implementing functors.
 %todo explain
 %todo: not by any Core language expression.
 %\todo{remark: It is possible to compile away functors (And signatures). See: M. Elsman, Static Interpretation of Modules}
+
 Compilation to the target language has two distinct possibilities of handling structures and functors:
 \begin{itemize}
     \item Structures, signatures, functors and functor applications can be compiled away, a technique called \emph{Static Interpretation}.\cite{Elsman}
@@ -1127,10 +1134,15 @@ The second option is chosen, since it does not duplicate code and is the more st
 Also, if functors are compiled away, the code for each resulting structure can only be generated when compiling the functor application.
 This would result in either losing the ability to apply a secure functor outside of secure code, or having the code representing secure functors outside of secure memory.
 
-Chosing the second option means that the values of functors are implemented as stubs that take a reference to a frame, and use this frame to call the correct structure values.
-This raises a new security issue when considering functors, namely the representational difference of structurs in the source and target language.
+\smallskip
+Choosing the second option means that all values of functors are implemented as stubs that take a reference to a frame. 
+These stubs are added as \emph{entry points} to the SPM.
+The stubs can implement any generic code, and use the information inside the frame to call any necessary values defined by the argument structure.
+
+Referencing structures differently in the source and target language raises new security issues when considering functors.
 In the source language, structures can simply be represented by their name.
 In the target language however, structures are represented using frames.
+
 %\smallskip\noindent
 %Two main points have to be discussed when considering functors within the context of abstract compilation:
 %The first point that needs to be addressed asks what the security status is of the result of functor application.
@@ -1284,8 +1296,14 @@ As a result, the generic wrapper returns the result of the call to its caller.
 
 \todo{When calling values of the argument structure, the functor must at all times take care to determine whether the argument frame represents another functor output, or a basic structure, since calling a value within functor output requires the first argument to be a frame pointer to the argument structure. Should I add this remark in text, or should I provide code that does this check, and refer to that.}
 
+%\subsection{Creating Frames}
+%\subsection{Nested Structures and polyadic functors}
 \chapter{References\label{chap:References}\label{test}}
 \chapter{Complex Data\label{chap:ComplexData}}
+
+% Formal specification links!
+%http://research.microsoft.com/pubs/67357/icfp01.pdf
+%http://caml.inria.fr/pub/papers/xleroy-applicative_functors-popl95.pdf
 
 \bibliographystyle{alpha}
 \bibliography{bibliography}

@@ -747,7 +747,7 @@ Transformations"}
 
 \chapter{Advanced ML Concepts}
 
-This chapter extends the capabilities of the subset of the ML language. \myref{sec}{sec:HOF} introduces \emph{higher-order functions} and discusses how they can be compiled securely. Afterwards, \myref{sec}{sec:Functors} explains \emph{functors} and their addition to the high-level language. This chapter continues by showing how the concepts learnt while adding higher-order functions can aid the low-level implementation of functors in \myref{sec}{sec:Functors}.
+This chapter extends the capabilities of the subset of the ML language. \myref{sec}{sec:HOF} introduces \emph{higher-order functions} and discusses how they can be compiled securely. Afterwards, \myref{sec}{sec:Functors} explains \emph{functors} and their addition to MiniML. This chapter continues by showing how the concepts learnt while adding higher-order functions can aid the low-level implementation of functors in \myref{sec}{sec:Functors}.
 %The impact of these additions to the language is reviewed.
 
 \section{Higher-Order Functions\label{sec:HOF}}
@@ -864,7 +864,7 @@ If no copying of free variables occures, an attacker could set distinguish a mod
 \item After calling the closure, the attacker forces execution to temporarily be passed back to the unsafe code.
 This is achieved in \myref{lst}{code:CopyFreeVariables} by means of the callback function. 
 Even when no callbacks are available this type of attack remains possible. For example, in a more powerful language providing a multithreaded environment, such an execution passing can be forced using a context switch.
-\item The context uses this opportunity and the fact that \lsttext{freevar} is saved in unprotected memory to change the value of \lsttext{freevar}. This not possible in the high-level language, but the low-level language provides no guarantees whatsoever against modification of the unprotected memory.
+\item The context uses this opportunity and the fact that \lsttext{freevar} is saved in unprotected memory to change the value of \lsttext{freevar}. This not possible in the source language, but the target language provides no guarantees whatsoever against modification of the unprotected memory.
 \item If the implementation of \lsttext{generateClosure1} was used, then the result of the closure application depends on when exactly execution was temporarily switched to the attackers context.
 If this happened after copying the value of \lsttext{freevar} to \lsttext{b}, which is saved in protected memory, then the result of the closure will not reflect the change of value of \lsttext{freevar} by the attackers context.
 If the execution switch happens before this copying of \lsttext{freevar} into protected memory, then the result will be computed using the changed value of \lsttext{freevar}.
@@ -876,8 +876,8 @@ Therefore the result of the closure will allways be computed using the changed v
 
 
 The attack described above shows that it is possible to manipulate the low-level versions of the code of \myref{lst}{code:CopyFreeVariables} in such a way that the two different functions do not give the same result. 
-Consequently, this means that the contextual equivalence of the compiled code is broken, whereas the high-level code is unaffected by the attack.
-After all, the high-level language does not allow the memory location of the parameter that was passed to be changed which is a necessary access right to perform step two of the attack.
+Consequently, this means that the contextual equivalence of the compiled code is broken, whereas the source code is unaffected by the attack.
+After all, the source language does not allow the memory location of the parameter that was passed to be changed which is a necessary access right to perform step two of the attack.
 
 This problem is effectively mitigated by ensuring that upon \emph{application} of the closure every value is copied to the secure environment, conforming to a value-passing call semantic.
 
@@ -1265,7 +1265,7 @@ A pointer to this frame can always be found within the frame representing the fu
 
 \subsubsection{Security Consequences}
 
-In order to explore the possibility of contextual equivalence breaking due to the representation of structures differing between high-level and low-level, the possible combinations of functor and structure security are explored here case by case.
+In order to explore the possibility of contextual equivalence breaking due to the representation of structures differing between source and target language, the possible combinations of functor and structure security are explored here case by case.
 %Since functor application results in a structure as well, these structures must also be representable as frames.
 %In order to allow this, frames consist of a type indicator that identifies it as a structure defined using the struct keyword, or a structure resulting from functor application.
 
@@ -1284,7 +1284,7 @@ When functor code is called with a reference to the frame in secure memory, the 
 When a secure functor is applied to an insecure structure, its result is a secure structure that calls functions provided by the insecure structure.
 The resulting structure \emph{depends} on the insecure structure.
 It must call these functions using the same precautions as regular callbacks to the attacker's context.
-Of course the pointers that that represent these functions can be manipulated by attacker because the frame is now located in insecure memory.
+Of course the pointers that that represent these functions can be manipulated by the attacker because the frame is now located in insecure memory.
 However, because contextually equivalent implementations of the functor must perform the same callbacks with the same arguments in the source language in the same order, their target language versions will always use the same value pointers provided by the insecure frame, with the same parameters in the same order.
 As a result, the regular precautions, such as clearing registers, switching the stack and masking values that pass from secure code to the insecure context, are sufficient to ensure contextual equivalence of the functors in the target language.
 %todo: OR depends on values

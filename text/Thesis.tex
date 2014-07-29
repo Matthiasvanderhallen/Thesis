@@ -15,15 +15,16 @@
 \usepackage{hyperref}
 \usepackage{listings}
 \usepackage{float}
+\usepackage{lmodern}
 %\usepackage[style=mla,babel=hyphen,backend=biber]{biblatex}
 \usepackage{natbib}
 %\usepackage{courier}
 
-\setlength\parindent{0pt}
+%\setlength\parindent{1em}
 
 
 \lstset{basicstyle=\ttfamily,breaklines=true, keepspaces=true, columns=flexible, numberstyle=\small}
-\lstset{language=ML}
+%\lstset{language=ML}
 \lstset{
  morekeywords={where}
 }
@@ -710,6 +711,10 @@ let \; p_{1} \; = \; e_{1} \; in \;
 %\todo{How to express the substitution of all references to argument placeholder module names to the modules names given at execution}
 %\todo{provide a desugar function}
 %\end{flushleft}
+
+\subsubsection{Structural Typing\label{sec:StructuralTyping}}
+%TODO: VERY, Hugely important!
+
 \section{LLVM Intermediate Representation}
 The LLVM Intermediate Representation is a language very reminiscent of assembly. 
 \subsubsection{Syntax}
@@ -958,7 +963,7 @@ This section introduces the MiniML concept of functors. Functors can be seen as 
 They accept a structure that conforms to a given signature and create a different structure as a result.
 
 Functors are a way of parametrizing structures.
-They can be used to implement a module dependent on another module showing certain behavior with limited considerations of the way that this behavior is implemented.
+They can be used to implement a structure that depends on behavior provided by another structure, making only limited assumptions regarding the way this behavior is implemented.
 This method of abstraction can be used to create generic data structures.
 
 For example, using functors the dictionary example from \myref{chap}{chap:ACompilationExample} can be made into a more generic data structure. 
@@ -1003,8 +1008,8 @@ functor DictionaryFn (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.
         val emptyDictionary = []
         fun insert d x y = (x,y)::d
         fun lookup |[] x = error
-                   |(key,val):ds x = if(KeyStruct.equal key x)
-                                     then val
+                   |(key,value):ds x = if(KeyStruct.equal key x)
+                                     then value
                                      else (lookup ds x)
     end
     
@@ -1025,7 +1030,7 @@ functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t
         val emptyDictionary = ([],[])
         fun insert (a,b) x y = (x::a,y::b)
         fun lookup |[] x = error
-                   |(key:ks, val:vs) x = if(KeyStruct.equal key x)
+                   |(key:ks, value:vs) x = if(KeyStruct.equal key x)
                                          then val
                                          else (lookup (ks,vs) x)
     end
@@ -1088,7 +1093,7 @@ As all conditional expressions are part of the \emph{Core} language, structure b
 \subsection{Security Status of the Resulting Structure\label{sec:FunctorSecurityStatus}}
 Now that functors are added to the MiniML language, it is necessary to determine the security status of functors. 
 When is the output structure of a functor considered to be part of the SPM, and when is it part of the insecure context?
-This first question has a simple, yet perhaps surprising answer:
+This question has a simple, yet perhaps surprising answer:
 The output structure resulting from a functor has its security status determined by the location of the code defining the functor.
 
 To see why this is the logical choice, consider the example definitions of a dictionary functor in \myref{lst}{code:DictionaryFunctor} and \myref{lst}{code:DictionaryFunctorAlternative}, and the two possible locations for the functor source code:
@@ -1124,7 +1129,7 @@ this section aims to give an overview of the possible methods for implementing f
 Compilation to the target language has two distinct possibilities of handling structures and functors:
 \begin{itemize}
     \item Structures, signatures, functors and functor applications can be compiled away, a technique called \emph{Static Interpretation}.\cite{Elsman}
-    This approach is taken by MLKit\footnote{http://www.elsman.com/mlkit/}.
+    This approach is taken by MLKit\footnote{Available at http://www.elsman.com/mlkit/}.
     As a result, multiple applications of the same functor result in multiple generations of the functors body, specialized for every combination of parameters.
     \item Structures can be compiled, keeping the values defined by the structures together in the target language in a record like manner called a \emph{frame}.
     Functors can then be compiled using generic code, which receives a reference to the frame representing the structure that is passed as parameter.
@@ -1141,7 +1146,8 @@ This would result in either:
 
 \smallskip
 Choosing the second option means that all values of functors are implemented as stubs that take a pointer to a frame as an additional argument.
-If the functor is located in the secure code segment, the memory locations of these stubs are added as \emph{entry points} to the SPM to make the stubs callable by secure and insecure code alike.
+%If the functor is located in the secure code segment, the memory locations for all stubs that \emph{do not} correspond to \emph{helper values} are added as \emph{entry points} to the SPM.
+%This makes them callable by secure and insecure code alike.
 
 The stubs can implement any generic code, and use the information inside the passed frame to call any necessary values defined by the argument structure.
 
@@ -1162,14 +1168,15 @@ In the target language however, structures are translated to frames and are refe
 %discussed in \myref{sec}{sec:LowLevelRepresentation} is whether the representational difference of structures when passing them as an argument to a functor in the high-level language and the low-level language can be exploited to compromise the \emph{SPM} and break contextual equivalence.
 
 \subsection{Target Representation of Structures\label{sec:LowLevelRepresentation}}
-In order to pass structures to functors as an argument, structures are represented in the target language as a tuple of structure name, and a list of pointers that represent the structure values\todo{Explain the need of trimming, and solve the corresponding trimming problem}.
+In order to pass structures to functors as an argument, structures are summarized in the target language as a tuple of structure name, and a list of pointers that represent the structure values.
+%\todo{Explain the need of trimming, and solve the corresponding trimming problem}.
 This target representations are called \emph{frames}.
 
 These frames reside in the memory section corresponding to their security status, for example
 structures corresponding to the \emph{SPM} have their frame saved in the protected memory.
 This prevents tampering with the frames that correspond to secure structures by the attackers context, such as changing the pointers to the different structure values or changing their order.
 
-\subsubsection{The Structure of Frames}
+\subsubsection{The Structure of Frames \label{sec:StructureOfFrames}}
 Structures in MiniML are either defined using the \lsttext{struct} construct or are the result of functor applications to a structure (\myref{fig}{fig:FunctorGrammarExcerpt}).
 Both cases must be represented in the target language using frames.
 
@@ -1206,7 +1213,7 @@ StringEqual \\
 To represent functors and the output structure of their application, more information has to be saved. 
 For one, functors have an argument, another structure on which it can depend.
 To represent the result of a functor application, one needs to track which structure was passed as an argument, i.e. its frame location, as well as the values defined by the functor.
-The functor has access to values inside the argument structure using the combination of frame location and the index of the necessary value in the list of pointers inside that frame.
+The functor has access to values inside the argument structure using the combination of frame location ($loc_{frame}$) and the index of the necessary value in the list of pointers inside that frame ($index_{val}$).
 
 When accessing these values, the functor can only compute this index based on the values specified in the expected argument signature.
 However, as mentioned in \myref{sec}{sec:Functors}, the argument structure can define more values than specified in the argument signature.
@@ -1215,14 +1222,14 @@ Yet the index of an expected value as computed from the argument signature could
 
 As a result, the view of the argument structure to the functor must be \emph{trimmed} to that specified the expected signature. 
 Because the signature of the argument structure as well as the expected signature are known at compile time, this \emph{trimming} process can be performed at compile time.
-The results of this trimming process can be saved in the mapping $i_{expected} \mapsto i_{effective}$.
+The results of this trimming process can be saved in the mapping $i_{\mathit{expected}} \mapsto i_{\mathit{effective}}$.
 
 Concluding, frames that represent the results of functor applications consist of:
 \begin{enumerate}
 \item Functor name
 \item A pointer to the frame of the argument structure
 \item The trimming map
-\item The list of pointers to the values
+\item The list of pointers to the values, sorted alphabetically.
 \end{enumerate}
 The frame representing \lsttext{StringDict} from \myref{lst}{code:DictionaryFunctor} is shown in \myref{fig}{fig:StringDictFrame}.
 
@@ -1249,21 +1256,152 @@ StringDict \\
 In order to distinguish frames that represent simple structures from those that represent structures resulting from functor application, the type of frame is tracked using a single number right at the start of the frame.
 For clarity, this value is not shown in the figures representing frames.
 
-\subsubsection{Calling Structure Values}
-Access to any value of a source language structure is possible in the target language using the location of the frame in memory and the index of the value in its list of values.
-These values are accessible across the security boundary.
-However, as frames are saved in the memory corresponding to its security status, the attackers context is not able to access frames corresponding to structures within the \emph{SPM} directly.
-To allow the context to access these values, a wrapper function is provided that is located inside the \emph{SPM}. 
-It takes the $loc_{frame}, index_{val}$ arguments and any arguments that may passed.
+\subsection{Creating the Frames}
+\myref{sec}{sec:StructureOfFrames} specified how frames can represent structures.
+\todo{give functors their own chapter? Then 'The Structure of Frames' becomes a subsection with a number}
+It also concludes that in order to avoid tampering with the representation of secure frames, any secure frame must be located inside the protected memory of the \emph{SPM}.
+This section shows that this restriction causes problems with the creation of frames representing structures.
+
+\subsubsection{Problem Example}
+When compilation is done within the context of security all secure code is compiled first, and only afterwards is the insecure context compiled.
+This \emph{separate compilation} means that the compiled result of secure code is created before compilation of the insecure context starts.
+
+For example, the earlier example of \myref{lst}{code:DictionaryFunctor} could be split up in a secure part and an insecure part as shown in \myref{lst}{code:SecureCodeFragment} and \myref{lst}{code:ContextFragment} respectively.
+The code representing the functor is compiled first and separately from the code in \myref{lst}{code:ContextFragment}. 
+The \emph{frame} representation for any structures defined inside \myref{lst}{code:SecureCodeFragment} can be created when compiling this file.
+However, as \myref{sec}{sec:FunctorSecurityStatus} explains, any structure that results from the application of \lsttext{DictionaryFn} is supposed to be secure as well, meaning their corresponding frames should be saved in secure memory. 
+Not all these applications are known when compiling \myref{lst}{code:SecureCodeFragment}.
+The application of \lsttext{DictionaryFn} to \lsttext{StringEqual} inside \myref{lst}{code:ContextFragment} results in a new secure structure being created \emph{after} the secure code was compiled.
+
+\begin{lstlisting}[frame=single,numbers=left, language=ML, caption={Secure code fragment: secure.ml.},
+label=code:SecureCodeFragment, morekeywords={where}]
+structure StringEqual: EQUAL = 
+    struct
+        type t = string
+        fun equal t1 t2  = case String.compare(t1,t2)
+                                of EQUAL => true
+                                | _ => false
+    end
+    
+functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
+    struct
+        type key = KeyStruct.t
+        type 'a dictionary = (key * 'a) list
+        val emptyDictionary = []
+        fun insert d x y = (x,y)::d
+        fun lookup |[] x = error
+                   |(key, value):ds x = if(KeyStruct.equal key x)
+                                         then value
+                                         else (lookup ds x)
+    end
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single,numbers=left, language=ML, caption={Fragment of the insecure context: context.ml.}, label={code:ContextFragment}, morekeywords={where}]
+...
+structure StringDict = DictionaryFn(StringEqual);
+\end{lstlisting}
+
+As a consequence, not all frames can be created statically and added to memory at compile time.
+Instead they must be added dynamically to preserve the invariant that \emph{all frames representing secure structures are located in secure memory}.
+The locations of these dynamically created frames in the \emph{SPM} are kept in a list of frames, called the \emph{f-list}.
+
+\subsubsection{Dynamically Creating Frames\label{sec:DynamicalCreationOfFrames}}
+The problem described above only poses itself with functor applications: the binding of secure \lsttext{struct} expressions to a name always happens in secure code.
+Its the application of a secure functor, which can happen in insecure code as well, that creates the problem.
+How the dynamic creation of frames is handled depends on the location in the source language of the binding of the structure they represent to an identifier.
+
+\begin{description}
+\item[Binding in secure code:] When compiling the secure code, it is possible to create frames for all structure bindings inside the secure code, regardless whether they correspond to \lsttext{struct} expressions or functor applications.
+Their frames can be added dynamically using preprocessing code located inside the \emph{SPM}. 
+Since they are added by code inside the \emph{SPM}, they are guaranteed to be tampering-free.
+\item[Binding in insecure code:] The bindings in insecure code require more attention when processing.
+When the structure is defined using the \lsttext{struct} expression or the application of an insecure functor, the result will be an insecure structure, whose frame is allowed to be located in insecure memory.
+This means that the frame can be added dynamically using preprocessing code inside the attackers context without any further considerations.
+
+When the structure is defined by the application of a secure functor, the result is a secure structure.
+This means that the frame must be saved in secure memory.
+The output of compilation of the secure code is already created, so the compilation must provide a function that the context can call to create the frame.
+This function corresponds nicely with the idea of \lsttext{DictionaryFn(StringEqual)} being a function from structure to structure.
+
+For each secure functor $Fn$, the compiler adds an entry point to the \emph{SPM} to a function that allows the context to create a frame that would result from applying that functor.
+This function expects two arguments: 
+\begin{itemize}
+\item The index in the f-list that corresponds to the frame that represents the argument of the functor, or the memory location of this frame if the argument is an insecure structure
+\item The trimming map that is applied to the structure.
+\end{itemize}
+Using this information, the function validates its input, creates the frame in secure memory and adds it to the \emph{f-list} before returning.
+
+The validation step is necessary because the preprocessing code is located in insecure memory.
+Because this code section is not protected, these preprocessing function calls could be manipulated. 
+An attacker could for example apply the functor $Fn$ to a secure argument structure $S_{a}$ that does not match the required signature for functor $Fn$. 
+This would result in the ill-typed output structure $S_{o}$.
+
+Structure $S_{a}$ can now access values created by $S_{o}$ directly, because both are located in secure code.
+By choosing the unsound type assumptions that structure $S_{a}$ makes carefully, this could leak information about the implementation of functor $Fn$.
+As a result, when compiling a secure functor the compiler must:
+\begin{itemize}
+\item Add an additional entry point in the \emph{SPM} corresponding to a function that can create frames representing applications of the functor.
+\item Equip this function with the necessary checks to assure that when the argument structure is secure, the arguments signature also matches the expected signature specified by the functor definition.
+In other words, code must be added that reads type information about the argument structure and checks, using structural typing as specified in \myref{sec}{sec:StructuralTyping} to ensure that functor application on secure structures only succeeds if the secure structure signature matches with the target signature.
+\end{itemize}
+
+By preserving the order in which functors are applied when adding the frames dynamically, the compiler knows at compilation time the position of every frame in the \emph{SPM}s \emph{f-list}.
+This way, the index in the f-list is a valid substitute for the real location $\mathit{loc}_{\mathit{frame}}$ in memory.
+\end{description}
+
+\subsubsection{Implementing Structural Typing Checks}
+In order to implement \emph{structural typing checks} when applying secure functors, knowledge about the signatures of structures must be available.
+Because every secure functor has its own dedicated function that creates the frame and performs the necessary typechecks, any necessary knowledge about the target signature can be hardcoded.
+
+
+\subsection{Calling Structure Values}
+Access to any value of a source language structure is uniquely determined in the target language using the location ($loc_{frame}$) of the frame in memory and the index of the value ($index_{val}$) in its list of value pointers.
+
+In the source language, all values are either accessible across the security boundary or strictly accessible only within the same structure, so the same must hold for the target language.
+It is easy to make values accessible only from within the same structure: they are not given an entry within the list of value pointers, and their location is not made into an entry point for the \emph{SPM}.
+
+All other values are accessible across the security boundary. However, as frames are saved in the memory corresponding to its security status, the attackers context is not able to access frames corresponding to structures within the \emph{SPM} directly.
+Worse, the attackers context is not even allowed to know the exact location $loc_{frame}$ of these secure frames.
+
+%To solve this, all $loc_{frame}$ are masked by inserting them into a list of frames, called the \emph{f-list}, in the order of their definitions.
+This is solved by inserting all $loc_{frame}$ into the \emph{SPM}s list of frames (\emph{f-list}) that was introduced in \myref{sec}{sec:DynamicalCreationOfFrames}. These frame locations are added in the order of their definitions. \todo{Sort those bound in secure memory alphabetically, and append those bound to an identifier in insecure context in the order of their definition! Otherwise, contextual equivalence is broken, isn't it?}
+%TODO: Doesn't this break contextual equivalence? Solution: Sort alphabetically for those created in secure memory!
+Anywhere a secure structure is used in the source language, it is represented by the $loc_{frame}$ pointer or its masking index in the \emph{f-list}.
+
+To allow context code to access values from secure structures, a wrapper function is provided that is located inside the \emph{SPM}.
+This wrapper function corresponds to an \emph{entry point} to the \emph{SPM}.
+The context can now pass an index in the \emph{f-list} $index_{f-list}$ and an index for the structure value $index_{val}$, as well as any arguments that should to be passed to the value to this wrapper function.
 %todo: alternatively the pointer to the value is passed directly
-This wrapper, because it is located in secure code, is able to read the pointer corresponding to the $(loc_{frame}, i_{val})$ pair and call the necessary value.
-It can then return any results to its caller.
+This wrapper, because it is located in secure code, can access the \emph{f-list} and the frames themselves.
+It then does the following things:
+\begin{itemize}
+\item Check whether $index_{f-list}$ corresponds to a real frame.
+Since structures resulting from a functor application are added dynamically, a situation could arise where the corresponding frame has not yet been added, or where something went wrong while adding the frame.
+In this case the wrapper function must not allow the $index_{f-list}$ to be used.
+\item Use $index_{f-list}$ to get a $loc_{frame}$ for the correct frame.
+\item Check whether the frame represents a simple structure or the result of functor application.
+\item Look up $index_{val}$ in the list of pointers within the frame to get a pointer to the accessed value.
+\item Call this value with any relevant arguments.
+In case the frame represented the result of functor application, the pointer to the argument frame must be provided when calling the value.
+By design, a pointer to this frame is always present within the frame representing the functor output itself.
+\item return any results to the caller.
+\end{itemize}
 
-If the values are inside a structure resulting from functor application, care has to be taken.
-The code representing the value expects the frame of the argument structure to be passed as a first argument.
-A pointer to this frame can always be found within the frame representing the functor output itself.
+The wrapper functions only as a wrapper, so it presumes any clearing of flags, registers, masking of values or othether precautionary measures have already been taken care of by the functions that it wraps.
 
-\subsubsection{Security Consequences}
+Since all structure values are only accessible through this wrapper function, the separate structure values do \emph{not} have to be entry points in the \emph{SPM}. The wrapper function will always be necessary, because functors that call a value in their argument structure can not hardwire a specific entry point in their generic code.
+However, in order to allow optimisations, the structure values could safely be made entry points of the \emph{SPM} with only minimal changes to the scheme above: The values within a structure resulting from functor application are stubs that expect an extra argument, the location of the argument frame. 
+If these stubs can be called directly by the context without the wrapper function, care must be taken to check that the location of the argument frame is either inside insecure memory or is interpreted as a mask in the f-table.
+
+
+% is able to read the pointer corresponding to the $(loc_{frame}, index_{val})$ pair and call the necessary value.
+%It can then return any results to its caller.
+
+%If the values are inside a structure resulting from functor application, care has to be taken.
+%The code representing the values expects the frame of the argument structure to be passed as a first argument.
+%By design, a pointer to this frame is always present within the frame representing the functor output itself.
+
+\subsection{Security Consequences}
 
 In order to explore the possibility of contextual equivalence breaking due to the representation of structures differing between source and target language, the possible combinations of functor and structure security are explored here case by case.
 %Since functor application results in a structure as well, these structures must also be representable as frames.
@@ -1279,7 +1417,7 @@ In order to explore the possibility of contextual equivalence breaking due to th
 %In this case, at the moment of functor application a new frame is created representing the result of this functor application. This consists of 
 The \emph{frame} representing a structure is located in the same part of memory as the structure was defined.
 Since in this combination both the functor code and the frame are located inside protected memory, no tampering is possible.
-When functor code is called with a reference to the frame in secure memory, the functor code is able to read the frame directly, because the functor is part of the \emph{SPM}. It can then call any value of the structure using the pointer provided by the frame.
+When functor code is called with a reference to the frame in secure memory, the functor code is able to read the frame directly, because the functor is part of the \emph{SPM}. It can then call any value of the argument structure using the pointer provided by the frame.
 \item[Secure functor with insecure structure]
 When a secure functor is applied to an insecure structure, its result is a secure structure that calls functions provided by the insecure structure.
 The resulting structure \emph{depends} on the insecure structure.

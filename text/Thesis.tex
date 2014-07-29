@@ -1375,7 +1375,7 @@ The context can now pass an index in the \emph{f-list} $index_{f-list}$ and an i
 This wrapper, because it is located in secure code, can access the \emph{f-list} and the frames themselves.
 It then does the following things:
 \begin{itemize}
-\item Check whether $index_{f-list}$ corresponds to a real frame.
+\item Check whether $index_{f-list}$ corresponds to a real frame by using the expected length of the list.
 Since structures resulting from a functor application are added dynamically, a situation could arise where the corresponding frame has not yet been added, or where something went wrong while adding the frame.
 In this case the wrapper function must not allow the $index_{f-list}$ to be used.
 \item Use $index_{f-list}$ to get a $loc_{frame}$ for the correct frame.

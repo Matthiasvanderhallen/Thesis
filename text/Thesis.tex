@@ -16,6 +16,9 @@
 \usepackage{listings}
 \usepackage{float}
 \usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
 %\usepackage[style=mla,babel=hyphen,backend=biber]{biblatex}
 \usepackage{natbib}
 %\usepackage{courier}
@@ -1350,8 +1353,64 @@ This way, the index in the f-list is a valid substitute for the real location $\
 \end{description}
 
 \subsubsection{Implementing Structural Typing Checks}
-In order to implement \emph{structural typing checks} when applying secure functors, knowledge about the signatures of structures must be available.
+In order to implement \emph{structural typing checks} when applying secure functors, knowledge about the signatures of structures must be available at runtime.
 Because every secure functor has its own dedicated function that creates the frame and performs the necessary typechecks, any necessary knowledge about the target signature can be hardcoded.
+
+The signatures of structures within the \emph{SPM} are saved as meta-information linked together with the frame, called the \emph{meta-frame}.
+This meta-frame tracks all type definitions and value definitions present in the signature.
+It needs to formalize a target language represention of types, type definitions and value definitions.
+
+
+The representation of types within the \emph{SPM} is structured as shown in \myref{fig}{fig:TypeRepresentations}.
+
+\begin{figure}[htb]
+    \begin{subfigure}[b]{0.20\textwidth}
+    \centering
+        \begin{tabular}{|c|}
+        \hline
+        0 \\
+        \hline
+        \end{tabular}
+        \caption{Type int.\label{fig:IntRepresentation}}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.20\textwidth}
+    \centering
+        \begin{tabular}{|l r|}
+        \hline
+        1 & $i_{tyvar}$\\
+        \hline
+        \end{tabular}
+        \caption{Typevar 'a. \label{fig:TypeVarRepresentation}}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.20\textwidth}
+    \centering
+        \begin{tabular}{|l r|}
+        \hline
+        2 & $index_{type}$\\
+        \hline
+        \end{tabular}
+        \caption{$\mathit{ArgStruct.t_{i}}$\label{fig:ArgTypeRepresentation}}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.20\textwidth}
+    \centering
+        \begin{tabular}{|l c r|}
+        \hline
+        3 & $loc_{frame}$ & $index_{type}$\\
+        \hline
+        \end{tabular}
+        \caption{$\mathit{Struct.t_{i}}$\label{fig:StructTypeRepresentation}}
+    \end{subfigure}
+    \caption{This figure shows the representation of all different types \label{fig:TypeRepresentations}}
+\end{figure}
+
+The representation of type definitions is shown in \myref{fig}{fig:TypeDefinitionsRepresentation}.\todo{Create the figure. Normally this should suffice: name, tyvars, implementation, opaque bit}
+
+For the signature of an argument frame to match the target-signature, every type definition in the target signature and every value must have a match in the meta-frame, as explained in \myref{sec}{sec:StructuralTyping}:
+
+\begin{description}
+\item[Matching type definitions]
+\item[Matching values]
+\end{description}
 
 
 \subsection{Calling Structure Values}
@@ -1403,7 +1462,7 @@ If these stubs can be called directly by the context without the wrapper functio
 
 \subsection{Security Consequences}
 
-In order to explore the possibility of contextual equivalence breaking due to the representation of structures differing between source and target language, the possible combinations of functor and structure security are explored here case by case.
+In order to explore the possibility of contextual equivalence breaking due to the representation of structures differing between source and target language, the possible combinations of functor and structure security and the relevant security measures are recapped here case by case.
 %Since functor application results in a structure as well, these structures must also be representable as frames.
 %In order to allow this, frames consist of a type indicator that identifies it as a structure defined using the struct keyword, or a structure resulting from functor application.
 

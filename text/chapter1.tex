@@ -1,0 +1,308 @@
+\chapter{A Compilation Example\label{chap:ACompilationExample}}
+
+This chapter firstly describes the \mbox{MiniML} source language (\myref{sec}{sec:MiniML}), a subset of the ML language whose syntax and semantics are reminiscent of those of Standard ML.
+\myref{sec}{sec:MLExample} then introduces an example program that will be used to show the secure compilation scheme.
+This chapter continues by describing the LLVM intermediate language to which the first translation occurs (\myref{sec}{sec:LLVM}).
+This chapter concludes by translating the earlier proposed example program, showing the resulting LLVM code.
+%The secure compilation scheme is shown from an example program written in the source language, \mbox{MiniML}, which is a subset of the ML language. Its syntax and semantics are reminiscent of those used in Standard ML.
+
+\section{MiniML\label{sec:MiniML}}
+The ML language is a functional programming language which is well known for its module system.
+This module system aims to group data and code together into coherent entities, called the modules.
+
+A \emph{structure} is the most basic type of module.
+It can be defined using the \texttt{struct...end} construct and provides a set of bindings for types, values and functions.
+A structure specifies a name for the binding and the corresponding value, called \emph{implementation}.
+Structures provide the possibility of grouping related code and data, fulfilling the need of \emph{encapsulation} in software.
+However, the need for \emph{data abstraction} is not yet fulfilled.
+\myref{lst}{code:DictionaryStructureExample} shows how a dictionary of strings to strings might be implemented by a module.
+~
+\begin{lstlisting}[frame=single, language=ML,caption=An example structure showing the definition of a dictionary in ML, label=code:DictionaryStructureExample,numbers=left]
+structure Dictionary =
+    struct
+        type dictionary = (string * string) list
+        val emptyDictionary = []
+        fun insert(d, x, y) = (x,y)::d
+    end
+\end{lstlisting}
+
+\myref{lst}{code:DictionaryStructureExample} firstly defines a type dictionary, which is defined to be a type synonym for a list of string pairs, a value representing the empty dictionary (\texttt{emptyDictionary}) and a function for inserting data into the dictionary (\texttt{insert}).
+
+As it stands, the dictionary type is a type synonym for lists of string pairs, and any such list could be used where a dictionary is expected.
+However, the concept of a dictionary does not require users to know that the dictionary type is implemented as a list of string pairs.
+According to the principle of data abstraction, it is favourable to hide this information from the user of the dictionary module.
+
+Here the idea of a signature comes into play.
+A signature groups a set of types, values and functions without providing an implementation.
+It provides a way of abstracting over structures that implement the same logical concept using a different implementation.
+A possible signature for dictionaries is shown in \myref{lst}{code:SignatureDictionaryExample}.
+~
+\begin{lstlisting}[frame=single, language=ML, caption=An example signature showing the declaration of a dictionary in ML, label=code:SignatureDictionaryExample, numbers=left]
+signature DICTIONARYSIGNATURE =
+    sig
+        type dictionary
+        val emptyDictionary : dictionary
+        val insert: dictionary * string * string -> dictionary
+    end
+\end{lstlisting}
+
+A signature guarantees that two implementations of the same logical concepts are interchangeable for each other by standardizing the way an implementation communicates with the other code.
+It can also abstract the fact that the current implementation for dictionaries uses lists, as well as obscuring any helper methods that the specific implementation defines in order to simplify its internal workings.
+This last functionality of a signature is a way to perform \emph{information hiding}.
+
+%In order to simplify this study, the ML language is simplified to its core, resulting in the smaller \mbox{MiniML} language.
+%This will, at first, only feature modules.
+%Later on, It will be extended with more advanced concepts of ML, such as functors.
+
+The \mbox{MiniML} fragment discussed here was chosen to encorporate the idea of modules, more complex language features will be added later.
+
+\section{A Cipher In ML\label{sec:MLExample}}
+\myref{lst}{code:Example} presents an example program that consists of the definition of a signature that represents symmetric cyphers, a concept used in cryptography.
+This example was chosen since the modules related to cryptography are usually under more scrutiny with regards to the privacy of their internal values.
+The code in \myref{lst}{code:Example} defines a signature \texttt{SYMMETRICCIPHER}.
+This signature describes the common traits between modules that implement a symmetric cipher.
+In order to implement a symmetric cipher, one must have a credential, i.e. the key, and two functions, \texttt{encrypt} and \texttt{decrypt}, which take data and credentials.
+The \texttt{encrypt} function takes the raw data and encodes it in a way only those with knowledge of the correct credentials can later use the \texttt{decrypt} function to transform the encoded data back into the raw data.
+
+\begin{lstlisting}[frame=single, language=ML,numbers=left, label=code:Example, caption=Example of a security sensitive module specifying and implementing a symmetric cypher.]
+signature SYMMETRICCIPHER =
+    sig 
+        type cred
+        val newcredentials : cred
+        val encrypt: int -> cred -> int
+        val decrypt: int -> cred -> int
+    end
+
+structure Caesar :> SYMMETRICCIPHER =
+    struct
+        type cred = int
+        fun newcredentials = rand
+        fun encrypt(a,cred) = (a + cred)%26
+        fun decrypt(a, cred) = (a - cred)%26
+        val seed = 3
+        fun rand = time.now * seed
+    end
+\end{lstlisting}
+
+From line 8 of \myref{lst}{code:Example} onwards the definition of a structure called \texttt{Caesar} is given.
+\texttt{Caesar} implements the \texttt{SYMMETRICCYPHER} signature.
+In this context, \texttt{Caesar} provides the \texttt{newcredential}, \texttt{encrypt} and \texttt{decrypt} functions.
+For internal use it also possesses the necessary characteristics of a pseudorandom number generator, namely a seed value and a rand function that provides a pseudorandom number.
+It is necessary to hide the seed value from users since this would allow attackers to predict the output of the pseudorandom number generator.
+
+The \texttt{Caesar} structure is forced to conform to the signature \texttt{SYMMETRICCIPHER} by means of \emph{opaque ascription (\texttt{:>})}.
+This not only forces the module to implement all the necessary elements of the signature, but it also restricts the means of interaction with the module to those elements that are explicitly mentioned in the interface.
+It is this notion of \emph{opaque ascription} that dictates what it means for this module to be secure.
+Concretely, to be secure, this module hides its \texttt{rand} function and its seed value from any outside code, only allowing the code internal to the structure to access this value or call the function.
+
+%This example can later be broadened so that the \texttt{Caesar} structure becomes a functor that is parameterized to use an external module as its PRNG.
+
+\section{LLVM Intermediate Representation \label{sec:LLVM}}
+This section introduces the LLVM intermediate representation.
+It also specifies the expected LLVM intermediate representation code for the example in \myref{lst}{code:Example}.
+
+\subsection{LLVM}
+LLVM, short for \emph{Low Level Virtual Machine} is the name of a project providing many different and closely affiliated utilities concerned with the compilation process.
+One of the important utilities being used in this work is LLVMs intermediate representation.
+This intermediate representation is defined in an attempt towards providing a shared abstraction that the compilers of many languages can use.
+From this point on, any form of optimization can be done on the LLVM intermediate representation, and thus might be shared between the different high-level languages.
+
+When all required optimizations are performed, one can compile the intermediate language into machine code and perform linking of all necessary code.
+Any special modification necessary to run on specific target platforms can be shared as well.
+In order to focus on the security of the compilation, the more aggressive optimization capabilities of LLVM will not be used.
+\\[1em]
+The secure compiler for \mbox{MiniML} will translate \mbox{MiniML} code into this intermediate representation.
+It is possible to write a program in this LLVMs intermediate representation (LLVM IR) using one of three different and equivalent encodings:
+\begin{itemize}
+\item A bitcode format
+\item Textual assembly language
+\item A symbolic representation
+\end{itemize}
+
+This thesis will use the textual assembly language as representation for LLVM IR programs, because this makes examples and results more understandable and human readable.
+While it is possible to generate LLVM IR programs using the LLVM API, this work chooses to generate the human readable intermediate code itself, because it offers more direct control over the resulting translation.
+
+The benefit of LLVMs intermediate representation is not limited to the points mentioned above.
+The LLVM intermediate representation works at a higher level of abstraction than standard assembly does.
+Two important additional aspects make the intermediate representation used by LLVM of a higher level of abstraction than standard assembly code:
+
+\begin{description}
+\item[Type System] More information about the program is captured by LLVM than when using regular assembly, using LLVMs type system
+\item[SSA] For optimization purposes, the LLVM IR adheres to the \emph{static single assigment} paradigm, or \emph{SSA}.
+This implies that every register can be assigned a value only once. However, this restriction poses no real hindrance to a functional language as \mbox{MiniML}
+\item[Register Limitations]  The LLVM intermediate representation abstracts away the fact that real architectures have only a given amount of registers.
+Instead, one can write a program assuming an infinite amount of registers.
+This results in many more variables in use than available registers.
+In a later compilation stage this consequence is remedied using the technique of \emph{spilling}.
+Variable spilling occurs by mapping the variables in use to the smaller set of available registers, saving all variables that could not be assigned to a register in RAM memory in the stack.\todo{This is important for the secure compilation (clearing registers after function calls end). It might be necessary to rework this subsection to stress this more.}
+\end{description}
+
+\subsection{Translating MiniML concepts to LLVM}
+Compiling from \mbox{MiniML} to LLVM IR means the high level abstractions made in \mbox{MiniML}, for example \emph{signatures} and \emph{structures}, must be mapped to lower level constructs that are available in the LLVM intermediate representation.
+This section presents these different mappings.
+
+\begin{description}
+\item[Structures]
+LLVM already provides the concept of a module as a separate unit of compilation. This means each LLVM module is compiled to a single different object file. Firstly, an LLVM module declares which external functions will be provided by other code, and then continues by defining and implementing its own code and data. These definitions and external references are compiled into a single object file. LLVM poses no restrictions on the access of data and functions within a single module, but in order to manage the access of data and functions from within other modules, the object file to which a module is compiled is accompanied by a link table specifying which methods are defined and made externally visible, which is used to match the declaration of external functions with their implementation in other object files. The link tables represent what other code knows about the definitions contained within the compiled module.
+
+%This means that LLVM already provides a way of performing code and data encapsulation.
+
+%  When compiling these modules the result is a single object file. Each of these object files is accompanied by a.
+
+The functionality offered by LLVM IR modules makes them the right target  to map the different ML structures onto.
+
+\item[Functions]
+LLVM provides the concept of a function as a set of basic blocks of code. 
+These LLVM IR functions allow us to modify the visibility of a function using the linkage keyword. 
+%The concept of a function as a basic building blocks allows us to specify the visibility of these blocks towards outside code. 
+
+When linking the object files that result from the compilation of different modules, LLVM looks for the implementation of externally declared functions in the different object files, keeping into account whether or not the code was in fact declared to be visible outside the module. It is possible to map ML functions directly to their LLVM counterpart.
+
+\item[Signatures]
+While structures can be mapped directly onto the concept of a module in LLVM, the information provided in signatures will mainly affect metadata in the resulting code or influence the specific implementation of different elements inside the modules.
+
+When a structure is opaquely ascribed, or \emph{sealed} by a signature, we must make sure that the values and functions defined in the structure but not specified in the signature are not externally visible. The first step in protecting these internal functions consists of marking these members as private in the module corresponding to the ML structure. This will filter these members from the object files link table. %This way these private members are protected from access by any of the external code generated by the same compiler.
+
+%Structures will be mapped onto the different modules, while the information provided in the signatures will mainly affect metadata in the resulting code, or influence the specific implementation of different elements inside the modules.
+
+\item[Fields]
+Translations of the fields happens as global constants within a module. Since their value is unchanging, the \emph{SSA} paradigm poses no real limitation.
+
+\end{description}
+
+\section{Translation Example: The Caesar Cipher}
+In order to study the compilation scheme, the example ML code in \myref{lst}{code:Example} is translated to LLVM IR. The translation to LLVM intermediate representation is given in code in \myref{lst}{llvm:Example}
+
+\begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption=LLVM IR for the example,
+label=llvm:Example]
+define i32 @newcredentials(){
+	%0 = call i32 @newcredentials_internal()
+	ret i32 %0
+}
+
+define private i32 @newcredentials_internal(){
+	%0 = call i32 @rand()
+	ret i32 %0
+}
+
+define i32 @encrypt(i32, i32) {
+	%2 = call @encrypt_internal(%0, %1)
+	ret i32 %2
+}
+
+define private i32 @encrypt_internal(i32, i32) { 
+entry:
+	%x = add i32 %0, %1
+	%y = urem i32 26, %x 
+	ret i32 %y
+}
+
+define i32 @decrypt(i32, i32) { 
+	%2 = call @decrypt_internal(%0, %1)
+	ret i32 %2
+}
+
+define private i32 @decrypt_internal(i32, i32) { 
+entry:
+	%x = sub i32 %0, %1
+	%y = urem i32 26, %x 
+	ret i32 %y
+}
+
+@.seed = private constant i32 3	
+
+define private i32 @rand() {
+entry:
+	%t = load i32* @.seed
+	ret i32 %t
+}
+\end{lstlisting}
+
+This code, that implicitly is part of a module, consists of a list of \emph{global values}, denoted by the @ sign.
+Every value, be it a global function or a global variable, has a \emph{linkage} type associated with it.
+Linkage types control the accessibility of of variables and functions. The two linkage types in use are \texttt{private}, which makes a value only accessible by objects inside the same module, and the default linkage type, \texttt{external}.
+
+The code in \myref{lst}{llvm:Example} specifies 5 different global values, corresponding to the 5 definitions in the \texttt{Caesar} structure:
+\begin{description}
+\item[newcredentials] The first translated function is the \texttt{newcredentials} function.
+On lines 1-4 in the code of \myref{lst}{llvm:Example}, a proxy for the function is defined and its return type is declared to be i32, i.e. an integer. Since no linkage type is explictly specified, linkage type `external'  is used.
+
+This proxy acts as a wrapper around the real translation of \texttt{newcredentials} that can be seen on lines 6-9. This proxy is the entry point to the function that is made available to the untrusted code. This proxy can perform the security precautions that have to be taken when taking values from or returning values to the untrusted code.
+
+The body of the internal function \texttt{newcredentials\_internal} implements the functionality of the ML \texttt{newcredentials} function.
+\texttt{newcredentials\_internal} performs a call to the rand function, saving the resulting return value. It does so in a temporary local variable called \%0. This is returned using the \emph{ret} assembly function.
+
+\item[encrypt \& decrypt] Next are the \texttt{encrypt} en \texttt{decrypt} functions. The translation starts with the definition on line 11 in the code of \myref{lst}{llvm:Example}. Again, as these functions are available in ML for untrusted code, proxies are provided as entry points where security precautions can be made. These can be found on lines 11-14 and 23-26. The internal functions can be found on lines 16-21 and 28-33.
+
+The definition of these proxies as well as the internal functions specify the return type, as well as the different argument types. Since these are all of type `integer', the type i32 is being used.
+
+The body of the internal function uses the arguments in two calls to arithmetical assembly functions and returns the result.
+\item[seed] The variable \texttt{seed} is translated to a global variable. As the structure is opaquely ascribed by the signature \texttt{SYMMETRICCIPHER}, and the variable \texttt{seed} is not specified in this signature, it should be hidden from any outside components.
+
+To help achieve this protection and mark this information, the linkage type is specified to be \emph{private}.
+
+The definition of \texttt{seed} can be seen on line 35 in the code of listing~\myref{lst}{llvm:Example}
+\item[rand] The function \texttt{rand} is defined starting line 23 and onwards in \myref{lst}{llvm:Example}. For the same reasons as the variable \texttt{seed}, its linkage type is set to private. It also follows that no proxy is necessary for the \texttt{rand} function.
+
+In its body, it returns the value of the seed. Since all global values are pointers, the pointer must be dereferenced using a load operation, saving the value to a local variable. This value is then returned.
+\end{description}
+
+\subsection{MiniML-specific security concerns}
+
+\subsubsection{Register Clearing}
+Any communication in \mbox{MiniML} normally only occurs through information passed along by returns and method calls.
+In the case of low level architecture however, all communication occurs through the unprotected memory, through flags and through the CPU registers.  This means that a low level attacker can try to perform side channel communication.
+
+In order to prevent the leaking of protected data through side channels, it is important to ensure that the information passed through unprotected memory, flags and registers is restricted to that information being passed by the returns and method calls in \mbox{MiniML}.
+Thus, any callback or return to untrusted code must:
+\begin{itemize}
+\item Clear the flags
+\item Clear the registers, except those being used to pass a parameter or a return value.
+\end{itemize}
+
+
+If these registers and flags, which were possibly modified by the protected code, are not reset when returning execution to unprotected memory, code running in the unprotected memory will be able to read the values in these registers and flags, breaking confidentiality. The code could even modify these values, resulting in a modification of control flow if execution is later returned to the protected code while expecting these values to be uncorrupted.
+
+However, since the LLVM intermediate representation does not allow multiple assignments to the same registers, it is impossible to clear a register simply by overwriting its value.
+Furthermore, the LLVM IR does not know how many registers it can use, instead assuming an infinite amount of registers, as mentioned earlier. This means that clearing these registers must happen later on in the compilation process, introducing an extra LLVM pass.
+
+\subsubsection{Opaque types}
+
+The \mbox{MiniML} language allows a programmer to define ones own types using the type keyword. Taking another look at the Dictionary example of \myref{lst}{code:DictionaryStructureExample}, this happens for example on line 2. The modules internal representation of a dictionary is a list of string pairs, but clearly this is some internal choice that the programmer does not want to make explicit, which is why the type synonym 'dictionary' is kept opaque, as can be seen in \myref{lst}{code:SignatureDictionaryExample}, line 2, where the external specification of a type is not revealed to be a list of string pairs.
+
+This is a means of information hiding, if someone were to later rewrite this dictionary structure in such a way that its internal representation becomes a pair of string lists, as in Figure , this would be a perfectly valid change. This change should not result in any changes to the external code, since the specific implementation choice for the dictionary type was not made explicit.
+
+\begin{figure}[!htb]
+\begin{lstlisting}[frame=single, language=ML]
+structure Dictionary =
+    struct
+        type dictionary = (string list * string list)
+        val emptyDictionary = ([],[])
+        fun insert((fst,snd), x, y) = (x::fst, y::snd)
+    end
+\end{lstlisting}
+\label{code:DictionaryStructureExample2}
+\caption{An alternative structure defining a dictionary.}
+\end{figure}
+
+Even more so, one would expect the two programs/modules to be contextually equivalent! However, clearly, if no checking is performed on functions expecting something of type dictionary, a low level attacker could discriminate between the two using the following tactic: call a function expecting a dictionary argument with a self-created list of string pairs. If it gives the expected results, the dictionary implementation being used is the one given in \myref{lst}{code:DictionaryStructureExample}. If not, it is the module described in \myref{lst}{code:DictionaryStructureExample2}, expecting a pair of string lists. This breaks contextual equivalence.
+
+The code must assure that any object, passing as an argument of type dictionary, was in fact created by the module code itself (using the emptydictionary method). If not, it should raise an error (even if the object has the correct type according to the synonyms) in order to prevent an attack on centextual equivalence in the same spirit as the one described above.
+
+This restriction can be enforced if the code creating a dictionary never returns a pointer to this dictionary itself, instead saving this dictionary in an internal list in protected memory. The index in this list can then be returned and used as a mask for the real object. Any function in the module that expects a dictionary as its argument then no longer gets a pointer to this dictionary object in memory, but instead gets the index of the needed dictionary in the internal list.
+
+\todo{The explanation of why extra type information might prove necessary. However: The argument must be presented in a more careful manner. Furthermore, this also depends on whether a separate list is being used per type or not. If a separate list is being used anyway, instead of a central list of masked objects, then the extra type information proves unnecessary, or rather, it is already implicitly available.}
+
+\section{Lessons learnt}
+
+This chapter gave an introduction to the \mbox{MiniML} language, which was chosen because of its special module system and how it specifies security aspects. Formalizing the \mbox{MiniML} language semantics will be the topic of \label{chapter:formalspecification}.
+
+Furthermore, LLVM and its intermediate representation was introduced as the target language.
+
+The chapter proceeded by describing the compilation scheme, showing how \emph{structures} can be mapped to LLVM \emph{modules}, followed by a translation of its \emph{fields} and \emph{functions} to global variables and LLVM \emph{functions}.
+
+\emph{Signatures} were shown to have no translation to a single LLVM concept, instead having an influence on the translation of the modules that it \emph{seals} in linkage types and more subtle ways.
+
+The chapter concluded with a discussion about preventing side channel communication, which makes it necessary to clear registers and flags when calling or returning to any external code.
+
+The existence of opaque types in \mbox{MiniML} means that objects of these opaque types can only be created by methods inside the module that declares the type synonym. To ensure this, the use of masking and the tracking of type information proved necessary.

@@ -19,6 +19,7 @@
 \usepackage{graphicx}
 \usepackage{caption}
 \usepackage{subcaption}
+\usepackage{xcolor,colortbl}
 %\usepackage[style=mla,babel=hyphen,backend=biber]{biblatex}
 \usepackage{natbib}
 %\usepackage{courier}
@@ -36,6 +37,7 @@
 
 \begin{document}
 %\newcommand{\emphref}[1]{\emph{}}
+\newcommand{\cmath}[1]{$\mathit{#1}$}
 \newcommand{\lsttext}[1]{\lstinline{#1}}
 \newcommand{\surroundrule}[2][0.3em]{
 \leavevmode\raisedrule[#1]{1pt}#2\raisedrule[#1]{1pt}}
@@ -1362,8 +1364,19 @@ It needs to formalize a target language represention of types, type definitions 
 
 
 The representation of types within the \emph{SPM} is structured as shown in \myref{fig}{fig:TypeRepresentations}.
+It consists of representations for the primitive type \cmath{int}, for typevariables \cmath{'a}, for types defined in other known structures and for types within the argument structure of a functor.
+\begin{itemize}
+\item The primitive type \lsttext{int} does not need any additional information for identification.
+\item Typevars \lsttext{'a} are denoted only by an index, which says when it was declared. 
+This identifies the typevar uniquely, and since typevars are matched with \emph{alpha-equivalence}, their name is not important.
+\item Types \lsttext{Struct.t} defined in other known structures \cmath{S} are identified by specifying the location of the corresponding frame \cmath{F_{S}} and its index in this frames type definitions.
+\item Types \lsttext{ArgStruct.t} defined in the argument structure of a functor are identified in a analogous way to types \lsttext{Struct.t}. 
+They have a different identifier to mark that they depend on the argument structure, and the location of the frame in which they are defined is known only at runtime, so it is not provided.
+\end{itemize}
+Then, the representation of two composite types is shown, arrays \lsttext{[]} in \myref{fig}{fig:ArrayTypeRepresentation} and pairs \lsttext{(,)} in \myref{fig}{fig:PairTypeRepresentation}.
 
 \begin{figure}[htb]
+    \newcommand{\gray}{\cellcolor{lightgray}}
     \begin{subfigure}[b]{0.20\textwidth}
     \centering
         \begin{tabular}{|c|}
@@ -1371,48 +1384,111 @@ The representation of types within the \emph{SPM} is structured as shown in \myr
         0 \\
         \hline
         \end{tabular}
-        \caption{Type int.\label{fig:IntRepresentation}}
+        \caption{Type \lsttext{int}.\label{fig:IntRepresentation}}
     \end{subfigure}
     \begin{subfigure}[b]{0.20\textwidth}
     \centering
         \begin{tabular}{|l r|}
         \hline
-        1 & $i_{tyvar}$\\
+        1 &  \gray $i_{tyvar}$\\
         \hline
         \end{tabular}
-        \caption{Typevar 'a. \label{fig:TypeVarRepresentation}}
+        \caption{Typevar \lsttext{'a}. \label{fig:TypeVarRepresentation}}
     \end{subfigure}
-    \begin{subfigure}[b]{0.20\textwidth}
-    \centering
-        \begin{tabular}{|l r|}
-        \hline
-        2 & $index_{type}$\\
-        \hline
-        \end{tabular}
-        \caption{$\mathit{ArgStruct.t_{i}}$\label{fig:ArgTypeRepresentation}}
-    \end{subfigure}
-    \begin{subfigure}[b]{0.20\textwidth}
+    \begin{subfigure}[b]{0.33\textwidth}
     \centering
         \begin{tabular}{|l c r|}
         \hline
-        3 & $loc_{frame}$ & $index_{type}$\\
+        2 & \gray $loc_{frame}$ & \gray $index_{type}$\\
         \hline
         \end{tabular}
-        \caption{$\mathit{Struct.t_{i}}$\label{fig:StructTypeRepresentation}}
+        \caption{\lsttext{Struct.t}\label{fig:StructTypeRepresentation}}
     \end{subfigure}
+    \begin{subfigure}[b]{0.25\textwidth}
+    \centering
+        \begin{tabular}{|l r|}
+        \hline
+        3 & \gray $index_{type}$\\
+        \hline
+        \end{tabular}
+        \caption{\lsttext{ArgStruct.t_{i}}\label{fig:ArgTypeRepresentation}}
+    \end{subfigure}
+    \\
+    \\
+    \begin{subfigure}{0.50\textwidth}
+    \centering
+        \begin{tabular}{|l r|}
+        \hline
+        4 & \gray \cmath{type}\\
+        \hline
+        \end{tabular}
+        \caption{Type \lsttext{[]}.\label{fig:ArrayTypeRepresentation}}
+    \end{subfigure}
+    \begin{subfigure}{0.50\textwidth}
+    \centering
+        \begin{tabular}{|l c r|}
+        \hline
+        5 & \gray \cmath{left_{type}} & \gray \cmath{right_{type}}\\
+        \hline
+        \end{tabular}
+        \caption{Type \lsttext{(,)}.\label{fig:PairTypeRepresentation}}
+    \end{subfigure}
+
+
     \caption{This figure shows the representation of all different types \label{fig:TypeRepresentations}}
 \end{figure}
 
-The representation of type definitions is shown in \myref{fig}{fig:TypeDefinitionsRepresentation}.\todo{Create the figure. Normally this should suffice: name, tyvars, implementation, opaque bit}
+\begin{figure}[htb]
+\centering
+\begin{tabular}{|l c c c r|}
+\hline
+name & \cmath{i_{typevar}} & \cmath{\#_{typevar}} & implementation & opacity\\
+\hline
+\end{tabular}
+\caption{The representation of type definitions\label{fig:TypeDefinitionsRepresentation}}
+\end{figure}
+
+The representation of type definitions is shown in \myref{fig}{fig:TypeDefinitionsRepresentation}.
 
 For the signature of an argument frame to match the target-signature, every type definition in the target signature and every value must have a match in the meta-frame, as explained in \myref{sec}{sec:StructuralTyping}:
 
 \begin{description}
 \item[Matching type definitions]
+First, a match is searched for all type definitions within the target signature:
+Searching inside the meta-information for a matching type definition can be done by scanning the meta-information for a type definition with the same name.
+If no type definition with the same name is available, the two signatures do \emph{not} match.
+
+If such a type definition is available, check the number of typevars \cmath{\#_{typevar}} it expects.
+If the type definition in \emph{target} and \emph{candidate} signature take a different number of typevars, the two signatures do \emph{not} match.
+
+If the matching type definitions take the same number of typevars, then the opacity of the type definition in the \emph{target} signature is of importance. If the type is \emph{not} defined opaque, the implementation of the two matching type definition is matched to ensure the same implementation.
 \item[Matching values]
+Next, for all values definitions inside the \emph{target} signature, a matching value definition inside the \emph{candidate} signature is identified using the names.
+In this matching, only the values which correspond to a result of the \emph{trimming map} are considered.
+
+When a name match is found, its type is checked.
+When creating a meta-frame, any type used in the typing of values is substituted by its implementation up until the first opaque type is encountered.
+This ensures that checking whether the type of two values match can be done by checking that either the type stated in the candidate signature is exactly the same as the type in the target signature, or it is a type variable that substitutes \emph{consistently} for the type listed in the target signature.
 \end{description}
 
+\subsubsection{Creating Meta-Frames}
+Implementing \emph{structural typing} required knowledge about the signatures of structures to be available at runtime.
+It introduced \emph{meta-frame}s as a type of meta-information linked together in memory with the frame.
+These \emph{meta-frame}s track all type definitions and value definitions present in the structures signature.
 
+The content of these \emph{meta-frame}s can mostly be determined at compile time. This surely is the case for structures, but it also is the case for functors that are not modified by a \lsttext{where} expression.
+This means that the function that creates a frame corresponding to a functor application can largely hardcode the content of the corresponding meta-frame.
+When creating a meta-frame, any type used in the typing of values is substituted by its implementation up until it contains only opaque types, counting \lsttext{int} as an opaque type.
+
+\begin{description}
+\item[Handling where Expressions] 
+Only \lsttext{where} expressions of the template \lsttext{where type t = ArgStruct.t'} can not be processed at compile time.
+For these expressions, the compiler slightly modifies the matching algorithm so that it checks
+\begin{enumerate}
+\item That the implementation of type \lsttext{t} is in fact \lsttext{ArgStruct.t}.
+\item What the opaqueness and implementation of type \lsttext{ArgStruct.t} is, so that any reference to type \lsttext{t} or \lsttext{ArguStruct.t} can be substituted by its
+\end{enumerate}
+\end{description}
 \subsection{Calling Structure Values}
 Access to any value of a source language structure is uniquely determined in the target language using the location ($loc_{frame}$) of the frame in memory and the index of the value ($index_{val}$) in its list of value pointers.
 

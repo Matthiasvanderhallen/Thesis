@@ -7,14 +7,13 @@ functor DictionaryFn (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.
         fun insert d x y = (x,y)::d
     end
 
-functor DictionaryFn2 (KeyStruct:EQUAL) : DICTIONARY =
-(*functor DictionaryFn2 (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =*)
+(*functor DictionaryFn2 (KeyStruct:EQUAL) : DICTIONARY =*)
+functor DictionaryFn2 (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
     struct
         type key = KeyStruct.t
         type 'a dictionary = (key list * 'a list)
         val emptyDictionary = ([],[])
         fun insert (a,b) x y = (x::a,y::b)
-        fun lookup a = true
     end
 
 structure StringDict = DictionaryFn(StringEqual);

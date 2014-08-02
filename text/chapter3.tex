@@ -682,16 +682,30 @@ Then, the representation of two composite types is shown, arrays \lsttext{[]} in
 \end{figure}
 
 \begin{figure}[htb]
+\begin{subfigure}[b]{\textwidth}
+    \centering
+    \begin{tabular}{|l c c c r|}
+    \hline
+    name & \cmath{i_{typevar}} & \cmath{\#_{typevar}} & implementation & opacity\\
+    \hline
+    \end{tabular}
+    \caption{Type Definition\label{fig:TypeDefinitionsRepresentation}}
+\end{subfigure}
+\\
+\\
+\begin{subfigure}[b]{\textwidth}
 \centering
-\begin{tabular}{|l c c c r|}
-\hline
-name & \cmath{i_{typevar}} & \cmath{\#_{typevar}} & implementation & opacity\\
-\hline
-\end{tabular}
-\caption{The representation of type definitions\label{fig:TypeDefinitionsRepresentation}}
+\begin{tabular}{|l r|}
+    \hline
+    name & implementation\\
+    \hline
+    \end{tabular}
+    \caption{Value Definition\label{fig:ValueDefinitionsRepresentation}}
+\end{subfigure}
+\caption{The representation of type \textbf{(a)} and value definitions \textbf{(b)}.}
 \end{figure}
 
-The representation of type definitions is shown in \myref{fig}{fig:TypeDefinitionsRepresentation}.
+The representation of type definitions is shown in \myref{fig}{fig:TypeDefinitionsRepresentation}, and that of value definitions in \myref{fig}{fig:ValueDefinitionsRepresentation}.
 
 For the signature of an argument frame to match the target-signature, every type definition in the target signature and every value must have a match in the meta-frame, as explained in \myref{sec}{sec:StructuralTyping}:
 

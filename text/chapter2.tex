@@ -1,12 +1,17 @@
 \chapter{Formal Specification \label{chapter:formalspecification}}
-In this chapter the source language, \mbox{MiniML}, and the target language, LLVM IR, will be formally specified. 
+In this chapter the source language, \MiniML, and the target language, LLVM IR, will be formally specified. 
 
-First the syntax of \mbox{MiniML} within which a program can be defined will be introduced. Next, the typing rules that a correct program must adhere to is shown. Lastly, the operational semantics govern what a correct program must do once it runs.
+First the syntax of \MiniML\ within which a program can be defined will be introduced. Next, the typing rules that a correct program must adhere to is shown. Lastly, the operational semantics determine what a correct program must do once it runs.
 \section{MiniML}
 \subsection{Syntax}
 \newcommand{\longspace}{\;\;\;\;\;\;}
 \newcommand{\inlinecode}{\texttt}
-First we introduce the syntax of a \mbox{MiniML} program, as seen in \myref{fig}{fig:Syntax}. A program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists\footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
+First we introduce the syntax of a \MiniML\ program, as seen in \myref{fig}{fig:Syntax}.
+The \MiniML\ syntax is composed of two parts: the \emph{Core} language, and a \emph{Module} language\cite{Milner:1997:DSM:549659}. 
+These two languages, \emph{Core} and \emph{Module} each have their corresponding possible \emph{expression}s.
+The division between \emph{Core} and \emph{Module} mostly correlates to the concepts of `programming in the small' and `programming in the large'\cite{DeRemer:1975:PLV:390016.808431}.
+
+A program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists\footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
 This description of a program allows us to first specify a set of signatures as well as a set of module and functors conforming to those signatures.
 \\[2ex]
 A signature $\Sigma$ is a module type and is represented by a list of \emph{declarations}. A declaration $\Delta$ specifies the type of an value identifier or the signature of a module identifier.

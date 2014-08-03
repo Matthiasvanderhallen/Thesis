@@ -839,7 +839,7 @@ As a result, the generic wrapper returns the result of the call to its caller.
 \todo{When calling values of the argument structure, the functor must at all times take care to determine whether the argument frame represents another functor output, or a basic structure, since calling a value within functor output requires the first argument to be a frame pointer to the argument structure. Should I add this remark in text, or should I provide code that does this check, and refer to that.}
 
 \section{Conclusion}
-In this chapter, some more advanced concepts of ML were added to the \MiniML language:
+In this chapter, some more advanced concepts of ML were added to the \MiniML\ language:
 
 Higher order functions, and the closely related concept of closures, can be introduced if certain sensitive information, such as environment values and pointer values are confined to the secure memory.
 This is done by reusing the earlier concept of \emph{masking}\todo{REF M. Patrignani}, and applying it to closures.

@@ -1,0 +1,32 @@
+\begin{figure}[!htb]
+\begin{align*}
+\begin{aligned}
+%
+\text{Mod Exp }\\
+\mathit{me} ::= \; & \text{\lsttext{structure}} \;  \mathit{StrId : SigId} = \text{\lsttext{struct}}\; \overline{\mathit{d}}\; \text{\lsttext{end}}
+                                    & \expl{(Trans. struct. binding)}\\
+&|\; \text{\lsttext{structure}} \;  \mathit{StrId :> SigId} = 
+\text{\lsttext{struct}}\; \overline{\mathit{d}}\; \text{\lsttext{end}}
+                                    & \expl{(Opaque struct. binding)}\\
+&|\; \text{\lsttext{signature}} \; SigId = 
+\text{\lsttext{sig}}\; \overline{\mathit{\delta}}\; \text{\lsttext{end}} 
+                                    & \expl{(sig. binding)}\\
+%
+\text{Definition }\\
+d \; ::= \; &\mathit{id}=e:\tau     & \expl{(value def.)} \\
+& | \text{\lsttext{type\ t}}= \tau          & \expl{(type def.)} \\
+% TODO: type variables
+\text{Declaration }\\
+\delta \; ::= \; & \text{\lsttext{type}}\ t  & \expl{(abstract type declaration.)} \\
+& | \; \text{\lsttext{type}} \ t = T      & \expl{(type synonym)} \\
+& | \; \text{\lsttext{val}}\ \mathit{id}:T         & \expl{(value declaration)} \\
+%
+\text{Shared type } \\
+T \; ::= \; &\text{\lsttext{int}}                  & \expl{(type int)} \\
+&| \; p.t                           & \expl{(struct type)}\\
+&| \; T_{1} \rightarrow T_{2} & \expl{(function type)}\\
+\end{aligned}
+\end{align*}
+\caption{Module language syntax \label{fig:ModuleSyntax}}
+\label{fig:Syntax}
+\end{figure}

@@ -1,0 +1,46 @@
+\begin{figure}[htb]
+%\begin{subfigure}{0.4\textwidth}
+%\centering
+\begin{align*}
+\begin{aligned}
+%\text{Program } \\
+%P\; ::= \; & \overline{\mathit{Mod}};\;e & \\
+%\\
+\text{Val Exp } \\
+e \; ::= \; &\mathit{num \; n \;}     &\expl{(natural number)} \\
+&|\;\mathit{id}                       &\expl{(value identifier)}\\
+&|\;\mathit{StrId.id}                 &\expl{(struct value)}\\
+&|\;e_{1}e_{2}                        & \expl{(function application)}\\
+&|\;\lambda(x:\tau)\;.\;e             &\expl{(lambda function)}\\
+&|\;\mathit{let }\; x : \tau \; =\; e_{1} 
+                                      &\expl{(let binding)}\\
+&\longspace \longspace \;\;\; in \; e_{2} \\
+% &|\;\mathit{letrec} \; p \; = \; e_{1} \; in \; e_{2} \\
+%&|\; \mathit{if(e_{1}) \; then \; e_{2} \; else \; e_{3}}\\
+% &|\;\mathit{p.left}\; | \; \mathit{p.right} \\
+% &|\;\mathit{fix\;e} \\
+\\
+\text{Identifiers } \\
+x \; ::= \; &id                      & \expl{(value identifier)}\\ 
+&|\;StrId                            & \expl{structure identifier}\\
+% &|\;F_{i}\\
+% &|\;M_{i}.id\\
+\\
+\text{Types }\\
+\tau \; ::= \; &\text{\lsttext{int}} &\expl{(int type)}\\
+&| \; p.t                            &\expl{(struct type)}\\
+% &| \; \mathit{bool} \\
+&| \; \tau_{1} \rightarrow \tau_{2}  & \expl{(function type)}\\
+&| \; \tau_{1} \times \tau_{2}       & \expl{(pair type)}\\
+&| \; [\tau]                         & \expl{(Array type)}\\
+% &| \; \alpha\\
+%\\
+%\text{Access Path } \mathit{path} \; ::= \; &\mathit{M_{i}}\\
+% &|\;F_{i}(\overline{\mathit{M_{i}}})\\
+%&|\;\mathit{this}\\
+%\\
+%\\
+\end{aligned}
+\end{align*}
+\caption{Core language syntax\label{fig:CoreSyntax}}
+\end{figure}

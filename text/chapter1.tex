@@ -1,6 +1,6 @@
 \chapter{A Compilation Example\label{chap:ACompilationExample}}
 
-This chapter firstly describes the \mbox{MiniML} source language (\myref{sec}{sec:MiniML}), a subset of the ML language whose syntax and semantics are reminiscent of those of Standard ML.
+This chapter firstly informally describes the \mbox{MiniML} source language (\myref{sec}{sec:MiniML}), a subset of the ML language whose syntax and semantics are reminiscent of those of Standard ML.
 \myref{sec}{sec:MLExample} then introduces an example program that will be used to show the secure compilation scheme.
 This chapter continues by describing the LLVM intermediate language to which the first translation occurs (\myref{sec}{sec:LLVM}).
 This chapter concludes by translating the earlier proposed example program, showing the resulting LLVM code.
@@ -22,7 +22,7 @@ structure Dictionary =
     struct
         type dictionary = (string * string) list
         val emptyDictionary = []
-        fun insert(d, x, y) = (x,y)::d
+        fun insert d, x, y = (x,y)::d
     end
 \end{lstlisting}
 
@@ -42,7 +42,7 @@ signature DICTIONARYSIGNATURE =
     sig
         type dictionary
         val emptyDictionary : dictionary
-        val insert: dictionary * string * string -> dictionary
+        val insert: dictionary -> string -> string -> dictionary
     end
 \end{lstlisting}
 
@@ -272,8 +272,7 @@ The \mbox{MiniML} language allows a programmer to define ones own types using th
 
 This is a means of information hiding, if someone were to later rewrite this dictionary structure in such a way that its internal representation becomes a pair of string lists, as in Figure , this would be a perfectly valid change. This change should not result in any changes to the external code, since the specific implementation choice for the dictionary type was not made explicit.
 
-\begin{figure}[!htb]
-\begin{lstlisting}[frame=single, language=ML]
+\begin{lstlisting}[frame=single, language=ML, label=code:DictionaryStructureExample2,caption={An alternative structure defining a dictionary.}]
 structure Dictionary =
     struct
         type dictionary = (string list * string list)
@@ -281,9 +280,6 @@ structure Dictionary =
         fun insert((fst,snd), x, y) = (x::fst, y::snd)
     end
 \end{lstlisting}
-\label{code:DictionaryStructureExample2}
-\caption{An alternative structure defining a dictionary.}
-\end{figure}
 
 Even more so, one would expect the two programs/modules to be contextually equivalent! However, clearly, if no checking is performed on functions expecting something of type dictionary, a low level attacker could discriminate between the two using the following tactic: call a function expecting a dictionary argument with a self-created list of string pairs. If it gives the expected results, the dictionary implementation being used is the one given in \myref{lst}{code:DictionaryStructureExample}. If not, it is the module described in \myref{lst}{code:DictionaryStructureExample2}, expecting a pair of string lists. This breaks contextual equivalence.
 

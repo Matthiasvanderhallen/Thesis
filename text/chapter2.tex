@@ -1,88 +1,70 @@
 \chapter{Formal Specification \label{chapter:formalspecification}}
 In this chapter the source language, \MiniML, and the target language, LLVM IR, will be formally specified. 
 
-First the syntax of \MiniML\ within which a program can be defined will be introduced. Next, the typing rules that a correct program must adhere to is shown. Lastly, the operational semantics determine what a correct program must do once it runs.
+First the syntax of \MiniML\ within which a program can be defined will be introduced.
+Next, the typing rules that a correct program must adhere to is shown.
+Lastly, the operational semantics determine what a correct program must do once it runs.
 \section{MiniML}
 \subsection{Syntax}
-\newcommand{\longspace}{\;\;\;\;\;\;}
-\newcommand{\inlinecode}{\texttt}
 First we introduce the syntax of a \MiniML\ program, as seen in \myref{fig}{fig:Syntax}.
-Like ML, the \MiniML\ syntax is composed of two parts: the \emph{Core} language, and a \emph{Module} language\cite{Milner:1997:DSM:549659}. 
-These two languages, \emph{Core} and \emph{Module} each have their corresponding valid \emph{expression}s.
-
+Like ML, the \MiniML\ syntax is composed of three parts: the \emph{Core} language, a \emph{Module} language\cite{Milner:1997:DSM:549659}, and the concept of a \emph{Program}. 
+The three languages, \emph{Core}, \emph{Module} and \emph{Program} each have their corresponding valid \emph{expression}s.
 The division between \emph{Core} and \emph{Module} mostly correlates to the concepts of `programming in the small' and `programming in the large'\cite{Milner:1997:DSM:549659,DeRemer:1975:PLV:390016.808431} respectively.
-The \emph{Core} language expresses the manipulation of values and execution of functions, for example implementing small algorithms or control logic.
-The \emph{Module} language expresses how these small parts of \emph{Core} expressions can be `glued together' or \emph{composed} into larger, working programs.
-The \emph{Module} language introduces namespaces and encapsulation into ML. 
 This separation of programming in the large and programming in the small aims to help programmers to introduce the right degree of modularity in their software.
 
-A \MiniML\ program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists\footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
-This description of a program allows us to first specify a set of signatures as well as a set of module and functors conforming to those signatures.
-\\[2ex]
-A signature $\Sigma$ is a module type and is represented by a list of \emph{declarations}. A declaration $\Delta$ specifies the type of an value identifier or the signature of a module identifier.
+\subsubsection{Core language}
+The \emph{Core} mainly consists of \emph{value expressions} \cmath{e}, these express the manipulation of values and execution of functions to implement small algorithms or control logic.
+Every value expression \cmath{e} needs to have a corresponding type \cmath{\tau}, otherwise the expression is not \emph{sound}.
+The \emph{Core} language syntax is shown in \myref{fig}{fig:CoreSyntax}.
+
+\input{coresyntax}
+
+\subsubsection{Module language}
+The \emph{Module} language uses \emph{module expressions} \cmath{me} to how the small parts of \emph{Core} expressions can be `glued together' or \emph{composed} into larger, working programs.
+Its syntax is shown in \myref{fig}{fig:ModuleSyntax}.
+
+The \emph{Module} language brings encapsulation and namespaces to \MiniML.
+The \emph{Module} language does this by introducing the concept of a \emph{structure}, as was informally explained in \myref{sec}{sec:MiniML}.
+A structure is defined using a \lsttext{struct} expression, and bound to an identifier \cmath{StrId} using the \lsttext{structure} expression.
+It consists of a body of definitions which is denoted in the syntax as $\overline{\mathit{\delta}}$ using the bar notation for lists\footnote{
+The bar notation uses $\emptyset$ as the empty set and the comma (,) as the prepend operator.
+For example: $\overline{\mathit{\delta}}$ could be the empty set $\emptyset$ or it could be $id = e:\tau, \overline{\delta}$.}.
+In its body, a structure \cmath{StrId} can bind values \cmath{id} to a value expression \cmath{e}, or can define a new type \cmath{t}.
+
+Just as types in the \emph{Core} language limit the number of valid or \emph{sound} value expressions, signatures restrict the number of well-typed module expressions.
+Signatures are named and bound to their identifier using the \lsttext{signature} expression. 
+They are defined using the \lsttext{sig} expression, and their body consists of abstract type definitions, type synonyms and value declarations.
+
+A structure can be ascribed a signature using \emph{transparant} ($:$) or \emph{opaque} ($:>$) ascription.
+\begin{description}
+\item[Transparant ascription] Transparant ascription \cmath{StrId : SigId} lets the implementation of type definitions in the underlying structure \cmath{StrId} propagate through, while hiding from external view any values that were not declared in the signature \cmath{SigId}.
+\item[Opaque ascription] Opaque ascription \cmath{StrId :> SigId} restricts the external view of the structure to the values and types declared inside the signature \cmath{SigId}.
+If a type \cmath{t} is declared abstract in \cmath{SigId}, its implementation is not known to any code not local to the structure.
+\end{description}
+
+In order to obtain a more simple language to study, \MiniML\ signatures of restrict their declarations to a subset \cmath{T} of the \emph{Core} types \cmath{\tau}. 
+The subset \cmath{T} contains only opaque types defined by structures, the int and function types.
+As a result, any value that is accessible from outside the structure itself can only get parameters and return values of type \lsttext{int}, of an opaque type or of a function combination of those types.
+
+This results in arrays \cmath{[\tau]} and pairs \cmath{\tau_{1} \times \tau_{2}} not being primitive types for module expressions.
+Only within a structure can a value be treated as an array or pair, if the value is of an opaque type defined within the same structure with an implementation containing the array or pair type.
+
+\input{modulesyntax}
+
+\subsubsection{Program}
+A \MiniML\ program consists of a set of \emph{Module expressions}.
+%, denoted as \cmath{\overline{\mathit{me}}}. 
+It is then concluded by a single naked value expression \cmath{e}, functioning as the main entry point of the program.
+This description of a program allows us to first specify a set of signatures as well as a set of structures conforming to those signatures.
+The syntax of a Program is shown in \myref{fig}{fig:ProgramSyntax}
+
+\input{programsyntax}
+
+%A signature $\Sigma$ is a module type and is represented by a list of \emph{declarations}. A declaration $\Delta$ specifies the type of an value identifier or the signature of a module identifier.
 %\\[2ex] 
 %A module can be seen as a special case of functors. A module specifies a signature and module body and is uniquely identified with an identifier $M_{i}$. The module body is represented as a list of definitions $\overline{d}$. A module $M_{i}$ with body $\overline{d}$ conforms to a signature $S_{i}$ if every identifier in $S_{i}$ has a definition in the module body, and its typing does not violate the one specified in the signature.
 %\\[2ex]
 %Functors $F_{i}$, presented as a generalization of modules, specify \todo{Is it always possible to specify the interface of a module? In our simple system, yes, There can be no problem with opaque types since we don't support them.} their own signature, $S_{i}$, as well as a set of signatures upon which it depends, $\overline{S_{n}}$. It then specifies a functor body in which those modules can be used. The functor can be given a set of modules that conform to the dependent signatures. We say the functor is applied to a set of modules. The result of this application behaves as a module that conforms to the interface $S_{i}$ that the functor specified for itself.
-
-\begin{figure}[!htb]
-\begin{align*}
-\begin{aligned}
-\text{Program} ::= \; & \overline{\mathit{Mod}};\;e\\
-\\
-\text{Value Expression }e \; ::= \; &\mathit{num \; n \;} % | \; \mathit{false} \; | \; \mathit{true} \\
-&|\;\mathit{id}  \\
-&|\;\mathit{path.id} \\
-&|\;e_{1}e_{2} \\
-% &|\;(e_{1},e_{2}) \\
-&|\;\lambda(p:\tau)\;.\;e \\
-&|\;\mathit{let }\; p \; = \; e_{1} \; in \; e_{2} \\
-% &|\;\mathit{letrec} \; p \; = \; e_{1} \; in \; e_{2} \\
-%&|\; \mathit{if(e_{1}) \; then \; e_{2} \; else \; e_{3}}\\
-% &|\;\mathit{p.left}\; | \; \mathit{p.right} \\
-% &|\;\mathit{fix\;e} \\
-\\
-\text{Identifiers } ::= \; & \; id \\ 
-&|\;M_{i}\\
-% &|\;F_{i}\\
-&|\;S_{i}\\
-\\
-\text{Access Path } \mathit{path} \; ::= \; &\mathit{M_{i}}\\
-% &|\;F_{i}(\overline{\mathit{M_{i}}})\\
-%&|\;\mathit{this}\\
-\\
-\text{Mod Expr } \mathit{me} ::= \; & \mathit{sig} \; S_{i} = \Sigma\\
-&|\; \mathit{mod} \;  M_{i} : S_{i} = \overline{\mathit{d}} \\
-% &|\; \mathit{funct} \; F_{i} (\overline{M_{n}:S_{n}}):S_{i} = \overline{d}\\
-\\
-\end{aligned}
-\begin{aligned}
-\text{Mod Types } \mathit{Mod} ::=\;&\lbrace \Sigma, \overline{\mathit{d}} \rbrace^{M_{i}} \\
-% &|\; \lbrace \Sigma, \overline{\Sigma}, \overline{d} \rbrace^{F_{i}} \\
-\\
-\text{Signature } \Sigma \; ::=\; & \overline{\Delta}\\
-\\
-\text{Declaration } \Delta \; ::=\; & (\mathit{id}:\tau)\\
-& | \; (\mathit{M_{i}}:S_{i})\\
-\\
-\text{Definition } d \; ::= \; &(\mathit{id}=e:\tau)\\
-& | \; (\mathit{M_{i}} = \overline{d} : S_{i}) \\
-\\
-\text{Type }\tau \; ::= \; &nat \\
-% &| \; \mathit{bool} \\
-&| \; \tau_{1} \rightarrow \tau_{2} \\
-% &| \; \tau_{1} \times \tau_{2} \\
-% &| \; \alpha\\
-\\
-\text{Pattern }p \; ::= \; & \mathit{id} \\
-&| \; (p,p)\\
-\\
-\\
-\end{aligned}
-\end{align*}
-\caption{The syntax of \MiniML}
-\label{fig:Syntax}
-\end{figure}
 
 %\subsubsection{Syntax example}
 %We now give an example of a syntactically correct \mbox{MiniML} program.
@@ -96,7 +78,8 @@ A signature $\Sigma$ is a module type and is represented by a list of \emph{decl
 %\end{figure}
 
 \subsection{Type system}
-Having defined the syntax for \MiniML, this section formalizes the static semantics, also called its \emph{type system}.
+Having defined the syntax for \MiniML and its parts, this section formalizes the static semantics, also called its \emph{type system}.
+The type system restricts the world of possible programs to those that consist of \emph{sound} or \emph{well-typed} module and value expressions. 
 
 \subsubsection{Type-schemes and contexts}
 First, the concept of a type-scheme is introduced, as shown in \myref{fig}{fig:Type-schemesAndContexts}.

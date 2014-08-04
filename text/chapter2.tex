@@ -7,11 +7,16 @@ First the syntax of \MiniML\ within which a program can be defined will be intro
 \newcommand{\longspace}{\;\;\;\;\;\;}
 \newcommand{\inlinecode}{\texttt}
 First we introduce the syntax of a \MiniML\ program, as seen in \myref{fig}{fig:Syntax}.
-The \MiniML\ syntax is composed of two parts: the \emph{Core} language, and a \emph{Module} language\cite{Milner:1997:DSM:549659}. 
-These two languages, \emph{Core} and \emph{Module} each have their corresponding possible \emph{expression}s.
-The division between \emph{Core} and \emph{Module} mostly correlates to the concepts of `programming in the small' and `programming in the large'\cite{DeRemer:1975:PLV:390016.808431}.
+Like ML, the \MiniML\ syntax is composed of two parts: the \emph{Core} language, and a \emph{Module} language\cite{Milner:1997:DSM:549659}. 
+These two languages, \emph{Core} and \emph{Module} each have their corresponding valid \emph{expression}s.
 
-A program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists\footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
+The division between \emph{Core} and \emph{Module} mostly correlates to the concepts of `programming in the small' and `programming in the large'\cite{Milner:1997:DSM:549659,DeRemer:1975:PLV:390016.808431} respectively.
+The \emph{Core} language expresses the manipulation of values and execution of functions, for example implementing small algorithms or control logic.
+The \emph{Module} language expresses how these small parts of \emph{Core} expressions can be `glued together' or \emph{composed} into larger, working programs.
+The \emph{Module} language introduces namespaces and encapsulation into ML. 
+This separation of programming in the large and programming in the small aims to help programmers to introduce the right degree of modularity in their software.
+
+A \MiniML\ program consists of a set of module expressions, denoted as $\overline{\mathit{Mod}}$ using the bar notation for lists\footnote{The bar notation uses $\emptyset$ as the empty set and , as the prepend operator. For example:$\overline{\mathit{Mod}}$ can be the empty set, $\emptyset$, or $\lbrace \Delta, \overline{\mathit{d}}\rbrace^{name}, \overline{Mod}$}. It is then concluded by a single naked value expression, functioning as the main entry point of the program.
 This description of a program allows us to first specify a set of signatures as well as a set of module and functors conforming to those signatures.
 \\[2ex]
 A signature $\Sigma$ is a module type and is represented by a list of \emph{declarations}. A declaration $\Delta$ specifies the type of an value identifier or the signature of a module identifier.
@@ -75,7 +80,7 @@ A signature $\Sigma$ is a module type and is represented by a list of \emph{decl
 \\
 \end{aligned}
 \end{align*}
-\caption{The syntax of MiniML}
+\caption{The syntax of \MiniML}
 \label{fig:Syntax}
 \end{figure}
 
@@ -91,13 +96,17 @@ A signature $\Sigma$ is a module type and is represented by a list of \emph{decl
 %\end{figure}
 
 \subsection{Type system}
-Having defined the syntax for \mbox{MiniML}, we are now able to formalize its type system.
+Having defined the syntax for \MiniML, this section formalizes the static semantics, also called its \emph{type system}.
 
 \subsubsection{Type-schemes and contexts}
-First, we introduce the concept of a type-scheme, as seen in \myref{fig}{fig:Type-schemesAndContexts}. A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$. This allows any concrete types $\tau$ to 'match' to the type variable. For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
+First, the concept of a type-scheme is introduced, as shown in \myref{fig}{fig:Type-schemesAndContexts}.
+A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$.
+This allows any concrete types $\tau$ to 'match' to the type variable.
+For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
 
 This concept of a type-scheme will later be used to provide %\todo{explain further}
-let-polymorphism.  Note that the definition of a Type-Scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
+let-polymorphism. 
+Note that the definition of a Type-Scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
 \\[2ex]
 Our type system will also need to keep track of the type assumptions and the module, functor and signature definitions. This represents the notion of a \emph{context}. It is in this context that typing will happen. While type checking, the context is what the type checker uses to keep track of the facts it already knows.
 \\[2ex]

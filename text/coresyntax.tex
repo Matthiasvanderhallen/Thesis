@@ -12,9 +12,13 @@ e \; ::= \; &\mathit{num \; n \;}     &\expl{(natural number)} \\
 &|\;\mathit{StrId.id}                 &\expl{(struct value)}\\
 &|\;e_{1}e_{2}                        & \expl{(function application)}\\
 &|\;\lambda(x:\tau)\;.\;e             &\expl{(lambda function)}\\
-&|\;\mathit{let }\; x : \tau \; =\; e_{1} 
+&|\;\text{\lsttext{let}}\; x : \tau \; =\; e_{1}\; \text{\lsttext{in}} \; e_{2}
                                       &\expl{(let binding)}\\
-&\longspace \longspace \;\;\; in \; e_{2} \\
+%&\longspace \longspace \;\;\;\   \\
+&|\;(e_{1}, e_{2})                    &\expl{(pair)}\\
+&|\;e.\#1 \;| \;e.\#2                 &\expl{(pair projection)}\\
+&|\;[]                                &\expl{(empty list)}\\
+&|\;e::e                              &\expl{(list concatenation)}
 % &|\;\mathit{letrec} \; p \; = \; e_{1} \; in \; e_{2} \\
 %&|\; \mathit{if(e_{1}) \; then \; e_{2} \; else \; e_{3}}\\
 % &|\;\mathit{p.left}\; | \; \mathit{p.right} \\
@@ -31,8 +35,9 @@ x \; ::= \; &id                      & \expl{(value identifier)}\\
 &| \; p.t                            &\expl{(struct type)}\\
 % &| \; \mathit{bool} \\
 &| \; \tau_{1} \rightarrow \tau_{2}  & \expl{(function type)}\\
+&| \; \alpha                         & \expl{(type variable)}\\
 &| \; \tau_{1} \times \tau_{2}       & \expl{(pair type)}\\
-&| \; [\tau]                         & \expl{(Array type)}\\
+&| \; [\tau]                         & \expl{(array type)}\\
 % &| \; \alpha\\
 %\\
 %\text{Access Path } \mathit{path} \; ::= \; &\mathit{M_{i}}\\

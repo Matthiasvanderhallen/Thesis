@@ -1,0 +1,149 @@
+\begin{figure}[htbp]
+\begin{subfigure}{\textwidth}
+\begin{align*}
+%&\Gamma \vdash true : bool \tag{T-True} \\
+%&\Gamma \vdash false : bool \tag{T-False} \\
+&\Gamma \vdash num \; n : nat \tag{T-Num} \\ \\
+\tag{T-Mono}
+&\frac{\sigma \geq \tau \longspace id:\sigma \in \Gamma}{\Gamma \vdash id:\tau}\\ \\
+\tag{T-App}
+&\frac{\Gamma \vdash e_{1}:\tau_{2} \rightarrow \tau_{1} \longspace \Gamma \vdash e_{2}:\tau_{2}}
+{\Gamma \vdash e_{1}e_{2}:\tau_{1}} \\ \\
+\tag{BuildContext1}
+& id:\sigma \rightarrow \emptyset, (id:\sigma) \\ \\
+\tag{BuildContext2}
+&\frac{p_{1}:\sigma_{1} \rightarrow \Gamma_{1} \longspace p_{2}:\sigma_{2}\rightarrow \Gamma_{2}}
+{(p_{1},p_{2}):\sigma_{1}\times \sigma_{2} \rightarrow \Gamma_{1}\cup \Gamma_{2}} \\ \\
+\tag{T-Fun}
+&\frac{p:\tau_{2} \rightarrow \Gamma_{2} \longspace \Gamma_{2} \cup \Gamma_{1} \vdash e:\tau_{1}}
+{\Gamma_{1} \vdash \lambda(p:\tau).e:\tau_{2} \rightarrow \tau_{1}} \\ \\
+%
+%\tag{T-IfThenElse}
+%&\frac{\Gamma \vdash e_{1}:bool \longspace \Gamma \vdash e_{2}:\tau \longspace \Gamma \vdash e_{3} : \tau}
+%{\Gamma \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} : \tau} \\ \\
+%
+%\tag{T-Pair}
+%&\frac{\Gamma \vdash e_{1}:\tau_{1} \longspace \Gamma \vdash e_{2}:%\tau_{2}}
+%{\Gamma \vdash (e_{1},e_{2}) : \tau_{1}\times\tau_{2}} \\ \\
+%\tag{T-PairLeft}
+%&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
+%{\Gamma \vdash \mathit{p.left} : \tau_{1}} \\
+%\\
+% \tag{T-PairRight}
+%&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
+%{\Gamma \vdash \mathit{p.right} : \tau_{2}} \\
+%\\
+\tag{T-Let}
+&\frac{\Gamma \vdash e_{2}:\tau_{2} \;\;\; \sigma=gen(\Gamma,\tau)\;\;\;p:\sigma\rightarrow \Gamma_{2} \;\;\; \Gamma \cup \Gamma_{2} \vdash e_{1}:\tau}
+{\Gamma \vdash let\;p\;=\;e_{2}\;in\;e_{1}:\tau}
+\end{align*}
+\caption{Typing rules for the Core language. \label{fig:TypeRulesCore}}
+\end{subfigure}
+\\ \\
+\begin{subfigure}{\textwidth}
+%\end{figure}
+%\begin{figure}
+\begin{align*}
+\tag{T-Structure}
+&\frac
+{\Gamma[SigId].\Sigma \succeq PS(\overline{d})}
+{\Gamma \vdash StrId : SigId = \overline{d} \rightarrow (\mathit{StrId} \mapsto {\mathit{SigId}, \overline{d}}),\Gamma}
+\\
+\\
+\tag{T-ModVar}
+&\frac
+{StrId.id:\tau \in \Gamma[StrId.SigId].\Sigma}
+{\Gamma \vdash \mathit{StrId.id} : \tau}
+\\
+\\
+\tag{T-Signature}
+&\Gamma \vdash SigId = \Sigma \rightarrow (\mathit{SigId} \mapsto \Sigma),\Gamma
+%\\
+%\\
+%&\frac{
+%\emptyset \vdash \overline{d}\rightarrow \Gamma' }
+%{PS(\overline{d})} \\
+\end{align*}
+\caption{Typing rules for the Module language. \label{fig:TypeRulesModule}}
+\end{subfigure}
+\\ \\
+\begin{subfigure}{\textwidth}
+%\end{figure}
+%\begin{figure}
+
+\begin{align*}
+&\frac
+{\Gamma \vdash me \rightarrow \Gamma' \longspace \Gamma' \vdash \Diamond \longspace \Gamma' \vdash P}
+{\Gamma \vdash me, P}
+\end{align*}
+\caption{Typing rules for the Program language. \label{fig:TypeRulesProgram}}
+\end{subfigure}
+\caption{Typing rules for \MiniML.}
+\end{figure}
+
+
+%\begin{figure}
+%\begin{align*}
+%%\\ \\
+%%\tag{T-Letrec}
+%%&\frac{\Gamma \vdash let\;p\;=\;\mathit{fix}\;(\lambda p.e_{2})\;in\%;e_{1}:\tau}
+%%{\Gamma \vdash letrec\;p\;=\;e_{2}\;in\;e_{1}:\tau} \\ \\
+%%\tag{T-Fix}
+%%&\frac{\Gamma \vdash e : \tau \rightarrow \tau}
+%%{\Gamma \vdash \mathit{fix\;e} : \tau} \\
+%%\displaybreak
+%\\
+%\tag{T-ModVarThis}
+%&\frac{\sigma \geq \tau \longspace this.id:\sigma \in \Gamma}
+%{\Gamma \vdash this.id : \tau} \\ 
+%\\
+%\tag{T-ModVarOther}
+%&\frac{
+%\Gamma \vdash M_{i}
+%\longspace id:\tau \in \Gamma[M_{i}].\Sigma}
+%{\Gamma \vdash \mathit{M_{i}.id} : \tau} \\
+%\\
+%%\tag{T-FunctorVar}
+%%&\frac{\overline{\Gamma \vdash M_{1..n}}
+%%\longspace
+%%\overline{\Sigma_{3} \succeq \Gamma[M_{1..n}].\Sigma}
+%%\longspace
+%%\Gamma \vdash F_{i}(\overline{M_{1..n}})
+%%\longspace
+%%id:\tau \in \Gamma[F_{i}].\Sigma_{1}}
+%%{\Gamma \vdash \mathit{F_{i}(\overline{M_{1..n}}).id}:\tau} \\
+%%\\
+%\tag{T-Module}
+%&\frac{
+%\emptyset \vdash \Gamma[M_{i}].\overline{d}\rightarrow \Gamma' \longspace \Gamma' \vdash \Gamma[M_{i}].\Sigma_{i}}
+%{\Gamma \vdash M_{i}} \\
+%\\
+%%\tag{T-Functor}
+%%&\frac{
+%%\emptyset \vdash [\overline{M_{1..n} \mapsto M_{arg}}]\overline{d} \rightarrow \Gamma' \longspace \Gamma' \vdash \Gamma[F_{i}].\Sigma}
+%%{\Gamma \vdash F_{i}(\overline{M_{args}})}\\
+%%\\
+%\tag{T-ModInterfaceField}
+%&\frac{(x:\tau) \in \Gamma \longspace \Gamma \vdash \Delta}
+%{\Gamma \vdash (x:\tau),\Delta}\\
+%\\
+%\tag{T-ModInterfaceModule}
+%&\frac{(M=\lbrace \Sigma_{2}, \overline{d} \rbrace^{M}) \in \Gamma
+%\longspace \Sigma_{1} \succeq \Sigma_{2} 
+%\longspace \Gamma \vdash \Delta}
+%{\Gamma \vdash (M:\Sigma_{1}),\Delta}\\
+%\\
+%\tag{T-ModBodyV}
+%&\frac{ (x:\tau),\Gamma \vdash \overline{d} \rightarrow \Gamma' \longspace \Gamma \vdash e:\tau}
+%{\Gamma \vdash (x=e:\tau),\overline{d} \rightarrow (x:\tau),\Gamma'} \\
+%\\
+%\tag{T-ModBodyM}
+%&\frac{\Gamma \vdash \lbrace\Sigma, \overline{d} \rbrace^{M_{i}} }
+%{\Gamma \vdash (\mathit{M_{i}=\overline{d}}:\Sigma),\overline{d} \rightarrow (M_{i}=\lbrace \Sigma,\overline{d} \rbrace),\Gamma'} \\
+%\\
+%\tag{T-EmptySet}
+%&\frac{\Gamma \vdash \Diamond}
+%{\Gamma \vdash \emptyset}
+%\end{align*}
+%\caption{Typing rules for the Module language. \label{fig:TypeRulesModule}}
+%\end{figure}

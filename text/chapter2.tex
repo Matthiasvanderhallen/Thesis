@@ -91,46 +91,108 @@ The \MiniML\ language type system is based on the Hindley-Milner type system~\ci
 While the Standard ML implementation provides type inference using the Damas-Milner type inference algorithm~\cite{Damas:1982:PTF:582153.582176}, the \MiniML\ language assumes type annotations are available, written by the programmer.
 This is by no means a fundamental restriction, the \MiniML\ language does not deviate from ML enough to prohibit the use of type inference.
 
-\subsubsection{Type-schemes and contexts}
-First, the concept of a type-scheme is introduced, as shown in \myref{fig}{fig:Type-schemesAndContexts}.
-A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$.
-This allows any concrete types $\tau$ to `match' to the type variable.
-For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
+\subsubsection{Type judgements and Contexts}
+The type system validates programs by checking that a program \cmath{P} consists solely of \emph{sound} or \emph{well-typed} module expressions \cmath{me} and value expressions \cmath{e}.
+%This checking will be done using rules that describe when a single expression \cmath{e} or \cmath{me} is well-typed.
+%Formally, the type checker will perform typing judgements
+This checking is done using \emph{typing judgements} that state whether a single expression \cmath{e} or \cmath{me} is well-typed.
+The typing judgement of an expression \cmath{e} is symbolized by: 
+\[\vdash e:\tau\]
 
-This concept of a type-scheme will later be used to provide %\todo{explain further}
-let-polymorphism. 
-Note that the definition of a Type-Scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
-\\[2ex]
-Our type system will also need to keep track of the type assumptions and the module, functor and signature definitions. This represents the notion of a \emph{context}. It is in this context that typing will happen. While type checking, the context is what the type checker uses to keep track of the facts it already knows.
-\\[2ex]
-To access mappings from these contexts, we will introduce projections. For example $\Gamma[M_{i}].\overline{d}$ will look up the mapping $(M_{i} \mapsto \lbrace S,\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping. A lookup will \emph{fail} if the identifier has no mapping in the context.
+The well-typedness of an expression \cmath{e} however does not depend on the expression \cmath{e} in isolation.
+Instead, parts of the program processed earlier by the type checker can have an influence on the well-typedness of the single expression \cmath{e}.
+This dependence of an expression \cmath{e} on earlier expressions is formalized using the idea of a \emph{context} $\Gamma$~\cite{Pierce}. 
+
+This context keeps track of the type assumptions as well as structure and signature definitions made earlier.
+It stores the facts that the type system has already established to be true.
+The structure of a context $Gamma$ is shown in \myref{fig}{fig:MiniMLContexts}.
+
+To access the mappings from \cmath{StrId} or \cmath{SigId} to its signature, its definitions or its declarations, the context allows for projections. For example $\Gamma[\mathit{StrId}].\overline{d}$ will look up the mapping $(M_{i} \mapsto \lbrace \mathit{StrId},\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping. A lookup will \emph{fail} if the identifier has no mapping in the context.
 
 \begin{figure}[!htb]
 \begin{align*}
 \begin{aligned}
-\text{Context }\Gamma ::=\; &\emptyset \\
-&| \; (x:\sigma),\Gamma \\
-&| \; (M_{i} \mapsto \lbrace \Sigma,\overline{d}\rbrace), \Gamma \\
+\text{Context }\\
+\Gamma ::=\; &\emptyset     & \expl{(Empty context)}\\
+&| \; (\mathit{id}:\sigma),\Gamma          & \expl{(identifier typed)}\\
+&| \; (\mathit{StrId} \mapsto \lbrace \mathit{SigId},\overline{d}\rbrace), \Gamma 
+                                           & \expl{(Structure definition)}\\
 % &| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), \Gamma \\
-&| \; (S_{i} \mapsto \Sigma), \Gamma
-\end{aligned}
-\begin{aligned}
-\longspace
-\end{aligned}
-\begin{aligned}
-\text{Type-Scheme } \sigma \; ::= \; &\tau \\
-&| \; \forall \alpha . \sigma \\
-\\
-\\
+&| \; (\mathit{SigId} \mapsto \Sigma), \Gamma
+                                           & \expl{(Signature definition)}
 \end{aligned}
 \end{align*}
-\caption{Type-schemes and contexts in the MiniML type system.}
-\label{fig:Type-schemesAndContexts}
+\caption{Contexts in the MiniML type system.}
+\label{fig:MiniMLContexts}
 \end{figure}
 
-We are now in a position to define a few helpful relations between type-schemes, types and contexts: type-scheme specialization and type-scheme generalization.
+With the addition of contexts, type judgements become relations between a context $\Gamma$ and expressions \cmath{me} or \cmath{e}, formalized as $\Gamma \vdash e:\tau$.
+This states that an expression or other part of the syntax is well-typed within the specified context $\Gamma$.
 
-\subsubsection{Type-scheme specialization}
+When typing judgement of a structure and its definitions occurs, the type system returns a new typing context $\Gamma'$ to perform subsequent typing judgements.
+In this resulting context, all subsequent expressions must be well-typed.
+
+The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a context $\Gamma$. 
+A context is well-formed if the keyset of the lookup table it represents conforms to the standard notion of a set, meaning every key is used only once.
+This makes it invalid to rebind structures or signatures.
+
+The possible typing judgements can be seen in \myref{fig}{fig:TypingJudgements}.
+
+\begin{figure}[!htb]
+\begin{align*}
+\text{ExpressionTyping } ::=\;&\Gamma \vdash e: \sigma \\
+\text{ModuleTyping } ::= \; &\Gamma \vdash \mathit{me} \rightarrow \Gamma' \\
+%\mathit{StrId}:\mathit{SigId} \rightarrow \Gamma' \\
+%\text{DefinitionTyping } ::= \; &\Gamma \vdash d \rightarrow \Gamma' \\
+%\text{DeclarationTyping } ::= \;&\Gamma \vdash \Delta \\
+\text{Well-formedness } ::=\;&\Gamma \vdash \Diamond
+\end{align*}
+\caption{Typing judgements in the MiniML type system.}
+\label{fig:TypingJudgements}
+\end{figure}
+
+\subsubsection{Type-schemes}
+The typing judgements, in their contexts, do not type an expression using a type $\tau$. Instead they use an extension on the regular type $\tau$ called a type-scheme $\sigma$.
+The concept of a type-scheme is shown in \myref{fig}{fig:MiniMLTypeSchemes}.
+%First, the concept of a type-scheme is introduced, as shown in \myref{fig}{fig:MiniMLTypeSchemes}.
+
+A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$.
+This allows any concrete types $\tau$ to `match' to the type variable.
+For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
+
+Note that the definition of a type-scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
+
+%\\[2ex]
+%Our type system will also need to keep track of the type assumptions and the module, functor and signature definitions. This represents the notion of a \emph{context}. It is in this context that typing will happen. While type checking, the context is what the type checker uses to keep track of the facts it already knows.
+%\\[2ex]
+%To access mappings from these contexts, we will introduce projections. For example $\Gamma[M_{i}].\overline{d}$ will look up the mapping $(M_{i} \mapsto \lbrace S,\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping. A lookup will \emph{fail} if the identifier has no mapping in the context.
+
+\begin{figure}[!htb]
+\begin{align*}
+%\begin{aligned}
+%\text{Context }\Gamma ::=\; &\emptyset \\
+%&| \; (\mathit{id}:\sigma),\Gamma \\
+%&| \; (\mathit{StrId} \mapsto \lbrace \mathit{SigId},\overline{d}\rbrace), \Gamma \\
+%% &| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), \Gamma \\
+%&| \; (\mathit{SigId} \mapsto \Sigma), \Gamma
+%\end{aligned}
+%\begin{aligned}
+%\longspace
+%\end{aligned}
+\begin{aligned}
+\text{Type-Scheme } \sigma \; ::= \; &\tau \\
+&| \; \forall \alpha . \sigma
+\end{aligned}
+\end{align*}
+\caption{Type-schemes in the MiniML type system.}
+\label{fig:MiniMLTypeSchemes}
+\end{figure}
+
+The concept of a type-scheme provides a kind of polymorphism called let-polymorphism \cite{Pierce}.
+Two type-schemes have a relation called \emph{specialization}/\emph{generalization} that details how two types can match, even if they are not exactly the same, i.e. how an expected type can be matched by several effective types.
+
+\begin{description}
+\item{Type-scheme specialization}
 The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_{2}$ is more specialised than $\sigma_{1}$. This means that the following rule holds:
 % $\sigma_{2}$ can be expressed as $\forall \beta_{i}...\beta_{m}.\sigma_{2}'$ and $\sigma_{1}$ as $\forall \alpha_{1}...\forall \alpha_{n}.\sigma_{1}'$, $\sigma_{2}$ is more specialised than $\sigma_{1}$ iff $\sigma_{2}'=[\alpha_{i} \mapsto \sigma_{i}]\sigma_{1}'$ and $\beta_{i} \in free(\sigma_{1})$. In other words, 
 %
@@ -141,139 +203,55 @@ The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_
 {\forall\alpha_{1}...\forall\alpha_{n}.\tau_{1}\geq \forall \beta_{i}...\forall \beta_{m}\tau_{2}'}
 \]
 
-In other words, the quantifier-free ending of the more specialized type-scheme can be obtained by consistently replacing all quantified type variables $\alpha_{i}$ in the more general type-scheme by a type $\tau_{i}$, which can possibly contain type variables itself, resulting in the quantifier-free ending of the more specialized type scheme. Furthermore, only variables that were not free in the more general type-scheme can be bound in the specialized type-scheme.
+In other words, the quantifier-free ending of the more specialized type-scheme can be obtained by consistently replacing all quantified type variables $\alpha_{i}$ in the more general type-scheme by a type $\tau_{i}$, which can possibly contain type variables itself, resulting in the quantifier-free ending of the more specialized type-scheme. Furthermore, only variables that were not free in the more general type-scheme can be bound in the specialized type-scheme.
 
 The first condition gives one the possibility to specify the type of a type variable. This second condition forbids one to \emph{rescope} a type variable in the process.
 
-\subsubsection{Type-scheme generalization}
+\item{Type-scheme generalization}
 Type-scheme generalisation is the opposite process of type-scheme specialization. However, whereas specialization can be expressed independent of the context, whether or not one is allowed to generalize, is dependent on the context. Generalisation allows one to quantify an unquantified variable, as long as it does not appear unquantified in any type expression in the current context.
+\end{description}
 
 \[
 \tag{generalization}
 \frac{\Gamma \vdash e:\Sigma \longspace \alpha \not\in \mathit{free(\Gamma)}}{\Gamma \vdash e : \forall \alpha . \sigma}
 \]
 
+\subsubsection{Signature Matching}
+\label{sec:StructuralTyping}
+Just like set of valid value expressions \cmath{e} is restricted by the type system using types, the set of valid structure expressions is restricted using \emph{signature ascription}. As mentioned earlier, these ascriptions happen either \emph{transparant} or \emph{opaque}.
+This subsection explains how a structure expression is restricted by a signature using the \emph{signature matching} relation.
 
-\subsubsection{Typing judgements}
-To type check our program, the type checker will perform typing judgements. These typing judgements, which can bee seen in \myref{fig}{fig:TypingJudgements}, are relations between the context and parts of the syntax. They convey the meaning that an expression or other part of the syntax is well-typed in the context $\Gamma$. The typing of a module body and its definitions generates a new typing context $\Gamma'$ for the module. In this resulting context, the declarations must be well-typed.
+Every structure expression has a corresponding \emph{principal signature}, symbolized by \cmath{PS(\overline{d})}, where \cmath{\overline{d}} is the body of the \lsttext{struct} expression.
+The principal signature of a structure expression consists of all type specifications and all values with their corresponding types.
 
-The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a context $\Gamma$. A context is well-formed if the keyset of the lookup table it represents conforms to the standard notion of a set, meaning every key is used only once.
+When a structure is ascribed a signature, its principal signature must \emph{match} with the ascribed signature.
+In this matching, the principal signature is called the \emph{candidate}, while the ascribed signature is called the \emph{target}.
+The signature matching relation is formalized using $\mathit{\Sigma_{target}}\succeq\mathit{\Sigma_{candidate}}$.
 
-\begin{figure}[!htb]
-\begin{align*}
-\text{ExpressionTyping } ::=\;&\Gamma \vdash e: \sigma \\
-\text{ModuleTyping } ::= \; &\Gamma \vdash \mathit{Mod} \\
-\text{DefinitionTyping } ::= \; &\Gamma \vdash d \rightarrow \Gamma' \\
-\text{DeclarationTyping } ::= \;&\Gamma \vdash \Delta \\
-\text{Well-formedness } ::=\;&\Gamma \vdash \Diamond
-\end{align*}
-\caption{Typing judgements in the MiniML type system.}
-\label{fig:TypingJudgements}
-\end{figure}
+For a \emph{candidate} signature to match its \emph{target}, any value or type specification in the \emph{target} signature must have an equivalent specification in the \emph{candidate} signature.
+\begin{enumerate}
+\item For types, this means that for each type in the \emph{target}, there is a type in the \emph{candidate} with the same name.
+If \emph{target} carries a definition for the type, \emph{candidate} must provide the same definition.
+\item For values, this means that for each value in the \emph{target}, there exists a value with the same name in the \emph{candidate} whose type is at least as general as the corresponding type in the \emph{target}.
+\end{enumerate}
 
-\subsubsection{Rules}
-%\begin{figure}
-\begin{align*}
-&\Gamma \vdash true : bool \tag{T-True} \\
-&\Gamma \vdash false : bool \tag{T-False} \\
-&\Gamma \vdash num \; n : nat \tag{T-Num} \\ \\
-\tag{T-Mono}
-&\frac{\sigma \geq \tau \longspace id:\sigma \in \Gamma}{\Gamma \vdash id:\tau}\\ \\
-\tag{T-App}
-&\frac{\Gamma \vdash e_{1}:\tau_{2} \rightarrow \tau_{1} \longspace \Gamma \vdash e_{2}:\tau_{2}}
-{\Gamma \vdash e_{1}e_{2}:\tau_{1}} \\ \\
-\tag{BuildContext1}
-& id:\sigma \rightarrow \emptyset, (id:\sigma) \\ \\
-\tag{BuildContext2}
-&\frac{p_{1}:\sigma_{1} \rightarrow \Gamma_{1} \longspace p_{2}:\sigma_{2}\rightarrow \Gamma_{2}}
-{(p_{1},p_{2}):\sigma_{1}\times \sigma_{2} \rightarrow \Gamma_{1}\cup \Gamma_{2}} \\ \\
-\tag{T-Fun}
-&\frac{p:\tau_{2} \rightarrow \Gamma_{2} \longspace \Gamma_{2} \cup \Gamma_{1} \vdash e:\tau_{1}}
-{\Gamma_{1} \vdash \lambda(p:\tau).e:\tau_{2} \rightarrow \tau_{1}} \\ \\
-\tag{T-IfThenElse}
-&\frac{\Gamma \vdash e_{1}:bool \longspace \Gamma \vdash e_{2}:\tau \longspace \Gamma \vdash e_{3} : \tau}
-{\Gamma \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} : \tau} \\ \\
-%\tag{T-Pair}
-%&\frac{\Gamma \vdash e_{1}:\tau_{1} \longspace \Gamma \vdash e_{2}:%\tau_{2}}
-%{\Gamma \vdash (e_{1},e_{2}) : \tau_{1}\times\tau_{2}} \\ \\
-%\tag{T-PairLeft}
-%&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
-%{\Gamma \vdash \mathit{p.left} : \tau_{1}} \\
-%\\
-% \tag{T-PairRight}
-%&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
-%{\Gamma \vdash \mathit{p.right} : \tau_{2}} \\
-%\\
-\tag{T-Let}
-&\frac{\Gamma \vdash e_{2}:\tau_{2} \;\;\; \sigma=gen(\Gamma,\tau)\;\;\;p:\sigma\rightarrow \Gamma_{2} \;\;\; \Gamma \cup \Gamma_{2} \vdash e_{1}:\tau}
-{\Gamma \vdash let\;p\;=\;e_{2}\;in\;e_{1}:\tau} 
-%\\ \\
-%\tag{T-Letrec}
-%&\frac{\Gamma \vdash let\;p\;=\;\mathit{fix}\;(\lambda p.e_{2})\;in\%;e_{1}:\tau}
-%{\Gamma \vdash letrec\;p\;=\;e_{2}\;in\;e_{1}:\tau} \\ \\
-%\tag{T-Fix}
-%&\frac{\Gamma \vdash e : \tau \rightarrow \tau}
-%{\Gamma \vdash \mathit{fix\;e} : \tau} \\
-%\displaybreak
-\\
-\tag{T-ModVarThis}
-&\frac{\sigma \geq \tau \longspace this.id:\sigma \in \Gamma}
-{\Gamma \vdash this.id : \tau} \\ 
-\\
-\tag{T-ModVarOther}
-&\frac{
-\Gamma \vdash M_{i}
-\longspace id:\tau \in \Gamma[M_{i}].\Sigma}
-{\Gamma \vdash \mathit{M_{i}.id} : \tau} \\
-\\
-%\tag{T-FunctorVar}
-%&\frac{\overline{\Gamma \vdash M_{1..n}}
-%\longspace
-%\overline{\Sigma_{3} \succeq \Gamma[M_{1..n}].\Sigma}
-%\longspace
-%\Gamma \vdash F_{i}(\overline{M_{1..n}})
-%\longspace
-%id:\tau \in \Gamma[F_{i}].\Sigma_{1}}
-%{\Gamma \vdash \mathit{F_{i}(\overline{M_{1..n}}).id}:\tau} \\
-%\\
-\displaybreak
-\tag{T-Module}
-&\frac{
-\emptyset \vdash \Gamma[M_{i}].\overline{d}\rightarrow \Gamma' \longspace \Gamma' \vdash \Gamma[M_{i}].\Sigma_{i}}
-{\Gamma \vdash M_{i}} \\
-\\
-%\tag{T-Functor}
-%&\frac{
-%\emptyset \vdash [\overline{M_{1..n} \mapsto M_{arg}}]\overline{d} \rightarrow \Gamma' \longspace \Gamma' \vdash \Gamma[F_{i}].\Sigma}
-%{\Gamma \vdash F_{i}(\overline{M_{args}})}\\
-\\
-\tag{T-ModInterfaceField}
-&\frac{(x:\tau) \in \Gamma \longspace \Gamma \vdash \Delta}
-{\Gamma \vdash (x:\tau),\Delta}\\
-\\
-\tag{T-ModInterfaceModule}
-&\frac{(M=\lbrace \Sigma_{2}, \overline{d} \rbrace^{M}) \in \Gamma
-\longspace \Sigma_{1} \succeq \Sigma_{2} 
-\longspace \Gamma \vdash \Delta}
-{\Gamma \vdash (M:\Sigma_{1}),\Delta}\\
-\\
-\tag{T-ModBodyV}
-&\frac{ (x:\tau),\Gamma \vdash \overline{d} \rightarrow \Gamma' \longspace \Gamma \vdash e:\tau}
-{\Gamma \vdash (x=e:\tau),\overline{d} \rightarrow (x:\tau),\Gamma'} \\
-\\
-\tag{T-ModBodyM}
-&\frac{\Gamma \vdash \lbrace\Sigma, \overline{d} \rbrace^{M_{i}} }
-{\Gamma \vdash (\mathit{M_{i}=\overline{d}}:\Sigma),\overline{d} \rightarrow (M_{i}=\lbrace \Sigma,\overline{d} \rbrace),\Gamma'} \\
-\\
-\tag{T-EmptySet}
-&\frac{\Gamma \vdash \Diamond}
-{\Gamma \vdash \emptyset}
-\end{align*}
-%\end{figure}
-\todo{Must specify $\succeq$ to mean the specialization of an interface}
+These signature matching constraints allow the expression of a structure to have a principal signature that is more broad than its ascribed signature.
+It can define more types or values, and provide existing values with more general types.
+These types and values can be used locally within the structure, but not in non-local code.
 
+\subsubsection{Type Rules}
+Using the type judgements specified earlier, it is possible to create a set of rules that specify when an expression \cmath{e} or \cmath{me} is valid.
+Some expressions are well-typed unconditionally and in any context, for example rule T-Num in the typing rules in \myref{fig}{fig:TypeRulesCore}.
+Others are only typed correctly if for example a certain subexpression is correctly typed. In this case, the typing rule becomes of the form shown in rule T-App, where the typing judgement below the line is true iff. the typing judgement above the line is true as well.
+
+The typing rules are divided in rules concerning the core language in \myref{fig}{fig:TypeRulesCore}, rules concerning the \emph{Module} language in \myref{fig}{fig:TypeRulesModule} and rules for the \emph{Program} language in \myref{fig}{fig:TypeRulesProgram}.
+%\clearpage
+\input{typerules}
+
+\clearpage
 \subsection{Operational semantics}
 \label{sec:MLOperationalSemantics}
+\begin{figure}[htb]
 \begin{align*}
 \text{Value }v ::=\;&\mathit{num\;n} \; | \; \mathit{true} \; | \; \mathit{false} \\
 % &| (v,v) \\
@@ -284,76 +262,30 @@ The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a co
 %&| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), T \\
 &| \; (S_{i} \mapsto \Sigma), T\\
 \\
-\text{Evaluation } ::= T \vdash &e \rightarrow T \vdash e' \\
+\text{Evaluation } ::= & T \vdash e \rightarrow T \vdash e' \\
+& T \vdash \mathit{me} \rightarrow 
 \end{align*}
+\caption{Relations and entities of the operational semantics.\label{fig:MiniMLOperationalSemanticEntitiesAndRelations}}
+\end{figure}
 
-The operational semantics defines a module table T, containing mappings from the signature-%, module and functor identifiers to their definition and and the evaluation relation. 
-and module identifiers to their definition and and the evaluation relation. 
+The operational semantics defines a module table T, and the evaluation relation, shown in \myref{fig}{fig:MiniMLOperationalSemanticEntitiesAndRelations}.
+This module table contains mappings from the %, module and functor identifiers to their definition and and the evaluation relation. 
+module identifiers to their definition. 
 
 The module table T allows looking up the definition behind a certain identifier and accessing a certain part of it using projection. $T[M_{i}].\Sigma$ will give access to the $\Sigma$ in the definition of $M_{i}$. 
 
 The evaluation relation allows the evaluation of an expression $e$ to a (simpler) expression $e'$, while potentially making a lookup in T.
 
 \subsubsection{Rules}
-\begin{align*}
-\tag{E-IfTrue}
-&T \vdash if \; true  \; then \; e_{1} \; else \; e_{2} \rightarrow T \vdash e_{1}\\
-\tag{E-IfFalse}
-&T \vdash if \; false \; then \; e_{1} \; else \; e_{2} \rightarrow T \vdash e_{2}\\ \\
-\tag{E-IfThenElse}
-&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
-{T \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} \rightarrow T \vdash if \; e_{1}' \; then \; e_{2} \; else \; e_{3}}\\ \\
-%\tag{E-PairLeft}
-%&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
-%{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1}',e_{2})} \\ \\
-%\tag{E-PairRight}
-%&\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
-%{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1},e_{2}')} \\ \\
-\tag{E-Let}
-&\frac{T \vdash e_{1}\rightarrow T \vdash e_{1}'}
-{T \vdash let \; p \; = \; e_{1} \; in \; e_{2} \rightarrow T \vdash let \; p \; = \; e_{1}' \; in \; e_{2}}
-\\ \\
-\tag{E-LetV}
-&T \vdash let \; id \; = \; v \; in \; e \rightarrow T \vdash [id \mapsto v]e \\ \\
-%\tag{E-LetRec}
-%& T \vdash letrec\;p=\;e_{1} \; in \; e_{2} \rightarrow T \vdash let \; p \; = %fix(\lambda p.e_{1}') \; in \; e_{2} \\ \\ 
-%\tag{E-Fix}
-%&\frac{T \vdash e\rightarrow T \vdash e'}
-%{T \vdash fix(e) \rightarrow T \vdash fix(e')}\\ \\
-%\tag{E-FixRec}
-%&T \vdash fix(\lambda(p.e)) \rightarrow T \vdash [p \mapsto (fix %(\lambda(p.e))]e \\
-\\
-\tag{E-PatternMatch}
-&T \vdash let \; (p_{1},p_{2}) \; = \; (e_{1},e_{2}) \; in \; e_{3} \rightarrow
-let \; p_{1} \; = \; e_{1} \; in \;
-(let \; p_{2}  \; = \; e_{2} \; in \; e_{3}) \\ \\
-\tag{E-App1}
-&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
-{T \vdash e_{1} e_{2} \rightarrow T \vdash e_{1}' e_{2}}\\ \\
-\tag{E-App2}
-&\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
-{T \vdash v\;e_{2} \rightarrow T \vdash v\;e_{2}'}\\ \\
-\tag{E-Lambda}
-&T \vdash (\lambda x . e) \; v \rightarrow T \vdash [x \mapsto v]e \\ \\
-\tag{E-MatchLambda}
-&T \vdash (\lambda (p_{1},p_{2}) . e_{3}) \; (e_{1},e_{2}) \rightarrow T \vdash (\lambda p_{1}.(\lambda p_{2}.e_{3})\;e_{2})\; e_{1} \\
-%\displaybreak
-\\
-\tag{E-ModVar}
-&\frac{\longspace (x=e':\tau) \in T[M_{i}].\overline{d} \longspace e=[this.y\mapsto M.y]e'\;\forall (this.y \in e')}
-{T \vdash M.x \rightarrow T \vdash e}\\
-\\
-%\tag{E-FunVar}
-%&\frac{\longspace (x=e':\tau) \in T[F_{i}].\overline{d} \longspace %e=[M_{1..n} \mapsto M_{args}][this.y\mapsto F_{i}%(\overline{M_{args}}).y]e'\;\forall (this.y \in e')}
-%{T \vdash F_{1}(\overline{M_{args}}).x \rightarrow T \vdash e}
-\end{align*}
+In \myref{fig}{fig:MiniMLOperationalSemantics}, the evaluation rules of a \MiniML\ program are shown.
+
+\input{operationalsemantics}
+
 %\todo{How to express the substitution of all references to argument placeholder module names to the modules names given at execution}
 %\todo{provide a desugar function}
 %\end{flushleft}
 
-\subsubsection{Structural Typing\label{sec:StructuralTyping}}
-%TODO: VERY, Hugely important!
-
+\clearpage
 \section{LLVM Intermediate Representation}
 The LLVM Intermediate Representation is a language very reminiscent of assembly. 
 \subsubsection{Syntax}
@@ -369,8 +301,7 @@ Transformations"}
 \text{Types } \mathit{typ} ::= &\mathit{ isz\ |\ void\ |\ typ*\ |\ \left[sz \times typ\right]\ |\ \lbrace\ \overline{typ_{j}}^{j}\ \rbrace\ |\ typ\ \overline{typ_{j}}^{j}\ \rbrace\ | id}
 \end{aligned}
 \end{align*}
-\label{fig:LLVMSyntax}
-\caption{The reduced LLVM Syntax, taken from Jianzhou Zhao et al.}
+\caption{The reduced LLVM Syntax, taken from Jianzhou Zhao et al. \label{fig:LLVMSyntax}}
 \end{figure}
 
 %\text{Types } \mathit{typ\ ::= }&\mathit{ isz | void | typ* | } 

@@ -312,22 +312,6 @@ This way of specifying a functor allows for very easy change of the \lsttext{key
 For example, it would require only a very minimal change to create a dictionary that disregards capitalization when comparing its \lsttext{key}s of type \lsttext{string}, and it is even possible to cleanly use this alternative implementation in conjunction with the case-sensitive implementation.
 
 \smallskip
-%\subsubsection{Signature Matching}
-%Every structure expression has a corresponding \emph{principal signature}.
-%The principal signature of a structure expression consists of all type specifications and all values with their corresponding types.
-
-%When a structure is ascribed a signature, its principal signature must match with the ascribed signature.
-%In this matching, the principal signature is called the \emph{candidate}, while the ascribed signature is called the \emph{target}.
-
-%For a \emph{candidate} signature to match its \emph{target}, any value or type specification in the \emph{target} signature must have an equivalent specification in the \emph{candidate} signature.
-%\begin{enumerate}
-%\item For types, this means that for each type in the \emph{target}, there is a type in the \emph{candidate} with the same name.
-%If \emph{target} carries a definition for the type, \emph{candidate} must provide the same definition.
-%\item For values, this means that for each value in the \emph{target}, there exists a value with the same name in the \emph{candidate} whose type is at least as general as the corresponding type in the \emph{target}.
-%\end{enumerate}
-
-%These signature matching constraints allow the expression of a structure to have a principal signature that is more broad than its ascribed signature.
-%It can define more types or values, and provide existing values with more general types.
 
 \noindent Note that in the example above, the structure \lsttext{StringEqual} was a valid parameter to functor \lsttext{DictionaryFn} because \lsttext{StringEqual}s signature matched to the \lsttext{EQUAL} signature that the functor expected. In the example of \myref{lst}{code:DictionaryFunctor} this is straightforward, the transparent ascription of \lsttext{StringEqual} with signature \lsttext{EQUAL} already assures this.
 However, the signature matching relation allows the \emph{candidate} signature to be more broad than the \emph{target} signature.

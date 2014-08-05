@@ -1,0 +1,55 @@
+\begin{figure}[htb]
+\begin{align*}
+%\tag{E-IfTrue}
+%&T \vdash if \; true  \; then \; e_{1} \; else \; e_{2} \rightarrow T \vdash e_{1}\\
+%\tag{E-IfFalse}
+%&T \vdash if \; false \; then \; e_{1} \; else \; e_{2} \rightarrow T \vdash e_{2}\\ \\
+%\tag{E-IfThenElse}
+%&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
+%{T \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} \rightarrow T \vdash if \; e_{1}' \; then \; e_{2} \; else \; e_{3}}\\ \\
+%\tag{E-PairLeft}
+%&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
+%{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1}',e_{2})} \\ \\
+%\tag{E-PairRight}
+%&\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
+%{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1},e_{2}')} \\ \\
+\tag{E-Let}
+&\frac{T \vdash e_{1}\rightarrow T \vdash e_{1}'}
+{T \vdash let \; p \; = \; e_{1} \; in \; e_{2} \rightarrow T \vdash let \; p \; = \; e_{1}' \; in \; e_{2}}
+\\ \\
+\tag{E-LetV}
+&T \vdash let \; id \; = \; v \; in \; e \rightarrow T \vdash [id \mapsto v]e \\ \\
+%\tag{E-LetRec}
+%& T \vdash letrec\;p=\;e_{1} \; in \; e_{2} \rightarrow T \vdash let \; p \; = %fix(\lambda p.e_{1}') \; in \; e_{2} \\ \\ 
+%\tag{E-Fix}
+%&\frac{T \vdash e\rightarrow T \vdash e'}
+%{T \vdash fix(e) \rightarrow T \vdash fix(e')}\\ \\
+%\tag{E-FixRec}
+%&T \vdash fix(\lambda(p.e)) \rightarrow T \vdash [p \mapsto (fix %(\lambda(p.e))]e \\
+\\
+\tag{E-PatternMatch}
+&T \vdash let \; (p_{1},p_{2}) \; = \; (e_{1},e_{2}) \; in \; e_{3} \rightarrow
+let \; p_{1} \; = \; e_{1} \; in \;
+(let \; p_{2}  \; = \; e_{2} \; in \; e_{3}) \\ \\
+\tag{E-App1}
+&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
+{T \vdash e_{1} e_{2} \rightarrow T \vdash e_{1}' e_{2}}\\ \\
+\tag{E-App2}
+&\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
+{T \vdash v\;e_{2} \rightarrow T \vdash v\;e_{2}'}\\ \\
+\tag{E-Lambda}
+&T \vdash (\lambda x . e) \; v \rightarrow T \vdash [x \mapsto v]e \\ \\
+\tag{E-MatchLambda}
+&T \vdash (\lambda (p_{1},p_{2}) . e_{3}) \; (e_{1},e_{2}) \rightarrow T \vdash (\lambda p_{1}.(\lambda p_{2}.e_{3})\;e_{2})\; e_{1} \\
+%\displaybreak
+\\
+\tag{E-ModVar}
+&\frac{\longspace (x=e':\tau) \in T[M_{i}].\overline{d} \longspace e=[this.y\mapsto M.y]e'\;\forall (this.y \in e')}
+{T \vdash M.x \rightarrow T \vdash e}\\
+\\
+%\tag{E-FunVar}
+%&\frac{\longspace (x=e':\tau) \in T[F_{i}].\overline{d} \longspace %e=[M_{1..n} \mapsto M_{args}][this.y\mapsto F_{i}%(\overline{M_{args}}).y]e'\;\forall (this.y \in e')}
+%{T \vdash F_{1}(\overline{M_{args}}).x \rightarrow T \vdash e}
+\end{align*}
+\caption{\MiniML\ evaluation rules.\label{fig:MiniMLOperationalSemantics}}
+\end{figure}

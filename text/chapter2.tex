@@ -309,7 +309,16 @@ In \myref{fig}{fig:LLVMSyntax}, their reduced syntax of LLVM IR is given, with s
 \text{Extension } \mathit{eop} ::= &\mathit{zext \ |\ sext \ |\ fpext} \\
 \text{Cast op } \mathit{cop} ::= &\mathit{fptoui \ |\ ptrtoint \ |\ inttoptr \ |\ bitcast} \\
 \text{Trunc op } \mathit{trop} ::= &\mathit{trunc_{int} \ |\ trunc_{fp}} \\
-\text{Constants } \mathit{cnst} ::= &\mathit{t} \\
+%
+%
+\text{Constants } \mathit{cnst} ::= &\mathit{isz\ Int\ |\ fp\ Float\ |\ typ\ *\ id\ |\ (typ*)\ null\ |\ typ\ zeroinitializer} \\
+&\mathit{|\ typ\overline{[cnst_{j}]}^{j}\ |\ \overline{\lbrace cnst_{j} \rbrace}^{j}\ |\ typ\ undef\ |\ bop\ cnst_{1}\ cnst_{2}} \\
+&\mathit{|\ fbop\ cnst_{1}\ cnst_{2}\ |\ trop\ cnst\ to\ typ\ |\ eop\ cnst\ to\ typ}\\
+&\mathit{|\ cop\ cnst\ to\ typ\ |\ getelementptr\ cnst\ \overline{cst_{j}}^{j}}\\
+&\mathit{|\ select\ cnst_{0}\ cnst_{1}\ cnst_{2}\ |\ icmp\ cond\ cnst_{1}\ cnst_{2}}\\
+&\mathit{|\ fcmp\ fcond\ cnst_{1}\ cnst_{2}}\\
+%
+%
 \text{Blocks } \mathit{b} ::= &\mathit{l\ \overline{\phi}\ \overline{c}\ tmn} \\
 \phi\ \text{nodes } \phi ::= &\mathit{id} \text{ = phi } \mathit{typ \overline{[val_{j} , l_{j} ]}^{j}}\\
 %\phi\ \text{nodes} \mathit{\phi} ::= &\mathit{id\ =\ } \text{phi} typ [val_{j} , l_{j} ] \\

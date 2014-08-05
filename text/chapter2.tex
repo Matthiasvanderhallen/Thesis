@@ -188,11 +188,11 @@ Note that the definition of a type-scheme assures that the resulting type-scheme
 \label{fig:MiniMLTypeSchemes}
 \end{figure}
 
-The concept of a type-scheme provides a kind of polymorphism called let-polymorphism \cite{Pierce}.
+The concept of a type-scheme provides a kind of polymorphism called let-poly\-morphism \cite{Pierce}.
 Two type-schemes have a relation called \emph{specialization}/\emph{generalization} that details how two types can match, even if they are not exactly the same, i.e. how an expected type can be matched by several effective types.
 
 \begin{description}
-\item{Type-scheme specialization}
+\item[Type-scheme specialization:]
 The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_{2}$ is more specialised than $\sigma_{1}$. This means that the following rule holds:
 % $\sigma_{2}$ can be expressed as $\forall \beta_{i}...\beta_{m}.\sigma_{2}'$ and $\sigma_{1}$ as $\forall \alpha_{1}...\forall \alpha_{n}.\sigma_{1}'$, $\sigma_{2}$ is more specialised than $\sigma_{1}$ iff $\sigma_{2}'=[\alpha_{i} \mapsto \sigma_{i}]\sigma_{1}'$ and $\beta_{i} \in free(\sigma_{1})$. In other words, 
 %
@@ -207,7 +207,7 @@ In other words, the quantifier-free ending of the more specialized type-scheme c
 
 The first condition gives one the possibility to specify the type of a type variable. This second condition forbids one to \emph{rescope} a type variable in the process.
 
-\item{Type-scheme generalization}
+\item[Type-scheme generalization:]
 Type-scheme generalisation is the opposite process of type-scheme specialization. However, whereas specialization can be expressed independent of the context, whether or not one is allowed to generalize, is dependent on the context. Generalisation allows one to quantify an unquantified variable, as long as it does not appear unquantified in any type expression in the current context.
 \end{description}
 

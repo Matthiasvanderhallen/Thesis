@@ -3,7 +3,8 @@
 This chapter extends the capabilities of the subset of the ML language. \myref{sec}{sec:HOF} introduces \emph{higher-order functions} and discusses how they can be compiled securely. Afterwards, \myref{sec}{sec:Functors} explains \emph{functors} and their addition to MiniML. %This chapter continues by showing how the concepts learnt while adding higher-order functions can aid the low-level implementation of functors in \myref{sec}{sec:Functors}.
 %The impact of these additions to the language is reviewed.
 
-\section{Higher-Order Functions\label{sec:HOF}}
+\section{Higher-Order Functions}
+\label{sec:HOF}
 
 A \emph{higher-order function} is a function that allows other functions to be given as input or returns a function as output. \mbox{MiniML} by treats functions as first-class values, meaning that functions represent an entity that can be passed around as a parameter or return value and can be assigned to a variable.
 
@@ -206,7 +207,8 @@ fun closureEvalEntryPoint(maskingIndex, spilledParameterPointer)
 end 
 \end{lstlisting}
 
-\section{Functors\label{sec:Functors}}
+\section{Functors}
+\label{sec:Functors}
 This section introduces the MiniML concept of functors. Functors can be seen as \emph{functions} from structures to structures.
 They accept a structure that conforms to a given signature and create a different structure as a result.
 
@@ -338,7 +340,8 @@ As was shown in line 36 of \myref{lst}{code:DictionaryFunctor}, where the \lstte
 However, they are not first-class values: they are bound to names using the special \lsttext{structure} keyword, and can only be returned by functors, not by any \emph{Core} language expression.
 As all conditional expressions are part of the \emph{Core} language, structure bindings are always unconditional, which means every structure binding is determined fully before compile time.
 
-\subsection{Security Status of the Resulting Structure\label{sec:FunctorSecurityStatus}}
+\subsection{Security Status of the Resulting Structure}
+\label{sec:FunctorSecurityStatus}
 Now that functors are added to the MiniML language, it is necessary to determine the security status of functors. 
 When is the output structure of a functor considered to be part of the SPM, and when is it part of the insecure context?
 This question has a simple, yet perhaps surprising answer:
@@ -367,7 +370,8 @@ This structure would then be a part of insecure code, and of course one would ex
 A possibly surprising conclusion is that this argument holds, regardless of whether the functor application was done within the secure code or within the insecure code.
 As a consequence, application of a functor inside the attackers context can result in the creation of an additional secure structure.
 
-\subsection{Compilation of Functors\label{sec:FunctorCompilation}}
+\subsection{Compilation of Functors}
+\label{sec:FunctorCompilation}
 With the security status of functors determined in \myref{sec}{sec:FunctorSecurityStatus}, %it is possible to think about how to implement functors in the target language.
 this section aims to give an overview of the possible methods for implementing functors.
 %todo explain
@@ -376,7 +380,7 @@ this section aims to give an overview of the possible methods for implementing f
 
 Compilation to the target language has two distinct possibilities of handling structures and functors:
 \begin{itemize}
-    \item Structures, signatures, functors and functor applications can be compiled away, a technique called \emph{Static Interpretation}.\cite{Elsman}
+    \item Structures, signatures, functors and functor applications can be compiled away, a technique called \emph{Static Interpretation}.~\cite{Elsman}
     This approach is taken by MLKit\footnote{Available at http://www.elsman.com/mlkit/}.
     As a result, multiple applications of the same functor result in multiple generations of the functors body, specialized for every combination of parameters.
     \item Structures can be compiled, keeping the values defined by the structures together in the target language in a record like manner called a \emph{frame}.
@@ -415,7 +419,8 @@ In the target language however, structures are translated to frames and are refe
 \myref{sec}{sec:LowLevelRepresentation} expands on the representation and references of structures in the target language, and discusses whether this different representation can be exploited by an attacker.
 %discussed in \myref{sec}{sec:LowLevelRepresentation} is whether the representational difference of structures when passing them as an argument to a functor in the high-level language and the low-level language can be exploited to compromise the \emph{SPM} and break contextual equivalence.
 
-\subsection{Target Representation of Structures\label{sec:LowLevelRepresentation}}
+\subsection{Target Representation of Structures}
+\label{sec:LowLevelRepresentation}
 In order to pass structures to functors as an argument, structures are summarized in the target language as a tuple of structure name, and a list of pointers that represent the structure values.
 %\todo{Explain the need of trimming, and solve the corresponding trimming problem}.
 This target representations are called \emph{frames}.

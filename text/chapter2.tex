@@ -1,15 +1,18 @@
-\chapter{Formal Specification \label{chapter:formalspecification}}
+\chapter{Formal Specification}
+\label{chap:formalspecification}
 In this chapter the source language, \MiniML, and the target language, LLVM IR, will be formally specified. 
 
 First the syntax of \MiniML\ within which a program can be defined will be introduced.
 Next, the typing rules that a correct program must adhere to is shown.
 Lastly, the operational semantics determine what a correct program must do once it runs.
+
 \section{MiniML}
-\subsection{Syntax\label{sec:ch2syntax}}
+\subsection{Syntax}
+\label{sec:ch2syntax}
 First this section introduce the syntax of the \MiniML\ language, as seen in \myref{fig}{fig:CoreSyntax}, \myref{fig}{fig:ModuleSyntax} and \myref{fig}{fig:ProgramSyntax}.
-Like ML, the \MiniML\ syntax is composed of three parts\cite{Milner:1997:DSM:549659}: the \emph{Core} language, a \emph{Module} language, and the concept of a \emph{Program}. 
+Like ML, the \MiniML\ syntax is composed of three parts~\cite{Milner:1997:DSM:549659}: the \emph{Core} language, a \emph{Module} language, and the concept of a \emph{Program}. 
 The three languages, \emph{Core}, \emph{Module} and \emph{Program} each have their corresponding valid \emph{expression}s.
-The division between \emph{Core} and \emph{Module} mostly correlates to the concepts of `programming in the small' and `programming in the large'\cite{Milner:1997:DSM:549659,DeRemer:1975:PLV:390016.808431} respectively.
+The division between \emph{Core} and \emph{Module} mostly correlates to the concepts of `programming in the small' and `programming in the large'~\cite{Milner:1997:DSM:549659,DeRemer:1975:PLV:390016.808431} respectively.
 This separation of programming in the large and programming in the small aims to help programmers to introduce the right degree of modularity in their software.
 
 \subsubsection{Core language}
@@ -79,14 +82,19 @@ The syntax of a Program is shown in \myref{fig}{fig:ProgramSyntax}
 %\end{figure}
 
 \subsection{Type system}
+\label{sec:MLTypeSystem}
 Having defined the syntax for \MiniML\ and its parts, this section formalizes the static semantics, also called its \emph{type system}.
 As stated in \myref{sec}{sec:ch2syntax}, types and signatures restrict the world of possible programs to those that consist of \emph{sound} or \emph{well-typed} module and value expressions.
 It is the type system that formalizes when exactly a module expression \cmath{me} is of the correct signature \cmath{SigId}, or a value expression \cmath{e} of the correct type \cmath{\tau}.
 
+The \MiniML\ language type system is based on the Hindley-Milner type system~\cite{Hindley1969,Milner78atheory}.
+While the Standard ML implementation provides type inference using the Damas-Milner type inference algorithm~\cite{Damas:1982:PTF:582153.582176}, the \MiniML\ language assumes type annotations are available, written by the programmer.
+This is by no means a fundamental restriction, the \MiniML\ language does not deviate from ML enough to prohibit the use of type inference.
+
 \subsubsection{Type-schemes and contexts}
 First, the concept of a type-scheme is introduced, as shown in \myref{fig}{fig:Type-schemesAndContexts}.
 A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$.
-This allows any concrete types $\tau$ to 'match' to the type variable.
+This allows any concrete types $\tau$ to `match' to the type variable.
 For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
 
 This concept of a type-scheme will later be used to provide %\todo{explain further}
@@ -265,6 +273,7 @@ The $\Gamma \vdash \Diamond$ judgement is a statement of well-formedness of a co
 \todo{Must specify $\succeq$ to mean the specialization of an interface}
 
 \subsection{Operational semantics}
+\label{sec:MLOperationalSemantics}
 \begin{align*}
 \text{Value }v ::=\;&\mathit{num\;n} \; | \; \mathit{true} \; | \; \mathit{false} \\
 % &| (v,v) \\

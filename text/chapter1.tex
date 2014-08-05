@@ -1,12 +1,13 @@
-\chapter{A Compilation Example\label{chap:ACompilationExample}}
-
+\chapter{A Compilation Example}
+\label{chap:ACompilationExample}
 This chapter firstly informally describes the \mbox{MiniML} source language (\myref{sec}{sec:MiniML}), a subset of the ML language whose syntax and semantics are reminiscent of those of Standard ML.
 \myref{sec}{sec:MLExample} then introduces an example program that will be used to show the secure compilation scheme.
 This chapter continues by describing the LLVM intermediate language to which the first translation occurs (\myref{sec}{sec:LLVM}).
 This chapter concludes by translating the earlier proposed example program, showing the resulting LLVM code.
 %The secure compilation scheme is shown from an example program written in the source language, \mbox{MiniML}, which is a subset of the ML language. Its syntax and semantics are reminiscent of those used in Standard ML.
 
-\section{MiniML\label{sec:MiniML}}
+\section{MiniML}
+\label{sec:MiniML}
 The ML language is a functional programming language which is well known for its module system.
 This module system aims to group data and code together into coherent entities, called the modules.
 
@@ -56,7 +57,8 @@ This last functionality of a signature is a way to perform \emph{information hid
 
 The \mbox{MiniML} fragment discussed here was chosen to encorporate the idea of modules, more complex language features will be added later.
 
-\section{A Cipher In ML\label{sec:MLExample}}
+\section{A Cipher In ML}
+\label{sec:MLExample}
 \myref{lst}{code:Example} presents an example program that consists of the definition of a signature that represents symmetric cyphers, a concept used in cryptography.
 This example was chosen since the modules related to cryptography are usually under more scrutiny with regards to the privacy of their internal values.
 The code in \myref{lst}{code:Example} defines a signature \texttt{SYMMETRICCIPHER}.
@@ -97,7 +99,8 @@ Concretely, to be secure, this module hides its \texttt{rand} function and its s
 
 %This example can later be broadened so that the \texttt{Caesar} structure becomes a functor that is parameterized to use an external module as its PRNG.
 
-\section{LLVM Intermediate Representation \label{sec:LLVM}}
+\section{LLVM Intermediate Representation}
+\label{sec:LLVM}
 This section introduces the LLVM intermediate representation.
 It also specifies the expected LLVM intermediate representation code for the example in \myref{lst}{code:Example}.
 

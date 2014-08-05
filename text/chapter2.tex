@@ -5,28 +5,29 @@ First the syntax of \MiniML\ within which a program can be defined will be intro
 Next, the typing rules that a correct program must adhere to is shown.
 Lastly, the operational semantics determine what a correct program must do once it runs.
 \section{MiniML}
-\subsection{Syntax}
-First we introduce the syntax of a \MiniML\ program, as seen in \myref{fig}{fig:Syntax}.
-Like ML, the \MiniML\ syntax is composed of three parts: the \emph{Core} language, a \emph{Module} language\cite{Milner:1997:DSM:549659}, and the concept of a \emph{Program}. 
+\subsection{Syntax\label{sec:ch2syntax}}
+First this section introduce the syntax of the \MiniML\ language, as seen in \myref{fig}{fig:CoreSyntax}, \myref{fig}{fig:ModuleSyntax} and \myref{fig}{fig:ProgramSyntax}.
+Like ML, the \MiniML\ syntax is composed of three parts\cite{Milner:1997:DSM:549659}: the \emph{Core} language, a \emph{Module} language, and the concept of a \emph{Program}. 
 The three languages, \emph{Core}, \emph{Module} and \emph{Program} each have their corresponding valid \emph{expression}s.
 The division between \emph{Core} and \emph{Module} mostly correlates to the concepts of `programming in the small' and `programming in the large'\cite{Milner:1997:DSM:549659,DeRemer:1975:PLV:390016.808431} respectively.
 This separation of programming in the large and programming in the small aims to help programmers to introduce the right degree of modularity in their software.
 
 \subsubsection{Core language}
-The \emph{Core} mainly consists of \emph{value expressions} \cmath{e}, these express the manipulation of values and execution of functions to implement small algorithms or control logic.
+The \emph{Core} mainly consists of \emph{value expressions} \cmath{e}. 
+These express the manipulation of values and execution of functions to implement small algorithms or control logic.
 Every value expression \cmath{e} needs to have a corresponding type \cmath{\tau}, otherwise the expression is not \emph{sound}.
 The \emph{Core} language syntax is shown in \myref{fig}{fig:CoreSyntax}.
 
 \input{coresyntax}
 
 \subsubsection{Module language}
-The \emph{Module} language uses \emph{module expressions} \cmath{me} to how the small parts of \emph{Core} expressions can be `glued together' or \emph{composed} into larger, working programs.
+The \emph{Module} language uses \emph{module expressions} \cmath{me} to specify how the small parts of \emph{Core} expressions can be `glued together' or \emph{composed} into larger, working programs.
 Its syntax is shown in \myref{fig}{fig:ModuleSyntax}.
 
 The \emph{Module} language brings encapsulation and namespaces to \MiniML.
 The \emph{Module} language does this by introducing the concept of a \emph{structure}, as was informally explained in \myref{sec}{sec:MiniML}.
 A structure is defined using a \lsttext{struct} expression, and bound to an identifier \cmath{StrId} using the \lsttext{structure} expression.
-It consists of a body of definitions which is denoted in the syntax as $\overline{\mathit{\delta}}$ using the bar notation for lists\footnote{
+It consists of a body of definitions which is denoted in the syntax as $\overline{\mathit{\delta}}$, using the bar notation for lists\footnote{
 The bar notation uses $\emptyset$ as the empty set and the comma (,) as the prepend operator.
 For example: $\overline{\mathit{\delta}}$ could be the empty set $\emptyset$ or it could be $id = e:\tau, \overline{\delta}$.}.
 In its body, a structure \cmath{StrId} can bind values \cmath{id} to a value expression \cmath{e}, or can define a new type \cmath{t}.
@@ -78,8 +79,9 @@ The syntax of a Program is shown in \myref{fig}{fig:ProgramSyntax}
 %\end{figure}
 
 \subsection{Type system}
-Having defined the syntax for \MiniML and its parts, this section formalizes the static semantics, also called its \emph{type system}.
-The type system restricts the world of possible programs to those that consist of \emph{sound} or \emph{well-typed} module and value expressions. 
+Having defined the syntax for \MiniML\ and its parts, this section formalizes the static semantics, also called its \emph{type system}.
+As stated in \myref{sec}{sec:ch2syntax}, types and signatures restrict the world of possible programs to those that consist of \emph{sound} or \emph{well-typed} module and value expressions.
+It is the type system that formalizes when exactly a module expression \cmath{me} is of the correct signature \cmath{SigId}, or a value expression \cmath{e} of the correct type \cmath{\tau}.
 
 \subsubsection{Type-schemes and contexts}
 First, the concept of a type-scheme is introduced, as shown in \myref{fig}{fig:Type-schemesAndContexts}.

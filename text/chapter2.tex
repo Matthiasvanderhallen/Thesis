@@ -287,26 +287,54 @@ In \myref{fig}{fig:MiniMLOperationalSemantics}, the evaluation rules of a \MiniM
 
 \clearpage
 \section{LLVM Intermediate Representation}
-The LLVM Intermediate Representation is a language very reminiscent of assembly. 
+The LLVM Intermediate Representation is a language very reminiscent of assembly.
+In contrast to assembly, it is strongly typed, and operates with a slightly higher level of abstraction.
+
+This section largely builds on the work of Jianzhou Zhao et al. in formalizing the \LLVMIR \cite{Zhao:2012:FLI:2103656.2103709}.
+Their paper formalizes a reduced part of the LLVM IR in order to create mathematically verified program transformations.
+It provides a language syntax as well as static and dynamic semantics.
+
 \subsubsection{Syntax}
-In \myref{fig}{fig:LLVMSyntax}, the reduced syntax of LLVM is given\todo{Formalize this citation into the correct style}\todo{Expand the syntax}.\footnote{Taken from "Formalizing the LLVM Intermediate
-Representation for Verified Program
-Transformations"}
-\begin{figure}[!htb]
+In \myref{fig}{fig:LLVMSyntax}, their reduced syntax of LLVM IR is given, with some small additions.\begin{figure}[!htb]
 \begin{align*}
 \begin{aligned}
 \text{Modules }\mathit{mod} ::= &\overline{\mathit{prod}} \\
-\text{Products }prod ::= & \mathit{global}\ \mathit{typ}\ \mathit{const}\ \mathit{align}\ | \mathit{define\ typ\ id(\overline{arg})\{\overline{b}\}}\\
-&| \mathit{declare\ typ\ id(\overline{arg})} \\
-\text{Types } \mathit{typ} ::= &\mathit{ isz\ |\ void\ |\ typ*\ |\ \left[sz \times typ\right]\ |\ \lbrace\ \overline{typ_{j}}^{j}\ \rbrace\ |\ typ\ \overline{typ_{j}}^{j}\ \rbrace\ | id}
+\text{Products }prod ::= & \mathit{global}\ \mathit{typ}\ \mathit{const}\ \mathit{align}\ |\ \mathit{define\ typ\ id(\overline{arg})\{\overline{b}\}}\\
+&|\ \mathit{declare\ typ\ id(\overline{arg})} \\
+\text{Types } \mathit{typ} ::= &\mathit{ isz\ |\ void\ |\ typ*\ |\ \left[sz \times typ\right]\ |\ \lbrace\ \overline{typ_{j}}^{j}\ \rbrace\ |\ typ\ \overline{typ_{j}}^{j}\ \rbrace\ | id} \\
+\text{Values } \mathit{val} ::= &\mathit{ id\ |\ cnst} \\
+\text{Binops } \mathit{bop} ::= &\mathit{ add\ |\ sub\ |\ mul\ |\ udiv\ |\ sdiv\ |\ urem\ |\ srem\ |\ shl\ |\ lshr\ |\ ashr}\\
+&\mathit{|\ and\ |\ or\ |\ xor} \\
+\text{Float Ops } \mathit{fbop} ::= &\mathit{fadd \ |\ fsub \ |\ fmul \ |\ fdiv \ |\ frem} \\
+\text{Extension } \mathit{eop} ::= &\mathit{zext \ |\ sext \ |\ fpext} \\
+\text{Cast op } \mathit{cop} ::= &\mathit{fptoui \ |\ ptrtoint \ |\ inttoptr \ |\ bitcast} \\
+\text{Trunc op } \mathit{trop} ::= &\mathit{trunc_{int} \ |\ trunc_{fp}} \\
+\text{Constants } \mathit{cnst} ::= &\mathit{t} \\
+\text{Blocks } \mathit{b} ::= &\mathit{l\ \overline{\phi}\ \overline{c}\ tmn} \\
+\phi\ \text{nodes } \phi ::= &\mathit{id} \text{ = phi } \mathit{typ \overline{[val_{j} , l_{j} ]}^{j}}\\
+%\phi\ \text{nodes} \mathit{\phi} ::= &\mathit{id\ =\ } \text{phi} typ [val_{j} , l_{j} ] \\
+\text{Tmns } \mathit{tmn} ::= &\mathit{br\ val\ l_{1}\ l_{2} \ |\ br\ l \ |\ ret\ typ\ val\ |\ ret\ void\ |\ unreachable} \\
+\text{Commands } \mathit{c} ::= &\mathit{} \\
+%\text{} \mathit{} ::= &\mathit{} \\
+%\text{} \mathit{} ::= &\mathit{} \\
+%\text{} \mathit{} ::= &\mathit{} \\
+%\text{} \mathit{} ::= &\mathit{} \\
 \end{aligned}
 \end{align*}
-\caption{The reduced LLVM Syntax, taken from Jianzhou Zhao et al. \label{fig:LLVMSyntax}}
+\caption{The reduced LLVM Syntax, largely built upon Jianzhou Zhao et al. \cite{Zhao:2012:FLI:2103656.2103709} \label{fig:LLVMSyntax}}
 \end{figure}
 
-%\text{Types } \mathit{typ\ ::= }&\mathit{ isz | void | typ* | } 
+The syntax shows the idea of a module, which corresponds to a unit that can be compiled separately from other modules.
+Later, all modules are put together in a stage called \emph{linking}.
 
-%\end{align*}
+A module consists, among others, of definitions and declarations:
+\begin{description}
+\item[Definitions] are named values, whose name is unique within a module, defined within the module itself.
+They can be defined with linkage type `private', which means that the linkage phase will not allow other modules to address these values.
+\item[Declarations] represent dependencies on values defined externally.
+They can then be used within the module.
+Later, the linking phase will couple this declaration to an implementation provided by a different module.
+\end{description}
 
 \section{Formalized Compiler}
 \newcommand{\compile}[1]{\left[\left[#1\right]\right]}

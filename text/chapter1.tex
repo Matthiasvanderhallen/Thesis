@@ -12,7 +12,7 @@ The ML language is a functional programming language which is well known for its
 This module system aims to group data and code together into coherent entities, called the modules.
 
 A \emph{structure} is the most basic type of module.
-It can be defined using the \texttt{struct...end} construct and provides a set of bindings for types, values and functions.
+It can be defined using the \lsttext{struct} construct and provides a set of bindings for types, values and functions.
 A structure specifies a name for the binding and the corresponding value, called \emph{implementation}.
 Structures provide the possibility of grouping related code and data, fulfilling the need of \emph{encapsulation} in software.
 However, the need for \emph{data abstraction} is not yet fulfilled.
@@ -27,7 +27,7 @@ structure Dictionary =
     end
 \end{lstlisting}
 
-\myref{lst}{code:DictionaryStructureExample} firstly defines a type dictionary, which is defined to be a type synonym for a list of string pairs, a value representing the empty dictionary (\texttt{emptyDictionary}) and a function for inserting data into the dictionary (\texttt{insert}).
+\myref{lst}{code:DictionaryStructureExample} firstly defines a type dictionary, which is defined to be a type synonym for a list of string pairs, a value representing the empty dictionary (\lsttext{emptyDictionary}) and a function for inserting data into the dictionary (\lsttext{insert}).
 
 As it stands, the dictionary type is a type synonym for lists of string pairs, and any such list could be used where a dictionary is expected.
 However, the concept of a dictionary does not require users to know that the dictionary type is implemented as a list of string pairs.
@@ -59,12 +59,12 @@ The \mbox{MiniML} fragment discussed here was chosen to encorporate the idea of 
 
 \section{A Cipher In ML}
 \label{sec:MLExample}
-\myref{lst}{code:Example} presents an example program that consists of the definition of a signature that represents symmetric cyphers, a concept used in cryptography.
+\myref{lst}{code:Example} presents a simple example program that consists of the definition of a signature that represents symmetric cyphers, a concept used in cryptography.
 This example was chosen since the modules related to cryptography are usually under more scrutiny with regards to the privacy of their internal values.
-The code in \myref{lst}{code:Example} defines a signature \texttt{SYMMETRICCIPHER}.
+The code in \myref{lst}{code:Example} defines a signature \lsttext{SYMMETRICCIPHER}.
 This signature describes the common traits between modules that implement a symmetric cipher.
-In order to implement a symmetric cipher, one must have a credential, i.e. the key, and two functions, \texttt{encrypt} and \texttt{decrypt}, which take data and credentials.
-The \texttt{encrypt} function takes the raw data and encodes it in a way only those with knowledge of the correct credentials can later use the \texttt{decrypt} function to transform the encoded data back into the raw data.
+In order to implement a symmetric cipher, one must have a credential, i.e. the key, and two functions, \lsttext{encrypt} and \lsttext{decrypt}, which take data and credentials.
+The \lsttext{encrypt} function takes the raw data and encodes it in a way only those with knowledge of the correct credentials can later use the \lsttext{decrypt} function to transform the encoded data back into the raw data.
 
 \begin{lstlisting}[frame=single, language=ML,numbers=left, label=code:Example, caption=Example of a security sensitive module specifying and implementing a symmetric cypher.]
 signature SYMMETRICCIPHER =
@@ -86,18 +86,18 @@ structure Caesar :> SYMMETRICCIPHER =
     end
 \end{lstlisting}
 
-From line 8 of \myref{lst}{code:Example} onwards the definition of a structure called \texttt{Caesar} is given.
-\texttt{Caesar} implements the \texttt{SYMMETRICCYPHER} signature.
-In this context, \texttt{Caesar} provides the \texttt{newcredential}, \texttt{encrypt} and \texttt{decrypt} functions.
+From line 8 of \myref{lst}{code:Example} onwards the definition of a structure called \lsttext{Caesar} is given.
+\lsttext{Caesar} implements the \lsttext{SYMMETRICCYPHER} signature.
+In this context, \lsttext{Caesar} provides the \lsttext{newcredential}, \lsttext{encrypt} and \lsttext{decrypt} functions.
 For internal use it also possesses the necessary characteristics of a pseudorandom number generator, namely a seed value and a rand function that provides a pseudorandom number.
 It is necessary to hide the seed value from users since this would allow attackers to predict the output of the pseudorandom number generator.
 
-The \texttt{Caesar} structure is forced to conform to the signature \texttt{SYMMETRICCIPHER} by means of \emph{opaque ascription (\texttt{:>})}.
+The \lsttext{Caesar} structure is forced to conform to the signature \lsttext{SYMMETRICCIPHER} by means of \emph{opaque ascription (\lsttext{:>})}.
 This not only forces the module to implement all the necessary elements of the signature, but it also restricts the means of interaction with the module to those elements that are explicitly mentioned in the interface.
 It is this notion of \emph{opaque ascription} that dictates what it means for this module to be secure.
-Concretely, to be secure, this module hides its \texttt{rand} function and its seed value from any outside code, only allowing the code internal to the structure to access this value or call the function.
+Concretely, to be secure, this module hides its \lsttext{rand} function and its seed value from any outside code, only allowing the code internal to the structure to access this value or call the function.
 
-%This example can later be broadened so that the \texttt{Caesar} structure becomes a functor that is parameterized to use an external module as its PRNG.
+%This example can later be broadened so that the \lsttext{Caesar} structure becomes a functor that is parameterized to use an external module as its PRNG.
 
 \section{LLVM Intermediate Representation}
 \label{sec:LLVM}
@@ -223,46 +223,73 @@ entry:
 
 This code, that implicitly is part of a module, consists of a list of \emph{global values}, denoted by the @ sign.
 Every value, be it a global function or a global variable, has a \emph{linkage} type associated with it.
-Linkage types control the accessibility of of variables and functions. The two linkage types in use are \texttt{private}, which makes a value only accessible by objects inside the same module, and the default linkage type, \texttt{external}.
+Linkage types control the accessibility of of variables and functions. The two linkage types in use are \lsttext{private}, which makes a value only accessible by objects inside the same module, and the default linkage type, \lsttext{external}.
 
-The code in \myref{lst}{llvm:Example} specifies 5 different global values, corresponding to the 5 definitions in the \texttt{Caesar} structure:
+The code in \myref{lst}{llvm:Example} specifies 5 different global values, corresponding to the 5 definitions in the \lsttext{Caesar} structure:
 \begin{description}
-\item[newcredentials] The first translated function is the \texttt{newcredentials} function.
+\item[newcredentials] The first translated function is the \lsttext{newcredentials} function.
 On lines 1-4 in the code of \myref{lst}{llvm:Example}, a proxy for the function is defined and its return type is declared to be i32, i.e. an integer. Since no linkage type is explictly specified, linkage type `external'  is used.
 
-This proxy acts as a wrapper around the real translation of \texttt{newcredentials} that can be seen on lines 6-9. This proxy is the entry point to the function that is made available to the untrusted code. This proxy can perform the security precautions that have to be taken when taking values from or returning values to the untrusted code.
+This proxy acts as a wrapper around the real translation of \lsttext{newcredentials} that can be seen on lines 6-9. This proxy is the entry point to the function that is made available to the untrusted code. This proxy can perform the security precautions that have to be taken when taking values from or returning values to the untrusted code.
 
-The body of the internal function \texttt{newcredentials\_internal} implements the functionality of the ML \texttt{newcredentials} function.
-\texttt{newcredentials\_internal} performs a call to the rand function, saving the resulting return value. It does so in a temporary local variable called \%0. This is returned using the \emph{ret} assembly function.
+The body of the internal function \lsttext{newcredentials\_internal} implements the functionality of the ML \lsttext{newcredentials} function.
+\lsttext{newcredentials\_internal} performs a call to the rand function, saving the resulting return value. It does so in a temporary local variable called \%0. This is returned using the \emph{ret} assembly function.
 
-\item[encrypt \& decrypt] Next are the \texttt{encrypt} en \texttt{decrypt} functions. The translation starts with the definition on line 11 in the code of \myref{lst}{llvm:Example}. Again, as these functions are available in ML for untrusted code, proxies are provided as entry points where security precautions can be made. These can be found on lines 11-14 and 23-26. The internal functions can be found on lines 16-21 and 28-33.
+\item[encrypt \& decrypt] Next are the \lsttext{encrypt} en \lsttext{decrypt} functions. The translation starts with the definition on line 11 in the code of \myref{lst}{llvm:Example}. Again, as these functions are available in ML for untrusted code, proxies are provided as entry points where security precautions can be made. These can be found on lines 11-14 and 23-26. The internal functions can be found on lines 16-21 and 28-33.
 
 The definition of these proxies as well as the internal functions specify the return type, as well as the different argument types. Since these are all of type `integer', the type i32 is being used.
 
 The body of the internal function uses the arguments in two calls to arithmetical assembly functions and returns the result.
-\item[seed] The variable \texttt{seed} is translated to a global variable. As the structure is opaquely ascribed by the signature \texttt{SYMMETRICCIPHER}, and the variable \texttt{seed} is not specified in this signature, it should be hidden from any outside components.
+\item[seed] The variable \lsttext{seed} is translated to a global variable. As the structure is opaquely ascribed by the signature \lsttext{SYMMETRICCIPHER}, and the variable \lsttext{seed} is not specified in this signature, it should be hidden from any outside components.
 
 To help achieve this protection and mark this information, the linkage type is specified to be \emph{private}.
 
-The definition of \texttt{seed} can be seen on line 35 in the code of listing~\myref{lst}{llvm:Example}
-\item[rand] The function \texttt{rand} is defined starting line 23 and onwards in \myref{lst}{llvm:Example}. For the same reasons as the variable \texttt{seed}, its linkage type is set to private. It also follows that no proxy is necessary for the \texttt{rand} function.
+The definition of \lsttext{seed} can be seen on line 35 in the code of listing~\myref{lst}{llvm:Example}
+\item[rand] The function \lsttext{rand} is defined starting line 23 and onwards in \myref{lst}{llvm:Example}. For the same reasons as the variable \lsttext{seed}, its linkage type is set to private. It also follows that no proxy is necessary for the \lsttext{rand} function.
 
 In its body, it returns the value of the seed. Since all global values are pointers, the pointer must be dereferenced using a load operation, saving the value to a local variable. This value is then returned.
 \end{description}
 
 \subsection{MiniML-specific security concerns}
 
+\subsubsection{Ordering of Fields and Module Expressions}
+The necessity of reordering field definitions in a target-level object was shown by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}.
+In \MiniML\ the same argument holds, not only for fields, but for the order of structure definitions as well.
+
+The order in which structures and signatures are defined, or the order of fields within a structure is to a large extent unimportant for the behavior of a \MiniML\ program.
+As long as no structure is used before it is defined, differently ordered \MiniML\ programs are contextually equivalent.
+The order of field definitions within a structure has no result on the behavior of the program either.
+
+The ordering of structure or field definitions in \LLVMIR\ might be leaked however, when examining the pointers to different fields.
+If contextually equivalent but differently ordered \MiniML\ programs would be translated to diffently ordered \LLVMIR\ programs, the results would not be contextually equivalent.
+
+To guarantee \emph{full abstraction}, it is thus necessary to ensure that all contextually equivalent but differently ordered \MiniML\ programs result in the same ordering of definitions in \LLVMIR.
+This can be accomplished by alphabetically ordering structures, and the fields within their structures, when outputting the \LLVMIR\ program.
+
+\subsubsection{Stack Switching}
+As described by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}, when code execution switches from protected code to unprotected code or back, the security of the run-time stack must be protected.
+Therefore the stack is split unto two parts, the secure stack and the insecure stack.
+These are respectively located in secure and insecure memory.
+The following precautions, as described by Agten~\cite{Agten:2012:SCM:2354412.2355247} are then taken:
+\begin{itemize}
+\item When the secure code is entered in an entry point, the stack pointer is modified to point to the secure stack, whose location is saved in a field in the data section.
+This field is called the \emph{shadow stack pointer}.
+There is another field reserved in the data section as well, to keep track of the value of the stack pointer before modification.
+\item At each exit point, the stack is restored to its previous
+address in unprotected memory, and the location of the \emph{shadow stack pointer} is updated.
+\end{itemize}
+
 \subsubsection{Register Clearing}
 Any communication in \mbox{MiniML} normally only occurs through information passed along by returns and method calls.
-In the case of low level architecture however, all communication occurs through the unprotected memory, through flags and through the CPU registers.  This means that a low level attacker can try to perform side channel communication.
+In the case of low level architecture however, all communication occurs through the unprotected memory, through flags and through the CPU registers.
+This means that a low level attacker can try to perform side channel communication.
 
 In order to prevent the leaking of protected data through side channels, it is important to ensure that the information passed through unprotected memory, flags and registers is restricted to that information being passed by the returns and method calls in \mbox{MiniML}.
-Thus, any callback or return to untrusted code must:
+Thus, any callback or return to untrusted code must\cite{Agten:2012:SCM:2354412.2355247}:
 \begin{itemize}
 \item Clear the flags
 \item Clear the registers, except those being used to pass a parameter or a return value.
 \end{itemize}
-
 
 If these registers and flags, which were possibly modified by the protected code, are not reset when returning execution to unprotected memory, code running in the unprotected memory will be able to read the values in these registers and flags, breaking confidentiality. The code could even modify these values, resulting in a modification of control flow if execution is later returned to the protected code while expecting these values to be uncorrupted.
 
@@ -288,7 +315,10 @@ Even more so, one would expect the two programs/modules to be contextually equiv
 
 The code must assure that any object, passing as an argument of type dictionary, was in fact created by the module code itself (using the emptydictionary method). If not, it should raise an error (even if the object has the correct type according to the synonyms) in order to prevent an attack on centextual equivalence in the same spirit as the one described above.
 
-This restriction can be enforced if the code creating a dictionary never returns a pointer to this dictionary itself, instead saving this dictionary in an internal list in protected memory. The index in this list can then be returned and used as a mask for the real object. Any function in the module that expects a dictionary as its argument then no longer gets a pointer to this dictionary object in memory, but instead gets the index of the needed dictionary in the internal list.
+This restriction can be enforced by a technique called masking, introduced by M. Patrignani et al~\cite{Patrignani}. 
+This works by ensuring that the code creating a dictionary never returns a pointer to this dictionary itself, instead saving this dictionary in an internal list in protected memory.
+The index in this list can then be returned and used as a mask for the real object.
+Any function in the module that expects a dictionary as its argument then no longer gets a pointer to this dictionary object in memory, but instead gets the index of the needed dictionary in the internal list.
 
 \todo{The explanation of why extra type information might prove necessary. However: The argument must be presented in a more careful manner. Furthermore, this also depends on whether a separate list is being used per type or not. If a separate list is being used anyway, instead of a central list of masked objects, then the extra type information proves unnecessary, or rather, it is already implicitly available.}
 

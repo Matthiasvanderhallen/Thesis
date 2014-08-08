@@ -14,8 +14,10 @@
                                              & \expl{(sig. binding)}\\
 %
 \text{Definition }\\
-d \; ::= \; &\mathit{id}=e:\tau                    & \expl{(value def.)} \\
-& | \text{\lsttext{type}}\ \ova\ t= \tau           & \expl{(type def.)} \\
+%d \; ::= \; &\mathit{id}=e:\tau                    & \expl{(value def.)} \\
+d \; ::= \; &\text{\lsttext{val}}\ \mathit{id}=e:\tau   & \expl{(value def.)} \\
+& |\; \text{\lsttext{fun}}\  \mathit{id}\ \overline{x}\ =e:\tau   & \expl{(value def.)} \\
+& |\; \text{\lsttext{type}}\ \ova\ t= \tau           & \expl{(type def.)} \\
 % TODO: type variables
 %
 \text{Signature body } \\
@@ -28,9 +30,12 @@ d \; ::= \; &\mathit{id}=e:\tau                    & \expl{(value def.)} \\
 %
 \text{Shared type } \\
 T \; ::= \; &\text{\lsttext{int}}                  & \expl{(type int)} \\
-&| \; p.t                                          & \expl{(struct type)}\\
+&| \; \mathit{StrId}.t                             & \expl{(struct type)}\\
 &| \; T_{1} \rightarrow T_{2}                      & \expl{(function type)}\\
 &| \; \alpha                                       & \expl{(type variable)}
+%\text{Fun type} \\
+%T_{F} \; ::= \; & T \rightarrow T_{F}              & \expl{(function type)}
+%T_{}
 \end{aligned}
 \end{align*}
 \caption{Module language syntax \label{fig:ModuleSyntax}}

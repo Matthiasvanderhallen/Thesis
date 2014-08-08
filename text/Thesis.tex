@@ -20,8 +20,13 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{xcolor,colortbl}
+\usepackage{tabu}
+\usepackage{longtabu}
+%\usepackage[sorting=none, style=authoryear, backend=bibtex]{biblatex}
+%\addbibresource{bibliography.bib}
 %\usepackage[style=mla,babel=hyphen,backend=biber]{biblatex}
-\usepackage{natbib}
+%\usepackage[square]{natbib}
+%\setcitestyle{authoryear,square}
 %\usepackage{courier}
 
 %\setlength\parindent{1em}
@@ -38,12 +43,15 @@
 \begin{document}
 %\newcommand{\emphref}[1]{\emph{}}
 \newcommand{\MiniML}{\mbox{MiniML}} %The stylish representation of MiniML
-\newcommand{\cmath}[1]{$\mathit{#1}$} %correct Math text
-\newcommand{\lsttext}[1]{\lstinline{#1}} %inline text as in listings
+\newcommand{\cmath}[1]{\ensuremath{\mathit{#1}}} %correct Math text
+\newcommand{\lsttext}[1]{\lstinline[mathescape]!#1!} %inline text as in listings
 \newcommand{\longspace}{\;\;\;\;\;\;}
 \newcommand{\inlinecode}{\texttt}
 \newcommand{\expl}[1]{\footnotesize\text{#1}}
 \newcommand{\LLVMIR}{\mbox{LLVM IR}}
+\newcommand{\compile}[1]{\mathit{\left[\left[#1\right]\right]}}
+\newcommand{\compiled}[1]{#1^{\downarrow}}
+\newcommand{\makes}{& \rightarrow}
 
 %Describe an attack nicely.
 \newcommand{\surroundrule}[2][0.3em]{
@@ -74,8 +82,8 @@ the work. But it should be limited to one page.
 \include{chapter3}
 %\subsection{Creating Frames}
 %\subsection{Nested Structures and polyadic functors}
-\chapter{References\label{chap:References}\label{test}}
-\chapter{Complex Data\label{chap:ComplexData}}
+%\chapter{References\label{chap:References}\label{test}}
+%\chapter{Complex Data\label{chap:ComplexData}}
 
 % Formal specification links!
 %http://research.microsoft.com/pubs/67357/icfp01.pdf

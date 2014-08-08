@@ -43,13 +43,20 @@ let \; p_{1} \; = \; e_{1} \; in \;
 &T \vdash (\lambda (p_{1},p_{2}) . e_{3}) \; (e_{1},e_{2}) \rightarrow T \vdash (\lambda p_{1}.(\lambda p_{2}.e_{3})\;e_{2})\; e_{1} \\
 %\displaybreak
 \\
-\tag{E-ModVar}
-&\frac{\longspace (x=e':\tau) \in T[M_{i}].\overline{d} \longspace e=[this.y\mapsto M.y]e'\;\forall (this.y \in e')}
-{T \vdash M.x \rightarrow T \vdash e}\\
+\tag{E-ModField}
+&\frac{\longspace (x=e':\tau) \in T[\mathit{StrId}].\overline{d} \longspace e=[\mathit{this}.y\mapsto \mathit{StrId}.y]e'\;\forall (this.y \in e')}
+{T \vdash \mathit{StrId}.x \rightarrow T \vdash e}\\
 \\
+\tag{E-ModExp}
+&T \vdash \mathit{StrId:SigId = \overline{d},P} \rightarrow (\mathit{StrId} \mapsto \lbrace \mathit{SigId},\overline{d}\rbrace), T \vdash P \\
+%\mathit{(StrId \mapsto \lbrace SigId,\overline{d}\rbrace),T} \vdash P} \\
+\\
+\tag{E-SigExp}
+&T \vdash \mathit{SigId = \Sigma, P} \rightarrow T \vdash P
+%\\
 %\tag{E-FunVar}
 %&\frac{\longspace (x=e':\tau) \in T[F_{i}].\overline{d} \longspace %e=[M_{1..n} \mapsto M_{args}][this.y\mapsto F_{i}%(\overline{M_{args}}).y]e'\;\forall (this.y \in e')}
-%{T \vdash F_{1}(\overline{M_{args}}).x \rightarrow T \vdash e}
+%{T \vdash F_{1}(\overline{\mathit{StrId}_{args}}).x \rightarrow T \vdash e}
 \end{align*}
 \caption{\MiniML\ evaluation rules.\label{fig:MiniMLOperationalSemantics}}
 \end{figure}

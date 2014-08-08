@@ -107,7 +107,7 @@ This context keeps track of the type assumptions as well as structure and signat
 It stores the facts that the type system has already established to be true.
 The structure of a context $Gamma$ is shown in \myref{fig}{fig:MiniMLContexts}.
 
-To access the mappings from \cmath{StrId} or \cmath{SigId} to its signature, its definitions or its declarations, the context allows for projections. For example $\Gamma[\mathit{StrId}].\overline{d}$ will look up the mapping $(M_{i} \mapsto \lbrace \mathit{StrId},\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping. A lookup will \emph{fail} if the identifier has no mapping in the context.
+To access the mappings from \cmath{StrId} or \cmath{SigId} to its signature, its definitions or its declarations, the context allows for projections. For example $\Gamma[\mathit{StrId}].\overline{d}$ will look up the mapping $(\mathit{StrId} \mapsto \lbrace \Sigma,\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping. A lookup will \emph{fail} if the identifier has no mapping in the context.
 
 \begin{figure}[!htb]
 \begin{align*}
@@ -115,7 +115,7 @@ To access the mappings from \cmath{StrId} or \cmath{SigId} to its signature, its
 \text{Context }\\
 \Gamma ::=\; &\emptyset     & \expl{(Empty context)}\\
 &| \; (\mathit{id}:\sigma),\Gamma          & \expl{(identifier typed)}\\
-&| \; (\mathit{StrId} \mapsto \lbrace \mathit{SigId},\overline{d}\rbrace), \Gamma 
+&| \; (\mathit{StrId} \mapsto \lbrace \Sigma,\overline{d}\rbrace), \Gamma 
                                            & \expl{(Structure definition)}\\
 % &| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), \Gamma \\
 &| \; (\mathit{SigId} \mapsto \Sigma), \Gamma
@@ -188,7 +188,7 @@ Note that the definition of a type-scheme assures that the resulting type-scheme
 \label{fig:MiniMLTypeSchemes}
 \end{figure}
 
-The concept of a type-scheme provides a kind of polymorphism called let-poly\-morphism \cite{Pierce}.
+The concept of a type-scheme provides a kind of polymorphism called let-poly\-morphism~\cite{Pierce}.
 Two type-schemes have a relation called \emph{specialization}/\emph{generalization} that details how two types can match, even if they are not exactly the same, i.e. how an expected type can be matched by several effective types.
 
 \begin{description}
@@ -239,6 +239,13 @@ These signature matching constraints allow the expression of a structure to have
 It can define more types or values, and provide existing values with more general types.
 These types and values can be used locally within the structure, but not in non-local code.
 
+The effective signature of a structure \cmath{StrId} with body \cmath{\overline{d}} is now \cmath{ES(\overline{d})}, which corresponds to
+\begin{itemize}
+\item all type definitions present in \cmath{\overline{d}}, and the value declarations present in \cmath{SigId} iff. \cmath{StrId} was transparantly ascribed with signature \cmath{SigId}.
+\item The signature bound to \cmath{SigId} iff. \cmath{StrId} was opaquely ascribed with signature \cmath{SigId}.
+\end{itemize}
+
+
 \subsubsection{Type Rules}
 Using the type judgements specified earlier, it is possible to create a set of rules that specify when an expression \cmath{e} or \cmath{me} is valid.
 Some expressions are well-typed unconditionally and in any context, for example rule T-Num in the typing rules in \myref{fig}{fig:TypeRulesCore}.
@@ -258,12 +265,14 @@ The typing rules are divided in rules concerning the core language in \myref{fig
 &| \lambda p.e\\
 \\
 \text{Module Table } T\; ::= \;&\emptyset \\
-&| \; (M_{i} \mapsto \lbrace \Sigma,\overline{d}\rbrace), T \\
+&| \; (\mathit{StrId} \mapsto %\lbrace \mathit{SigId},
+\overline{d}
+%\rbrace
+), T \\
 %&| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), T \\
-&| \; (S_{i} \mapsto \Sigma), T\\
+%&| \; (\mathit{SigId} \mapsto \Sigma), T\\
 \\
-\text{Evaluation } ::= & T \vdash e \rightarrow T \vdash e' \\
-& T \vdash \mathit{me} \rightarrow 
+\text{Evaluation } ::= & T \vdash P \rightarrow T \vdash P' \\
 \end{align*}
 \caption{Relations and entities of the operational semantics.\label{fig:MiniMLOperationalSemanticEntitiesAndRelations}}
 \end{figure}
@@ -272,12 +281,14 @@ The operational semantics defines a module table T, and the evaluation relation,
 This module table contains mappings from the %, module and functor identifiers to their definition and and the evaluation relation. 
 module identifiers to their definition. 
 
-The module table T allows looking up the definition behind a certain identifier and accessing a certain part of it using projection. $T[M_{i}].\Sigma$ will give access to the $\Sigma$ in the definition of $M_{i}$. 
+The module table T allows looking up the definition behind a certain identifier and accessing a certain part of it using projection. $T[\mathit{StrId}].\mathit{SigId}$ will give access to the \cmath{SigId} in the definition of \cmath{StrId}. 
 
 The evaluation relation allows the evaluation of an expression $e$ to a (simpler) expression $e'$, while potentially making a lookup in T.
 
 \subsubsection{Rules}
 In \myref{fig}{fig:MiniMLOperationalSemantics}, the evaluation rules of a \MiniML\ program are shown.
+It first collects evaluates module expressions, skipping \lsttext{signature}-bindings and adding \lsttext{structure}-bindings to the 
+When a field inside a module is referenced, the reference can be evaluated to its definition, with the exception that all references to fields \cmath{y} defined within the module are correctly substituted with \cmath{StrId.y}.
 
 \input{operationalsemantics}
 
@@ -294,17 +305,18 @@ This section largely builds on the work of Jianzhou Zhao et al. in formalizing t
 Their paper formalizes a reduced part of the LLVM IR in order to create mathematically verified program transformations.
 It provides a language syntax as well as static and dynamic semantics.
 
-\subsubsection{Syntax}
-In \myref{fig}{fig:LLVMSyntax}, their reduced syntax of LLVM IR is given, with some small additions.\begin{figure}[!htb]
+\newcommand{\kw}[1]{\text{\lsttext{#1}}}
+\subsection{Syntax}
+In \myref{fig}{fig:LLVMSyntax}, their reduced syntax of LLVM IR is given, with some small changes.\begin{figure}[!htb]
 \begin{align*}
 \begin{aligned}
 \text{Modules }\mathit{mod} ::= &\overline{\mathit{prod}} \\
-\text{Products }prod ::= & \mathit{global}\ \mathit{typ}\ \mathit{const}\ \mathit{align}\ |\ \mathit{define\ typ\ id(\overline{arg})\{\overline{b}\}}\\
-&|\ \mathit{declare\ typ\ id(\overline{arg})} \\
-\text{Types } \mathit{typ} ::= &\mathit{ isz\ |\ void\ |\ typ*\ |\ \left[sz \times typ\right]\ |\ \lbrace\ \overline{typ_{j}}^{j}\ \rbrace\ |\ typ\ \overline{typ_{j}}^{j}\ \rbrace\ | id} \\
+\text{Products }prod ::= & \mathit{id =\ }\kw{global}\ \mathit{typ}\ \mathit{const}\ \mathit{align}\ |\ \kw{define} \mathit{\ typ\ id(\overline{arg})\{\overline{b}\}}\\
+&|\ \kw{declare} \mathit{\ typ\ id(\overline{arg})} \\
+\text{Types } \mathit{typ} ::= &\kw{i} \mathit{sz\ |\ } \kw{void} \mathit{\ |\ typ*\ |\ \left[sz \times typ\right]\ |\ \lbrace\ \overline{typ_{j}}^{j}\ \rbrace\ |\ typ\ \overline{typ_{j}}^{j}\ \rbrace\ | id} \\
 \text{Values } \mathit{val} ::= &\mathit{ id\ |\ cnst} \\
-\text{Binops } \mathit{bop} ::= &\mathit{ add\ |\ sub\ |\ mul\ |\ udiv\ |\ sdiv\ |\ urem\ |\ srem\ |\ shl\ |\ lshr\ |\ ashr}\\
-&\mathit{|\ and\ |\ or\ |\ xor} \\
+\text{Binops } \mathit{bop} ::= &\kw{add} \ |\ \kw{sub}\ |\ \kw{mul}\ |\ \kw{udiv}\ |\ \kw{sdiv}\ |\ \kw{urem}\ |\ \kw{srem}\ |\ \kw{shl}\ |\ \kw{lshr}\ |\ \kw{and}\\
+&|\ \kw{or}\ |\ \kw{xor} \\
 \text{Float Ops } \mathit{fbop} ::= &\mathit{fadd \ |\ fsub \ |\ fmul \ |\ fdiv \ |\ frem} \\
 \text{Extension } \mathit{eop} ::= &\mathit{zext \ |\ sext \ |\ fpext} \\
 \text{Cast op } \mathit{cop} ::= &\mathit{fptoui \ |\ ptrtoint \ |\ inttoptr \ |\ bitcast} \\
@@ -323,7 +335,14 @@ In \myref{fig}{fig:LLVMSyntax}, their reduced syntax of LLVM IR is given, with s
 \phi\ \text{nodes } \phi ::= &\mathit{id} \text{ = phi } \mathit{typ \overline{[val_{j} , l_{j} ]}^{j}}\\
 %\phi\ \text{nodes} \mathit{\phi} ::= &\mathit{id\ =\ } \text{phi} typ [val_{j} , l_{j} ] \\
 \text{Tmns } \mathit{tmn} ::= &\mathit{br\ val\ l_{1}\ l_{2} \ |\ br\ l \ |\ ret\ typ\ val\ |\ ret\ void\ |\ unreachable} \\
-\text{Commands } \mathit{c} ::= &\mathit{} \\
+\text{Commands } \mathit{c} ::= &\mathit{id\ =\ bop(int\ sz)\ val_{1}\ val_{2}\ |\ id\ =\ fbop\ fp\ val_{1}\ val_{2}}\\
+&\mathit{|\ id\ =\ load(typ*)\ val_{1}\ align\ |\ store\ typ\ val_{1}\ val_{2}\ align}\\
+&\mathit{|\ id\ =\ malloc\ typ\ val\ align\ |\ free(typ * )\ val}\\
+&\mathit{|\ id\ =\ alloca\ typ\ val\ align\ |\ id\ =\ trop\ typ_{1}\ val\ to\ typ_{2}}\\
+&\mathit{|\ id\ =\ eop\ typ_{1}\ val\ to\ typ_{2}\ |\ id\ =\ cop\ typ_{1}\ val\ to\ typ_{2}}\\
+&\mathit{|\ id\ =\ icmp\ cond\ typ\ val_{1}\ val_{2}\ |\ id\ =\ select\ val0\ typ\ val_{1}\ val_{2}\ }\\
+&\mathit{|\ id\ =\ fcmp\ fcond\ fp\ val_{1}\ val_{2}\ |\ option\ id\ =\ call\ typ_{0}\ val_{0}\ \overline{param}}\\
+&\mathit{|\ id\ =\ getelementptr(typ*)\ val\ \overline{val_{j}}^{j}}
 %\text{} \mathit{} ::= &\mathit{} \\
 %\text{} \mathit{} ::= &\mathit{} \\
 %\text{} \mathit{} ::= &\mathit{} \\
@@ -344,15 +363,161 @@ They can be defined with linkage type `private', which means that the linkage ph
 They can then be used within the module.
 Later, the linking phase will couple this declaration to an implementation provided by a different module.
 \end{description}
-
+\clearpage
 \section{Formalized Compiler}
-\newcommand{\compile}[1]{\left[\left[#1\right]\right]}
-\newcommand{\makes}{& \rightarrow}
-\begin{align*}
-\begin{aligned}
-\compile{\bar{S};\bar{M};e} \makes \compile{\bar{M}}^{\bar{S}};\compile{e}\\ 
-\compile{\bar{M}}^{\bar{S}}\makes \compile{M_{i}:S_{i} = \bar{d}};\compile{\bar{M}}^{\bar{S}}\\
-\compile{M_{i}:S_{i} = \bar{d}} \makes \compile{\bar{d}}^{S_{i}} \mathit{\ with\ } S_{i} \in \bar{S} \\
-\compile{d:\bar{d}}^{S_{i}} \makes \compile{d}^{S_{i}};\compile{\bar{d}}^{S_{i}}
-\end{aligned}
-\end{align*}
+This section formalizes the secure compilation process.
+The compilation process is a translation of a program \cmath{P} expressed in \MiniML\ to a program written in the \LLVMIR.
+It is symbolized as the translation function $\compile{\bullet}$.
+
+
+The compiler formalized here aims to be 
+%part of
+a secure compiler, it takes a set of module expressions and translates them to \LLVMIR\
+%in a fully abstract~\cite{Abadi,Agten:2012:SCM:2354412.2355247} manner.
+to allow for fully abstract~\cite{Abadi,Agten:2012:SCM:2354412.2355247} binary protected modules or \emph{SPM}s.
+As explained in \myref{sec}{sec:}\todo{refer to introduction, to be written}, fully abstract compilation uses the notion of \emph{contextual equivalence}~($\simeq$)~\cite{Agten:2012:SCM:2354412.2355247}.
+
+This requirements of the compiler are interpreted as follows: The program \cmath{P} given to the compiler is a set of module expressions \cmath{me} that represent the secure code.
+This set of module expressions \cmath{me} is compiled separately from any other, insecure code to an \LLVMIR\ program \cmath{\compiled{P}} which can be processed to a fully abstract \emph{SPM}.
+%This set of module expressions \cmath{me} has to be compiled in a fully abstract way to \LLVMIR\ \cmath{P\downarrow}.
+This means that if this \cmath{\compiled{P}} is later compiled further to an object file and linked together with a context \cmath{C}, there exists no context \cmath{C} that can tell from \cmath{\compiled{P}} from the compilation \cmath{\compiled{P'}}, where \cmath{\compiled{P'}} is the compilation result of a source-level contextually equivalent \MiniML\ program \cmath{P'}.
+
+The result of the translation $\compile{\bullet}$ is expected to run as an \emph{SPM} on a low-level machine model as used in \cite{Agten:2012:SCM:2354412.2355247,Patrignani}.
+This model provides program counter based access control, or \emph{PCBAC}\footnote{https://distrinet.cs.kuleuven.be/software/pcbac/\#platforms}.
+The semantics of this program counter based access control are given in \myref{fig}{fig:PCBAC}.
+
+\begin{figure}[htb]
+    \centering
+	\begin{tabular}{|c|c|c|c|c|}
+		\hline
+		From \textbackslash To & \multicolumn{3}{c|}{Protected} & Unprotected \\
+		& Entry Point & Code & Data & \\ \hline
+		Protected & r x & r x & r w & r w x \\ \hline
+		Unprotected & x & & & r w x \\ \hline
+	\end{tabular}
+    \caption{Program counter based access control semantics as specified in Agten et al.\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:PCBAC}}
+\end{figure}
+
+The result of the translation will be loaded within the protected code, and its data section will correspond to the protected data section of the pcbac model.
+The formalization of the translation function \cmath{\compile{\bullet}} will provide clear annotations for additional actions that can not be specified within the \LLVMIR\ language.
+These are actions such as the specification of entry points in the \emph{SPM} layout or the clearing of low-level registers and flags.
+
+\subsection{Formalization}
+First, all module expressions are sorted based on the name used in the binding.
+Two programs with differently ordered module expressions \cmath{me} are contextually equivalent as long as long as no module expression \cmath{me} has unresolved dependencies on other module expressions when it is bound.
+Sorting module expressions based on the name used in the binding makes sure that all \MiniML\ programs that provide the same set of bindings result in an \LLVMIR\ program with the corresponding bindings happening in the same order.
+ 
+%\newcommand{\kw}[1]{\text{\lsttext{#1}}}
+\renewcommand{\makes}{& \ensuremath{\rightarrow} &}
+\renewcommand{\compile}[1]{[[#1]]}
+\newcommand{\intertextt}[1]{
+& & \\
+\multicolumn{3}{p{\textwidth}}{#1}\\
+& & \\
+}
+%\newcommand{\lb}{\{}
+%\newcommand{\rb}{\}}
+\newcommand{\nl}{\\ & &}
+
+\begin{table}
+\begin{longtable*}{l c l}
+\compile{$\overline{me}$} \makes \compile{sort($\overline{me}$)}\\
+
+\intertextt{
+Next, all module expressions can be translated individually.
+The signature \cmath{SigId} used in the ascription of \cmath{StrId} is saved:
+}
+
+\compile{\cmath{me, \overline{me}}} \makes \compile{sort($\overline{me}$)} \\
+\compile{\cmath{StrId:SigId = \overline{d}}} \makes \compile{$\overline{d}$}\cmath{^{SigId}}\\
+
+\intertextt{
+All fields in a module are sorted alphabetically as well. 
+This is done for the same reason as the sorting of module expressions: two \MiniML\ programs \cmath{P} differing only in the order of their fields are contextually equivalent.
+To prevent leakage of this ordering in the target-level, outputting the fields in the target language happens in a fixed ordering.
+}
+
+\compile{$\overline{d}$}\cmath{^{SigId}} \makes \compile{sort($\overline{d}$)}\cmath{^{SigId}} \\
+
+\intertextt{
+The compiler can now continue by translating the elements specified within the module expression.
+Every definition is translated separately.
+}
+\compile{$\overline{d}$}$^{\mathit{SigId}}$ \makes \compile{$d$}$^{\mathit{SigId}}$;\compile{$\overline{d}$}$^{\mathit{SigId}}$\\
+
+\intertextt{
+The translation of a definition depends on a number of things.
+\begin{itemize}
+\item Whether the definition is that of a type or that of a field.
+%The definition of a type is not translated to llvm.
+\item Whether or not the value is local to the structure \cmath{StrId}.
+This depends on the value being declared in the signature \cmath{SigId}.
+\end{itemize}
+}
+
+\compile{\lsttext{val} $id = e : \tau$}$^{\mathit{SigId}}$ \makes \lsttext{define private\ $\tau$* @}$id$\lsttext{_internal()\{} \compile{$e$}$^{\mathit{SigId}}$ \lsttext{\}} \nl
+\lsttext{define i32 @}$id$ \lsttext{()\{} \nl
+\longspace [Switch stack, move parameters, add entry point \nl \longspace in spm for @\cmath{id}]\nl
+\longspace \lsttext{\%0 = call @}$id$\lsttext{_internal()} \nl
+\longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 i32} \nl
+\longspace \lsttext{\%2 = call @mask(\%1)} \nl
+\longspace [Switch stack, clear registers] \nl
+\longspace \lsttext{ret \%2} \nl
+\lsttext{\}} \\
+& & \\
+\compile{\lsttext{fun\ $\cmath{id\ \overline{x} = e : \tau}$}}$^{\mathit{SigId}}$ \makes \lsttext{define private\ $\tau$* @}$id$\lsttext{_internal($\mathit{\overline{\tau_{x}\ x}}$)\{} \compile{$e$}$^{\mathit{SigId}}$ \lsttext{\}} \nl
+\lsttext{define i32 @}$id$ \lsttext{($\mathit{\overline{i32\ x}}$)\{} \nl
+\longspace [Switch stack, move parameters, add entry point \nl \longspace in spm for @\cmath{id}]\nl
+\longspace \lsttext{\%0 = call @}$id$\lsttext{_internal()} \nl
+\longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 i32} \nl
+\longspace \lsttext{\%2 = call @mask(\%1)} \nl
+\longspace [Switch stack, clear registers] \nl
+\longspace \lsttext{ret \%2} \nl
+\lsttext{\}} \\
+\end{tabular}
+\end{table}
+
+%\mathit{id}\ \overline{x}\ =e:\tau
+
+%\begin{align*}
+%\begin{aligned}
+%\compile{\overline{me}} \makes \compile{sort(\overline{me})}\\
+%%\intertext{
+%%Next, all module expressions can be translated individually.
+%%The signature \cmath{SigId} used in the ascription of \cmath{StrId} is saved:
+%%}
+%\compile{me, \overline{me}} \makes \compile{me};\compile{\overline{me}}\\
+%\compile{StrId:SigId = \overline{d}} \makes \compile{\overline{d}}^{\mathit{SigId}}\\
+%\intertext{
+%All fields in a module are sorted alphabetically as well. 
+%This is done for the same reason as the sorting of module expressions: two \MiniML\ programs \cmath{P} differing only in the order of their fields are contextually equivalent.
+%To prevent leakage of this ordering in the target-level, outputting the fields in the target language happens in a fixed ordering.
+%}
+%\compile{\mathit{\overline{d}}}^{\mathit{SigId}} \makes \compile{\mathit{sort(\overline{d})}}^{\mathit{SigId}} &\\
+%\intertext{
+%The compiler can now continue by translating the elements specified within the module expression.
+%Every definition is translated separately.
+%}
+%\compile{\overline{d}}^{\mathit{SigId}} \makes \compile{d}^{\mathit{SigId}};\compile{\overline{d}}^{\mathit{SigId}} &\\
+%\intertext{
+%The translation of a definition depends on a number of things.
+%\begin{itemize}
+%\item Whether the definition is that of a type or that of a field.
+%%The definition of a type is not translated to llvm.
+%\item Whether or not the value is local to the structure \cmath{StrId}.
+%This depends on the value being declared in the signature \cmath{SigId}.
+%\end{itemize}
+%}
+%\compile{\text{\lsttext{val} } id = e : \tau}^{\mathit{SigId}} \makes \text{\lsttext{define private i32 @}}id\text{\lsttext{_internal()\{}} \compile{e}^{\mathit{SigId}} \kw{\}} &\\
+%&\text{\lsttext{define i32 @}}id\text{\lsttext{()\{}} \\
+%&\text{\lsttext{\%0 = call @}}id
+%\text{\lsttext{_internal()}}\\
+%\text{ptrtoint
+%&\kw{\%1 = call @mask()}\\
+%&\text{\lsttext{ret \%0\}}}&\\
+%%\compile{\bar{S};\bar{M};e} \makes \compile{\bar{M}}^{\bar{S}};\compile{e}\\ 
+%%%\compile{\bar{M}}^{\bar{S}}\makes \compile{M_{i}:S_{i} = \bar{d}};\compile{\bar{M}}^{\bar{S}}\\
+%%%\compile{M_{i}:S_{i} = \bar{d}} \makes \compile{\bar{d}}^{S_{i}} \mathit{\ with\ } S_{i} \in \bar{S} \\
+%%%\compile{d:\bar{d}}^{S_{i}} \makes \compile{d}^{S_{i}};\compile{\bar{d}}^{S_{i}}
+%\end{aligned}
+%\end{align*}

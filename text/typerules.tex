@@ -46,14 +46,28 @@
 \begin{align*}
 \tag{T-Structure}
 &\frac
-{\Gamma[SigId].\Sigma \succeq PS(\overline{d})}
-{\Gamma \vdash StrId : SigId = \overline{d} \rightarrow (\mathit{StrId} \mapsto {\mathit{SigId}, \overline{d}}),\Gamma}
+{\Gamma[SigId].\Sigma \succeq \mathit{ES}(\overline{d})}
+{\Gamma \vdash StrId : SigId = \overline{d} \rightarrow (\mathit{StrId} \mapsto \lbrace \mathit{PS}(\overline{d}), \overline{d}\rbrace),\Gamma}
+%\\
+%\\
+%\tag{T-Structure-opaque}
+%&\frac
+%{\Gamma[SigId].\Sigma \succeq PS(\overline{d})}
+%{\Gamma \vdash StrId :> SigId = \overline{d} \rightarrow (\mathit{StrId} \mapsto \lbrace%\Gamma[SigId].\Sigma, \overline{d} \rbrace ),\Gamma}
 \\
 \\
 \tag{T-ModVar}
 &\frac
-{StrId.id:\tau \in \Gamma[StrId.SigId].\Sigma}
+{StrId.id:\tau \in \Gamma[StrId].\Sigma}
 {\Gamma \vdash \mathit{StrId.id} : \tau}
+\\
+\\
+\tag{T-ModType}
+&
+\frac
+{\Gamma \vdash e:\tau \longspace t = \tau' \in \gamma[\mathit{StrId}].\Sigma \longspace \tau' \geq \tau}
+{\Gamma \vdash e : \mathit{StrId.t}}
+%This rule says that if an expression evaluates to a StrId.t type in an expression, the type must be transparent, or it must come from StrId.id with that type.
 \\
 \\
 \tag{T-Signature}

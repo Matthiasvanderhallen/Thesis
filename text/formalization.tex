@@ -8,7 +8,7 @@
 \newcommand{\annot}[1]{[#1]}
 \newcommand{\nl}{\\ & &}
 
-\begin{longtable}{l c l}
+\begin{tabularx}{\textwidth}{l c X}
 \compile{$\overline{me}$} \makes \compile{sort($\overline{me}$)}\\
 
 \intertextt{
@@ -44,8 +44,9 @@ This depends on the value being declared in the signature \cmath{SigId}.
 }
 
 \compile{\lsttext{val} $id = e : \tau$}$^{\mathit{SigId}}$ \makes \lsttext{define private\ $\tau$* @}$id$\lsttext{_internal()\{} \compile{$e$}$^{\mathit{SigId}}$ \lsttext{\}} \nl
+\annot{The next part is only included if the value is declared in the signature}\nl
 \lsttext{define i32 @}$id$ \lsttext{()\{} \nl
-\longspace [Switch stack, move parameters, add entry point \nl \longspace in spm for @\cmath{id}]\nl
+\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in spm for @\cmath{id}}\nl
 \longspace \lsttext{\%0 = call @}$id$\lsttext{_internal()} \nl
 \longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 i32} \nl
 \longspace \lsttext{\%2 = call @mask(\%1)} \nl
@@ -56,8 +57,10 @@ This depends on the value being declared in the signature \cmath{SigId}.
 \compile{\lsttext{fun\ $\cmath{id\ \overline{x} = e : \tau}$}}$^{\mathit{SigId}}$ \makes \lsttext{define private\ $\tau$* @}$id$\lsttext{_internal($\mathit{\overline{\tau_{x}*}\ \overline{x}}$)\{}\nl
 \longspace \compile{$e$}$^{\mathit{SigId}}$ \nl
 \lsttext{\}} \nl
-\lsttext{define i32 @}$id$ \lsttext{($\mathit{\overline{i32\ y}}$)\{} \nl
-\longspace [Switch stack, move parameters, add entry point \nl \longspace in spm for @\cmath{id}]\nl
+\annot{The next part is only included if the value is declared in the signature}\nl
+\lsttext{define i32 @}$id$ \lsttext{($\mathit{\overline{i32}\ \overline{y}}$)\{} \nl
+%\longspace [Switch stack, move parameters, add entry point in spm for @\cmath{id}]\nl
+\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in spm for @\cmath{id}}\nl
 \longspace \lsttext{$\overline{\%z}$ = call @unmask($\overline{\%y}$)} \nl
 \longspace \lsttext{$\overline{\%x}$ = inttoptr i32*\ $\overline{\%y}\ \overline{\tau_{x}*}$} \nl
 \longspace \lsttext{\%0 = call @}$id$\lsttext{_internal($\overline{\%y}$)} \nl
@@ -66,4 +69,5 @@ This depends on the value being declared in the signature \cmath{SigId}.
 \longspace [Switch stack, clear registers] \nl
 \longspace \lsttext{ret \%2} \nl
 \lsttext{\}} \\
-\end{longtable}
+\intertextt{}
+\end{tabularx}

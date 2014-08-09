@@ -4,12 +4,13 @@ declare i32 @printf(i8*, ...)
 declare i32 @puts(i8*)
 declare i8* @malloc(%int)
 declare void @free(i8*)
+declare void @exit(i32)
 
 %masktype = type {%int, %masktype*, %int}
 
 ;@.str = private unnamed_addr constant [12 x i8] c"maskptr:%d\0A\00", align 1
 @.strval = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-;@.nonnull = private unnamed_addr constant [9 x i8] c"nonnull\0A\00", align 1
+@.nonnull = private unnamed_addr constant [9 x i8] c"nonnull\0A\00", align 1
 ;@.noneq = private unnamed_addr constant [7 x i8] c"noneq\0A\00", align 1
 
 ;Initial table pointer
@@ -77,14 +78,15 @@ define %int @unmask(%int %index){
 }
 
 define private %int @unmask_rec(%int %cindex, %masktype** %cpointer){
-	%check = icmp ult %int %cindex, 0
+	%current = load %masktype** %cpointer ;Get pointer to current masktype.
+	%check = icmp eq %masktype* %current, null
 	br i1 %check, label %Error, label %ZeroTest
 
 	Error:
-		ret %int -1
+		call void @exit(i32 -1)
+  		unreachable
 
 	ZeroTest:
-		%current = load %masktype** %cpointer ;Get pointer to current masktype.
 		%check2 = icmp eq %int %cindex, 0
 		br i1 %check2, label %RetVal, label %Loop
 
@@ -106,11 +108,13 @@ define %int @unmasktype(%int %index){
 }
 
 define private %int @unmasktype_rec(%int %cindex, %masktype** %cpointer){
-	%check = icmp ult %int %cindex, 0
+	%current = load %masktype** %cpointer ;Get pointer to current masktype.
+	%check = icmp eq %masktype* %current, null
 	br i1 %check, label %Error, label %ZeroTest
 
 	Error:
-		ret %int -1
+		call void @exit(i32 -1)
+  		unreachable
 
 	ZeroTest:
 		%current = load %masktype** %cpointer ; Get pointer to current masktype.
@@ -131,16 +135,18 @@ define private %int @unmasktype_rec(%int %cindex, %masktype** %cpointer){
 
 define i32 @main(){
 	%a = call %int @mask(%int 0, %int 1)
-		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %a)
+		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %a) ;0
 	%b = call %int @mask(%int 5, %int 1)
-		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %b)
+		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %b) ;1
 	%d = call %int @mask(%int 2, %int 1)
-		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %d)
+		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %d) ;2
 	%e = call %int @mask(%int 5, %int 1)
-		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %e)
+		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %e) ;1
 	%f = call %int @unmask(%int 1)
-		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %f)
+		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %f) ;5
 	%g = call %int @unmasktype(%int 1)
-		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %g)
+		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %g) ;1
+	%h = call %int @unmask(%int 5)
+		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %h) ; unreach
 	ret i32 0
 }

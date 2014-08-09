@@ -57,7 +57,7 @@ This last functionality of a signature is a way to perform \emph{information hid
 
 The \mbox{MiniML} fragment discussed here was chosen to encorporate the idea of modules, more complex language features will be added later.
 
-\section{A Cipher In ML}
+\section{A Cipher In \MiniML}
 \label{sec:MLExample}
 \myref{lst}{code:Example} presents a simple example program that consists of the definition of a signature that represents symmetric cyphers, a concept used in cryptography.
 This example was chosen since the modules related to cryptography are usually under more scrutiny with regards to the privacy of their internal values.
@@ -79,8 +79,8 @@ structure Caesar :> SYMMETRICCIPHER =
     struct
         type cred = int
         fun newcredentials = rand
-        fun encrypt(a,cred) = (a + cred)%26
-        fun decrypt(a, cred) = (a - cred)%26
+        fun encrypt a cred = (a + cred)%26
+        fun decrypt a cred = (a - cred)%26
         val seed = 3
         fun rand = time.now * seed
     end
@@ -96,6 +96,22 @@ The \lsttext{Caesar} structure is forced to conform to the signature \lsttext{SY
 This not only forces the module to implement all the necessary elements of the signature, but it also restricts the means of interaction with the module to those elements that are explicitly mentioned in the interface.
 It is this notion of \emph{opaque ascription} that dictates what it means for this module to be secure.
 Concretely, to be secure, this module hides its \lsttext{rand} function and its seed value from any outside code, only allowing the code internal to the structure to access this value or call the function.
+
+\subsection{Compilation of \MiniML}
+\label{sec:DefinitionOfCompilation}
+Compilation of \MiniML\ reflects the compilation of the ML language.
+As in ML, the \MiniML\ compilation process takes a \MiniML\ program as a collection of \emph{files} that contain signatures and structure definitions.
+Conventionally, \MiniML\ processes each file in order of the collection, and separately, as a unit of compilation.
+
+Within each file it processes the definitions in the order that they are listed in the file. It expects the resulting order in which it processes the definitions to correspond to a \emph{directed acyclic graph} or \emph{DAG}.
+This means that a definition can only use elements that were defined \emph{before} its own definition.
+
+When talking about the secure compilation of \MiniML, the remainder of this text will expect that a file containing all secure signature and structure definitions is passed to the compiler first.
+This represents the secure module or \emph{SPM}, which contains all secure code.
+
+Next, all code representing the context is compiled separately and later linked to the result of the compilation of the secure
+\todo{This is an important remark} 
+As a result, the definitions of structures in secure code can not directly depend on elements that are defined only later, in the insecure context.
 
 %This example can later be broadened so that the \lsttext{Caesar} structure becomes a functor that is parameterized to use an external module as its PRNG.
 
@@ -137,22 +153,49 @@ This implies that every register can be assigned a value only once. However, thi
 Instead, one can write a program assuming an infinite amount of registers.
 This results in many more variables in use than available registers.
 In a later compilation stage this consequence is remedied using the technique of \emph{spilling}.
-Variable spilling occurs by mapping the variables in use to the smaller set of available registers, saving all variables that could not be assigned to a register in RAM memory in the stack.\todo{This is important for the secure compilation (clearing registers after function calls end). It might be necessary to rework this subsection to stress this more.}
+Variable spilling occurs by mapping the variables in use to the smaller set of available registers, saving all variables that could not be assigned to a register in RAM memory in the stack.
+%\to do{This is important for the secure compilation (clearing registers after function calls end). It might be necessary to rework this subsection to stress this more.}
 \end{description}
 
-\subsection{Translating MiniML concepts to LLVM}
-Compiling from \mbox{MiniML} to LLVM IR means the high level abstractions made in \mbox{MiniML}, for example \emph{signatures} and \emph{structures}, must be mapped to lower level constructs that are available in the LLVM intermediate representation.
+\subsection{Translating \MiniML\ concepts to LLVM}
+\label{sec:translation}
+Compiling from \MiniML\ to LLVM IR means the high level abstractions made in \mbox{MiniML}, for example \emph{signatures} and \emph{structures}, must be mapped to lower level constructs that are available in the LLVM intermediate representation.
 This section presents these different mappings.
 
 \begin{description}
+\item[File]
+A file with ML structures and signatures inside it is a separate unit of compilation.
+Its signatures and structures are typechecked and compiled together. 
+When a file is compiled, there can only be dependencies on values that were defined in an earlier unit of compilation, since the compilation of \MiniML\ expects a directed acyclic graph, as explained in \myref{sec}{sec:DefinitionOfCompilation}.
+
+LLVM already provides the concept of a module as a separate unit of compilation.
+This means each LLVM module is compiled to a single different object file.
+Firstly, an LLVM module declares which external functions will be provided by other code, and then continues by defining and implementing its own code and data.
+These definitions and external references are compiled into a single object file.
+LLVM poses no restrictions on the access of data and functions within a single module.
+This is poses no problem for files containing multiple secure structures. Since they are first typechecked together before being compiled toghether, a secure structure will never access a hidden component of another secure structure.
+
+The access of data and functions from within other modules \emph{is} restricted by LLVM: the object file to which a module is compiled is accompanied by a link table.
+This link table specifies which methods are defined and made externally visible, which is used to match the declaration of external functions with their implementation in other object files.
+The link tables represent what other code knows about the definitions contained within the compiled module.
+
+
 \item[Structures]
-LLVM already provides the concept of a module as a separate unit of compilation. This means each LLVM module is compiled to a single different object file. Firstly, an LLVM module declares which external functions will be provided by other code, and then continues by defining and implementing its own code and data. These definitions and external references are compiled into a single object file. LLVM poses no restrictions on the access of data and functions within a single module, but in order to manage the access of data and functions from within other modules, the object file to which a module is compiled is accompanied by a link table specifying which methods are defined and made externally visible, which is used to match the declaration of external functions with their implementation in other object files. The link tables represent what other code knows about the definitions contained within the compiled module.
+Structures are a collection of types and value definitions.
+As such they can be compiled by compiling every one of their components.
+
+Structures also provide namespaces: 2 structures str$_{1}$ and str$_{2}$ can both define a value t without resulting in a clash of names.
+When compiling structures by compiling every one of their components, this situation should not introduce a clash of names either.
+This is guaranteed by identifier prefixing: When a component $x$ within str$_{1}$ is compiled, the compilation is not bound to $x$ but to str$_{1}.x$ instead.
+
+
+%LLVM already provides the concept of a module as a separate unit of compilation. This means each LLVM module is compiled to a single different object file. Firstly, an LLVM module declares which external functions will be provided by other code, and then continues by defining and implementing its own code and data. These definitions and external references are compiled into a single object file. LLVM poses no restrictions on the access of data and functions within a single module, but in order to manage the access of data and functions from within other modules, the object file to which a module is compiled is accompanied by a link table specifying which methods are defined and made externally visible, which is used to match the declaration of external functions with their implementation in other object files. The link tables represent what other code knows about the definitions contained within the compiled module.
 
 %This means that LLVM already provides a way of performing code and data encapsulation.
 
 %  When compiling these modules the result is a single object file. Each of these object files is accompanied by a.
 
-The functionality offered by LLVM IR modules makes them the right target  to map the different ML structures onto.
+%The functionality offered by LLVM IR modules makes them the right target  to map the different ML structures onto.
 
 \item[Functions]
 LLVM provides the concept of a function as a set of basic blocks of code. 
@@ -169,12 +212,113 @@ When a structure is opaquely ascribed, or \emph{sealed} by a signature, we must 
 %Structures will be mapped onto the different modules, while the information provided in the signatures will mainly affect metadata in the resulting code, or influence the specific implementation of different elements inside the modules.
 
 \item[Fields]
-Translations of the fields happens as global constants within a module. Since their value is unchanging, the \emph{SSA} paradigm poses no real limitation.
+The translations of a field is a getter function without arguments.
+This is necessary because \begin{itemize}
+ \item The value might not be defined as a constant, but as the result of a call to a pure function.
+ This does not violate the constraint that a field must represent an unmutable value, because the result of a pure function call will always result in the same result. 
+When translated, this function must be executed however and the result must be passed.
+\item These values are readable by any code.
+As shown later, when it is read by the insecure context, certain precautions must be taken.
+This is impossible when fields are translated to constants.
+ \end{itemize}
+
+%Translations of the fields happens as global constants within a module. Since their value is unchanging, the \emph{SSA} paradigm poses no real limitation.
 
 \end{description}
 
 \section{Translation Example: The Caesar Cipher}
-In order to study the compilation scheme, the example ML code in \myref{lst}{code:Example} is translated to LLVM IR. The translation to LLVM intermediate representation is given in code in \myref{lst}{llvm:Example}
+In order to study the compilation scheme, the example ML code in \myref{lst}{code:Example} is translated to LLVM IR.
+
+The code given to the compiler is treated as a single file containing all secure or trusted structures.
+In the case of \myref{lst}{code:Example}, this consists of only the \lsttext{Caesar} structure.
+As mentioned in \myref{sec}{sec:translation}, this is compiled to a single LLVM module.
+
+Before discussing the translation of \myref{lst}{code:Example}, the security concerns that MiniML introduces have to be discussed.
+
+\subsection{MiniML-specific security concerns}
+
+\subsubsection{Ordering of Fields and Module Expressions}
+The necessity of reordering field definitions in a target-level object was shown by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}.
+In \MiniML\ the same argument holds, not only for fields, but for the order of structure definitions as well.
+
+The order in which structures and signatures are defined, or the order of fields within a structure is to a large extent unimportant for the behavior of a \MiniML\ program.
+As long as no structure is used before it is defined, differently ordered \MiniML\ programs are contextually equivalent.
+The order of field definitions within a structure has no result on the behavior of the program either.
+
+The ordering of structure or field definitions in \LLVMIR\ might be leaked however, when examining the pointers to different fields.
+If contextually equivalent but differently ordered \MiniML\ programs would be translated to diffently ordered \LLVMIR\ programs, the results would not be contextually equivalent.
+
+To guarantee \emph{full abstraction}, it is thus necessary to ensure that all contextually equivalent but differently ordered \MiniML\ programs result in the same ordering of definitions in \LLVMIR.
+This can be accomplished by alphabetically ordering structures, and the fields within their structures, when outputting the \LLVMIR\ program.
+
+\subsubsection{Stack Switching}
+As described by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}, when code execution switches from protected code to unprotected code or back, the security of the run-time stack must be protected.
+Therefore the stack is split unto two parts, the secure stack and the insecure stack.
+These are respectively located in secure and insecure memory.
+The following precautions, as described by Agten~\cite{Agten:2012:SCM:2354412.2355247} are then taken:
+\begin{itemize}
+\item When the secure code is entered in an entry point, the stack pointer is modified to point to the secure stack, whose location is saved in a field in the data section.
+This field is called the \emph{shadow stack pointer}.
+There is another field reserved in the data section as well, to keep track of the value of the stack pointer before modification.
+\item At each exit point, the stack is restored to its previous
+address in unprotected memory, and the location of the \emph{shadow stack pointer} is updated.
+\end{itemize}
+
+Because this is only necessary when publicly available functions are called from the unprotected code, every publicly available function is made available through a publicly available stub which will take care of these security measures.
+This publicly available stub will then forward execution to an internal function (i.e. not publicly available) which will strictly focus on the implementation of the function itself.
+It assumes the necessary security precautions are taken, and can be used directly within the secure code.
+
+\subsubsection{Register Clearing}
+Any communication in \mbox{MiniML} normally only occurs through information passed along by returns and method calls.
+In the case of low level architecture however, all communication occurs through the unprotected memory, through flags and through the CPU registers.
+This means that a low level attacker can try to perform side channel communication.
+
+In order to prevent the leaking of protected data through side channels, it is important to ensure that the information passed through unprotected memory, flags and registers is restricted to that information being passed by the returns and method calls in \mbox{MiniML}.
+Thus, any callback or return to untrusted code must\cite{Agten:2012:SCM:2354412.2355247}:
+\begin{itemize}
+\item Clear the flags
+\item Clear the registers, except those being used to pass a parameter or a return value.
+\end{itemize}
+
+If these registers and flags, which were possibly modified by the protected code, are not reset when returning execution to unprotected memory, code running in the unprotected memory will be able to read the values in these registers and flags, breaking confidentiality. The code could even modify these values, resulting in a modification of control flow if execution is later returned to the protected code while expecting these values to be uncorrupted.
+
+However, since the LLVM intermediate representation does not allow multiple assignments to the same registers, it is impossible to clear a register simply by overwriting its value.
+Furthermore, the LLVM IR does not know how many registers it can use, instead assuming an infinite amount of registers, as mentioned earlier. This means that clearing these registers must happen later on in the compilation process, introducing an extra LLVM pass.
+
+This clearing can once again happen inside the stub, keeping the internal functions free from any code related to security concerns.
+
+\subsubsection{Opaque types}
+
+The \mbox{MiniML} language allows a programmer to define ones own types using the type keyword. Taking another look at the Dictionary example of \myref{lst}{code:DictionaryStructureExample}, this happens for example on line 2. The modules internal representation of a dictionary is a list of string pairs, but clearly this is some internal choice that the programmer does not want to make explicit, which is why the type synonym 'dictionary' is kept opaque, as can be seen in \myref{lst}{code:SignatureDictionaryExample}, line 2, where the external specification of a type is not revealed to be a list of string pairs.
+
+This is a means of information hiding, if someone were to later rewrite this dictionary structure in such a way that its internal representation becomes a pair of string lists, as in Figure , this would be a perfectly valid change. This change should not result in any changes to the external code, since the specific implementation choice for the dictionary type was not made explicit.
+
+\begin{lstlisting}[frame=single, language=ML, label=code:DictionaryStructureExample2,caption={An alternative structure defining a dictionary.}]
+structure Dictionary =
+    struct
+        type dictionary = (string list * string list)
+        val emptyDictionary = ([],[])
+        fun insert((fst,snd), x, y) = (x::fst, y::snd)
+    end
+\end{lstlisting}
+
+Even more so, one would expect the two programs/modules to be contextually equivalent! However, clearly, if no checking is performed on functions expecting something of type dictionary, a low level attacker could discriminate between the two using the following tactic: call a function expecting a dictionary argument with a self-created list of string pairs. If it gives the expected results, the dictionary implementation being used is the one given in \myref{lst}{code:DictionaryStructureExample}. If not, it is the module described in \myref{lst}{code:DictionaryStructureExample2}, expecting a pair of string lists. This breaks contextual equivalence.
+
+The code must assure that any object, passing as an argument of type dictionary, was in fact created by the module code itself (using the emptydictionary method). If not, it should raise an error (even if the object has the correct type according to the synonyms) in order to prevent an attack on centextual equivalence in the same spirit as the one described above.
+
+This restriction can be enforced by a technique called masking, introduced by M. Patrignani et al~\cite{Patrignani}. 
+This works by ensuring that the code creating a dictionary never returns a pointer to this dictionary itself, instead saving this dictionary in an internal list in protected memory.
+The index in this list can then be returned and used as a mask for the real object.
+
+All publicly available functions\footnote{These consist only of security related stubs that call the internal implementation of functions that were publicly available in \MiniML.} in the module that expect a dictionary as their argument then no longer get a pointer to this dictionary object in memory, but instead get the index of the desired dictionary in the internal list.
+
+When these publicly available functions receive the index, they get the pointer associated with the index from the internal list and check whether it points to the right type of object.
+
+
+%\todo{The explanation of why extra type information might prove necessary. However: The argument must be presented in a more careful manner. Furthermore, this also depends on whether a separate list is being used per type or not. If a separate list is being used anyway, instead of a central list of masked objects, then the extra type information proves unnecessary, or rather, it is already implicitly available.}
+
+\subsection{Translation}
+The translation to LLVM intermediate representation is given in code in \myref{lst}{llvm:Example}
 
 \begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption=LLVM IR for the example,
 label=llvm:Example]
@@ -189,7 +333,7 @@ define private i32 @newcredentials_internal(){
 }
 
 define i32 @encrypt(i32, i32) {
-	%2 = call @encrypt_internal(%0, %1)
+	%2 = call @encrypt_internal(i32 %0, i32 %1)
 	ret i32 %2
 }
 
@@ -201,7 +345,7 @@ entry:
 }
 
 define i32 @decrypt(i32, i32) { 
-	%2 = call @decrypt_internal(%0, %1)
+	%2 = call i32 @decrypt_internal(i32 %0, i32 %1)
 	ret i32 %2
 }
 
@@ -212,11 +356,13 @@ entry:
 	ret i32 %y
 }
 
-@.seed = private constant i32 3	
+define private i32 @seed() {
+    ret i32 %3
+}
 
 define private i32 @rand() {
 entry:
-	%t = load i32* @.seed
+	%t = call i32 @seed()
 	ret i32 %t
 }
 \end{lstlisting}
@@ -249,78 +395,6 @@ The definition of \lsttext{seed} can be seen on line 35 in the code of listing~\
 
 In its body, it returns the value of the seed. Since all global values are pointers, the pointer must be dereferenced using a load operation, saving the value to a local variable. This value is then returned.
 \end{description}
-
-\subsection{MiniML-specific security concerns}
-
-\subsubsection{Ordering of Fields and Module Expressions}
-The necessity of reordering field definitions in a target-level object was shown by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}.
-In \MiniML\ the same argument holds, not only for fields, but for the order of structure definitions as well.
-
-The order in which structures and signatures are defined, or the order of fields within a structure is to a large extent unimportant for the behavior of a \MiniML\ program.
-As long as no structure is used before it is defined, differently ordered \MiniML\ programs are contextually equivalent.
-The order of field definitions within a structure has no result on the behavior of the program either.
-
-The ordering of structure or field definitions in \LLVMIR\ might be leaked however, when examining the pointers to different fields.
-If contextually equivalent but differently ordered \MiniML\ programs would be translated to diffently ordered \LLVMIR\ programs, the results would not be contextually equivalent.
-
-To guarantee \emph{full abstraction}, it is thus necessary to ensure that all contextually equivalent but differently ordered \MiniML\ programs result in the same ordering of definitions in \LLVMIR.
-This can be accomplished by alphabetically ordering structures, and the fields within their structures, when outputting the \LLVMIR\ program.
-
-\subsubsection{Stack Switching}
-As described by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}, when code execution switches from protected code to unprotected code or back, the security of the run-time stack must be protected.
-Therefore the stack is split unto two parts, the secure stack and the insecure stack.
-These are respectively located in secure and insecure memory.
-The following precautions, as described by Agten~\cite{Agten:2012:SCM:2354412.2355247} are then taken:
-\begin{itemize}
-\item When the secure code is entered in an entry point, the stack pointer is modified to point to the secure stack, whose location is saved in a field in the data section.
-This field is called the \emph{shadow stack pointer}.
-There is another field reserved in the data section as well, to keep track of the value of the stack pointer before modification.
-\item At each exit point, the stack is restored to its previous
-address in unprotected memory, and the location of the \emph{shadow stack pointer} is updated.
-\end{itemize}
-
-\subsubsection{Register Clearing}
-Any communication in \mbox{MiniML} normally only occurs through information passed along by returns and method calls.
-In the case of low level architecture however, all communication occurs through the unprotected memory, through flags and through the CPU registers.
-This means that a low level attacker can try to perform side channel communication.
-
-In order to prevent the leaking of protected data through side channels, it is important to ensure that the information passed through unprotected memory, flags and registers is restricted to that information being passed by the returns and method calls in \mbox{MiniML}.
-Thus, any callback or return to untrusted code must\cite{Agten:2012:SCM:2354412.2355247}:
-\begin{itemize}
-\item Clear the flags
-\item Clear the registers, except those being used to pass a parameter or a return value.
-\end{itemize}
-
-If these registers and flags, which were possibly modified by the protected code, are not reset when returning execution to unprotected memory, code running in the unprotected memory will be able to read the values in these registers and flags, breaking confidentiality. The code could even modify these values, resulting in a modification of control flow if execution is later returned to the protected code while expecting these values to be uncorrupted.
-
-However, since the LLVM intermediate representation does not allow multiple assignments to the same registers, it is impossible to clear a register simply by overwriting its value.
-Furthermore, the LLVM IR does not know how many registers it can use, instead assuming an infinite amount of registers, as mentioned earlier. This means that clearing these registers must happen later on in the compilation process, introducing an extra LLVM pass.
-
-\subsubsection{Opaque types}
-
-The \mbox{MiniML} language allows a programmer to define ones own types using the type keyword. Taking another look at the Dictionary example of \myref{lst}{code:DictionaryStructureExample}, this happens for example on line 2. The modules internal representation of a dictionary is a list of string pairs, but clearly this is some internal choice that the programmer does not want to make explicit, which is why the type synonym 'dictionary' is kept opaque, as can be seen in \myref{lst}{code:SignatureDictionaryExample}, line 2, where the external specification of a type is not revealed to be a list of string pairs.
-
-This is a means of information hiding, if someone were to later rewrite this dictionary structure in such a way that its internal representation becomes a pair of string lists, as in Figure , this would be a perfectly valid change. This change should not result in any changes to the external code, since the specific implementation choice for the dictionary type was not made explicit.
-
-\begin{lstlisting}[frame=single, language=ML, label=code:DictionaryStructureExample2,caption={An alternative structure defining a dictionary.}]
-structure Dictionary =
-    struct
-        type dictionary = (string list * string list)
-        val emptyDictionary = ([],[])
-        fun insert((fst,snd), x, y) = (x::fst, y::snd)
-    end
-\end{lstlisting}
-
-Even more so, one would expect the two programs/modules to be contextually equivalent! However, clearly, if no checking is performed on functions expecting something of type dictionary, a low level attacker could discriminate between the two using the following tactic: call a function expecting a dictionary argument with a self-created list of string pairs. If it gives the expected results, the dictionary implementation being used is the one given in \myref{lst}{code:DictionaryStructureExample}. If not, it is the module described in \myref{lst}{code:DictionaryStructureExample2}, expecting a pair of string lists. This breaks contextual equivalence.
-
-The code must assure that any object, passing as an argument of type dictionary, was in fact created by the module code itself (using the emptydictionary method). If not, it should raise an error (even if the object has the correct type according to the synonyms) in order to prevent an attack on centextual equivalence in the same spirit as the one described above.
-
-This restriction can be enforced by a technique called masking, introduced by M. Patrignani et al~\cite{Patrignani}. 
-This works by ensuring that the code creating a dictionary never returns a pointer to this dictionary itself, instead saving this dictionary in an internal list in protected memory.
-The index in this list can then be returned and used as a mask for the real object.
-Any function in the module that expects a dictionary as its argument then no longer gets a pointer to this dictionary object in memory, but instead gets the index of the needed dictionary in the internal list.
-
-\todo{The explanation of why extra type information might prove necessary. However: The argument must be presented in a more careful manner. Furthermore, this also depends on whether a separate list is being used per type or not. If a separate list is being used anyway, instead of a central list of masked objects, then the extra type information proves unnecessary, or rather, it is already implicitly available.}
 
 \section{Lessons learnt}
 

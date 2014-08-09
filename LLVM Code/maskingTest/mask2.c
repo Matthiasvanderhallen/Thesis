@@ -4,11 +4,12 @@
 struct Masktype {
 	struct Masktype *next;
 	int val;
+	int type;
 };
 
 struct Masktype *vtable = NULL;
 
-int mask(int val){
+int mask(int val, int type){
 	if (vtable == NULL){
 		vtable = malloc(sizeof(struct Masktype));
 	}
@@ -29,7 +30,10 @@ int mask(int val){
 	}
 
 	current->next = malloc(sizeof(struct Masktype));
-	current->next->val = val;
+	current = current->next;
+	current->val = val;
+	current->type = type;
+	current->next = NULL;
 
 	return index;
 }
@@ -49,10 +53,11 @@ int unmask(int index){
 }
 
 int main(){
-	int a = mask(0);
-	int b = mask(5);
-	int c = mask(3);
-	int d = mask(5);	
+	int a = mask(0,1);
+	int b = mask(5,1);
+	int c = mask(3,1);
+	int d = mask(5,1);
+	free(vtable);	
 	printf("a: %d\n",a);
 	printf("b: %d\n",b);
 	printf("c: %d\n",c);

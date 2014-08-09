@@ -22,6 +22,7 @@
 \usepackage{xcolor,colortbl}
 %\usepackage{longtable}
 \usepackage{ltablex}
+\usepackage{appendix}
 %\usepackage{tabu}
 %\usepackage{longtabu}
 %\usepackage[sorting=none, style=authoryear, backend=bibtex]{biblatex}
@@ -34,7 +35,7 @@
 %\setlength\parindent{1em}
 
 
-\lstset{basicstyle=\ttfamily,breaklines=true, keepspaces=true, columns=flexible, numberstyle=\small}
+\lstset{basicstyle=\ttfamily,breaklines=true, keepspaces=true, columns=flexible, numberstyle=\small,escapeinside={/±}{±/}}
 %\lstset{language=ML}
 \lstset{
  morekeywords={where}
@@ -54,6 +55,7 @@
 \newcommand{\compile}[1]{\mathit{\left[\left[#1\right]\right]}}
 \newcommand{\compiled}[1]{#1^{\downarrow}}
 \newcommand{\makes}{& \rightarrow}
+\newcommand{\ova}{\overline{\alpha}}
 
 %Describe an attack nicely.
 \newcommand{\surroundrule}[2][0.3em]{
@@ -79,9 +81,17 @@ the work. But it should be limited to one page.
 
 
 \mainmatter
-%\include{chapter1}
+\include{chapter1}
 \include{chapter2}
-%\include{chapter3}
+\include{chapter3}
+
+\begin{appendices}
+\chapter{LLVM Code}
+\label{App:LLVMCode}
+\input{maskllvm}
+\end{appendices}
+
+
 
 %\subsection{Creating Frames}
 %\subsection{Nested Structures and polyadic functors}

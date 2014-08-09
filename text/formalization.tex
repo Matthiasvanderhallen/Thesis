@@ -43,13 +43,17 @@ This depends on the value being declared in the signature \cmath{SigId}.
 \end{itemize}
 }
 
+\compile{\lsttext{type}$\ \ova\ t= \tau$} \makes \lsttext{\%t = type $\ \tau$} \nl
+\annot{The type is tracked and assigned a unique integer $\ \tau_{int}$ to identify it.
+This way, when a masked pointer is received in an entry stub, }\\
+& & \\
 \compile{\lsttext{val} $id = e : \tau$}$^{\mathit{SigId}}$ \makes \lsttext{define private\ $\tau$* @}$id$\lsttext{_internal()\{} \compile{$e$}$^{\mathit{SigId}}$ \lsttext{\}} \nl
 \annot{The next part is only included if the value is declared in the signature}\nl
-\lsttext{define i32 @}$id$ \lsttext{()\{} \nl
+\lsttext{define \%int @}$id$ \lsttext{()\{} \nl
 \annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in spm for @\cmath{id}}\nl
-\longspace \lsttext{\%0 = call @}$id$\lsttext{_internal()} \nl
-\longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 i32} \nl
-\longspace \lsttext{\%2 = call @mask(\%1)} \nl
+\longspace \lsttext{\%0 = call $\ \tau$* @}$id$\lsttext{_internal()} \nl
+\longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 \%int} \nl
+\longspace \lsttext{\%2 = call \%int @mask(\%int \%1,\%int $\ \tau_{int}$)} \nl
 \longspace [Switch stack, clear registers] \nl
 \longspace \lsttext{ret \%2} \nl
 \lsttext{\}} \\
@@ -58,16 +62,17 @@ This depends on the value being declared in the signature \cmath{SigId}.
 \longspace \compile{$e$}$^{\mathit{SigId}}$ \nl
 \lsttext{\}} \nl
 \annot{The next part is only included if the value is declared in the signature}\nl
-\lsttext{define i32 @}$id$ \lsttext{($\mathit{\overline{i32}\ \overline{y}}$)\{} \nl
+\lsttext{define \%int @}$id$ \lsttext{($\mathit{\overline{\%int}\ \overline{y}}$)\{} \nl
 %\longspace [Switch stack, move parameters, add entry point in spm for @\cmath{id}]\nl
 \annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in spm for @\cmath{id}}\nl
-\longspace \lsttext{$\overline{\%z}$ = call @unmask($\overline{\%y}$)} \nl
-\longspace \lsttext{$\overline{\%x}$ = inttoptr i32*\ $\overline{\%y}\ \overline{\tau_{x}*}$} \nl
-\longspace \lsttext{\%0 = call @}$id$\lsttext{_internal($\overline{\%y}$)} \nl
-\longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 i32} \nl
+\longspace \lsttext{$\overline{\%z}$ = call \%int @unmask($\overline{\%y}$)} \nl
+\longspace \lsttext{$\overline{\%t}$ = call \%int @unmasktype($\overline{\%y}$)} \nl
+\longspace icmp eq \%int $\overline{\%t}$ $\overline{\%\tau_{x,int}}$\nl
+\longspace \lsttext{$\overline{\%x}$ = inttoptr \%int\ $\overline{\%z}\ \overline{\tau_{x}*}$} \nl
+\longspace \lsttext{\%0 = call $\ \tau$* @}$id$\lsttext{_internal($\overline{\%x}$)} \nl
+\longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 \%int} \nl
 \longspace \lsttext{\%2 = call @mask(\%1)} \nl
 \longspace [Switch stack, clear registers] \nl
 \longspace \lsttext{ret \%2} \nl
-\lsttext{\}} \\
-\intertextt{}
+\lsttext{\}}
 \end{tabularx}

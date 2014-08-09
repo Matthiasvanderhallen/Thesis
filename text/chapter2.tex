@@ -107,7 +107,7 @@ The well-typedness of an expression \cmath{e} however does not depend on the exp
 Instead, parts of the program processed earlier by the type checker can have an influence on the well-typedness of the single expression \cmath{e}.
 This dependence of an expression \cmath{e} on earlier expressions is formalized using the idea of a \emph{context} $\Gamma$~\cite{Pierce}. 
 
-This context keeps track of the type assumptions as well as structure and signature definitions made earlier.
+This context keeps track of the type assumptions and type definitions as well as structure and signature definitions made earlier.
 It stores the facts that the type system has already established to be true.
 The structure of a context $Gamma$ is shown in \myref{fig}{fig:MiniMLContexts}.
 
@@ -118,7 +118,8 @@ To access the mappings from \cmath{StrId} or \cmath{SigId} to its signature, its
 \begin{aligned}
 \text{Context }\\
 \Gamma ::=\; &\emptyset     & \expl{(Empty context)}\\
-&| \; (\mathit{id}:\sigma),\Gamma          & \expl{(identifier typed)}\\
+&| \; (\mathit{id}:\sigma),\Gamma          & \expl{(identifier type assumption)}\\
+&| \; (t = \tau), \Gamma                   & \expl{(type definition)}\\
 &| \; (\mathit{StrId} \mapsto \lbrace \Sigma,\overline{d}\rbrace), \Gamma 
                                            & \expl{(Structure definition)}\\
 % &| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), \Gamma \\
@@ -160,17 +161,6 @@ The typing judgements, in their contexts, do not type an expression using a type
 The concept of a type-scheme is shown in \myref{fig}{fig:MiniMLTypeSchemes}.
 %First, the concept of a type-scheme is introduced, as shown in \myref{fig}{fig:MiniMLTypeSchemes}.
 
-A type-scheme, sometimes called polytype, introduces polymorphism by making use of the type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$.
-This allows any concrete types $\tau$ to `match' to the type variable.
-For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$, thereby introducing parametrized polymorphism which enables one to use the same \inlinecode{id} function everywhere regardless of the arguments type.
-
-Note that the definition of a type-scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
-
-%\\[2ex]
-%Our type system will also need to keep track of the type assumptions and the module, functor and signature definitions. This represents the notion of a \emph{context}. It is in this context that typing will happen. While type checking, the context is what the type checker uses to keep track of the facts it already knows.
-%\\[2ex]
-%To access mappings from these contexts, we will introduce projections. For example $\Gamma[M_{i}].\overline{d}$ will look up the mapping $(M_{i} \mapsto \lbrace S,\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping. A lookup will \emph{fail} if the identifier has no mapping in the context.
-
 \begin{figure}[!htb]
 \begin{align*}
 %\begin{aligned}
@@ -192,32 +182,67 @@ Note that the definition of a type-scheme assures that the resulting type-scheme
 \label{fig:MiniMLTypeSchemes}
 \end{figure}
 
-The concept of a type-scheme provides a kind of polymorphism called let-poly\-morphism~\cite{Pierce}.
-Two type-schemes have a relation called \emph{specialization}/\emph{generalization} that details how two types can match, even if they are not exactly the same, i.e. how an expected type can be matched by several effective types.
+A type-scheme, sometimes called polytype, introduces a type of polymorphism called let-poly\-morphism~\cite{Pierce} by taking a type variable $\alpha$ in the definition of $\tau$, and quantifying it with the universal quantifier $\forall$.
+This allows any concrete types $\tau$ to `match' to the type variable, whereas an unquantified type variable $a$ is unique and only matches itself.
+Note that the definition of a type-scheme assures that the resulting type-scheme is in \emph{prenex normal form}, i.e. a string of quantifiers concluded by a quantifier-free ending.
+
+\begin{description}
+\item[Free variables]
+Looking at a type-scheme $\sigma$ in \myref{fig}{fig:MiniMLTypeSchemes}, it is clear that some of the type variables $\alpha$ are quantified, and others are not.
+Those type variables that are not quantified are called `free' variables.
+The set of free variables within a type-scheme $\sigma$ is denoted by the predicate\cmath{\ free(\sigma)}, and the value of this predicate is computed as follows:
+
+\begin{align*}
+\begin{aligned}
+\cmath{free(int)} &= \cmath{\emptyset}\\
+\cmath{free(StrId.t\ \overline{\tau})} &= \cmath{\bigcup_{\tau \in \overline{\tau}} free(\tau)}\\
+\cmath{free(\alpha)} &= \cmath{\{\alpha\}}\\
+\cmath{free([\tau])} &= \cmath{free(\tau)}\\
+\cmath{free(\tau_{1} \times \tau_{2})} &= \cmath{free(\tau_{1}) \cup free(\tau_{2})} \\
+\cmath{free(\overline{\tau_{1}} \rightarrow \tau_{2} )} &= \cmath{free(\tau_{2}) \cup \bigcup_{\tau \in \overline{\tau_{1}}} free(\tau)}
+\end{aligned}
+\end{align*}
+\end{description}
+
+The type-scheme introduces polymorphism because it possible for two type-schemes to match, even if they are not exactly the same.
+For example, the identity function \inlinecode{id} is typed $id:\forall \alpha. \alpha \rightarrow \alpha$.
+Because any type can be accepted as being of type $\alpha$ one can use the same \inlinecode{id} function everywhere regardless of the arguments type.
+
+The way that two type-schemes match, even if they are not the same, is given by the two relations called \emph{specialization}/\emph{generalization}.
+Instinctively, the relations corresponds to the idea that a type variable $\alpha$ can be exchanged for any type $\tau$, but that this must happen in a consistent way.
+
+%Because it is clear from the definition of a type-scheme in \myref{fig}{fig:MiniMLTypeSchemes} 
+
+%\\[2ex]
+%Our type system will also need to keep track of the type assumptions and the module, functor and signature definitions. This represents the notion of a \emph{context}. It is in this context that typing will happen. While type checking, the context is what the type checker uses to keep track of the facts it already knows.
+%\\[2ex]
+%To access mappings from these contexts, we will introduce projections. For example $\Gamma[M_{i}].\overline{d}$ will look up the mapping $(M_{i} \mapsto \lbrace S,\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping. A lookup will \emph{fail} if the identifier has no mapping in the context.
 
 \begin{description}
 \item[Type-scheme specialization:]
-The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_{2}$ is more specialised than $\sigma_{1}$. This means that the following rule holds:
+The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_{2}$ is more specialised than $\sigma_{1}$. This means that the following rule\footnote{A rule uses the notation \cmath{\frac{premise}{conclusion}} where \cmath{premise} is the set of conditions for that must be hold before the conclusion holds.} determines the specialization relation.
 % $\sigma_{2}$ can be expressed as $\forall \beta_{i}...\beta_{m}.\sigma_{2}'$ and $\sigma_{1}$ as $\forall \alpha_{1}...\forall \alpha_{n}.\sigma_{1}'$, $\sigma_{2}$ is more specialised than $\sigma_{1}$ iff $\sigma_{2}'=[\alpha_{i} \mapsto \sigma_{i}]\sigma_{1}'$ and $\beta_{i} \in free(\sigma_{1})$. In other words, 
 %
 
 \[
 \tag{specialization}
-\frac{\tau_{2}=[\alpha_{i} \mapsto \tau_{i}]\tau_{1} \longspace \beta_{i} \not\in\mathit{free(\alpha_{1}...\forall \alpha_{n}.\tau_{1})}}
+\frac{\tau_{2}=[\alpha_{i} \mapsto \tau_{i}]\tau_{1} \longspace \beta_{i} \not\in\mathit{free(\forall\alpha_{1}...\forall \alpha_{n}.\tau_{1})}}
 {\forall\alpha_{1}...\forall\alpha_{n}.\tau_{1}\geq \forall \beta_{i}...\forall \beta_{m}\tau_{2}'}
 \]
 
-In other words, the quantifier-free ending of the more specialized type-scheme can be obtained by consistently replacing all quantified type variables $\alpha_{i}$ in the more general type-scheme by a type $\tau_{i}$, which can possibly contain type variables itself, resulting in the quantifier-free ending of the more specialized type-scheme. Furthermore, only variables that were not free in the more general type-scheme can be bound in the specialized type-scheme.
+In other words, a more specialized type-scheme can be obtained by consistently replacing quantified type variables $\alpha_{i}$ in the more general type-scheme by a type $\tau_{i}$.
+This type $\tau_{i}$ is allowed to contain type variables itself.
+However, no type variable that was free in the more general type-scheme can become quantified in the more specialized type-scheme.
 
 The first condition gives one the possibility to specify the type of a type variable. This second condition forbids one to \emph{rescope} a type variable in the process.
 
 \item[Type-scheme generalization:]
-Type-scheme generalisation is the opposite process of type-scheme specialization. However, whereas specialization can be expressed independent of the context, whether or not one is allowed to generalize, is dependent on the context. Generalisation allows one to quantify an unquantified variable, as long as it does not appear unquantified in any type expression in the current context.
+Type-scheme generalization is the opposite process of type-scheme specialization. However, whereas specialization can be expressed independent of the context, whether or not one is allowed to generalize, is dependent on the context. Generalisation allows one to quantify an unquantified variable, as long as it does not appear unquantified in any type assumption already made in the current context.
 \end{description}
 
 \[
 \tag{generalization}
-\frac{\Gamma \vdash e:\Sigma \longspace \alpha \not\in \mathit{free(\Gamma)}}{\Gamma \vdash e : \forall \alpha . \sigma}
+\frac{\Gamma \vdash e:\sigma \longspace \alpha \not\in \mathit{free(\Gamma)}}{\Gamma \vdash e : \forall \alpha . \sigma}
 \]
 
 \subsubsection{Signature Matching}
@@ -243,17 +268,24 @@ These signature matching constraints allow the expression of a structure to have
 It can define more types or values, and provide existing values with more general types.
 These types and values can be used locally within the structure, but not in non-local code.
 
-The effective signature of a structure \cmath{StrId} with body \cmath{\overline{d}} is now \cmath{ES(\overline{d})}, which corresponds to
+The effective signature of a structure \cmath{StrId} with body \cmath{\overline{d}} is denoted with \cmath{ES(\overline{d})}, which corresponds to
 \begin{itemize}
-\item all type definitions present in \cmath{\overline{d}}, and the value declarations present in \cmath{SigId} iff. \cmath{StrId} was transparantly ascribed with signature \cmath{SigId}.
-\item The signature bound to \cmath{SigId} iff. \cmath{StrId} was opaquely ascribed with signature \cmath{SigId}.
+\item all type definitions present in \cmath{\overline{d}}, and the value declarations present in \cmath{SigId} $\Leftrightarrow$ \cmath{StrId} was transparantly ascribed with signature \cmath{SigId}.
+\item The signature bound to \cmath{SigId} $\Leftrightarrow$ \cmath{StrId} was opaquely ascribed with signature \cmath{SigId}.
 \end{itemize}
+
+Type definitions and value declarations in a signature can contain type variables.
+However, all type variables are assumed be quantified universally.
+This means for example that a type definition written as $type\ \overline{\alpha}\ t = \tau$ contained in $\overline{d}$ results in a type definition $t\ \overline{\alpha} = \forall \alpha_{1}...\forall \alpha_{n}.\tau$ as an element of \cmath{ES(\overline{d})}.
+\\[1em]
+Note that signatures are in fact a set of type bindings and type definitions.
+Since a context can contain type bindings and type definitions as well, it is possible to take the union of a signature and a context $\Gamma$.
 
 
 \subsubsection{Type Rules}
 Using the type judgements specified earlier, it is possible to create a set of rules that specify when an expression \cmath{e} or \cmath{me} is valid.
 Some expressions are well-typed unconditionally and in any context, for example rule T-Num in the typing rules in \myref{fig}{fig:TypeRulesCore}.
-Others are only typed correctly if for example a certain subexpression is correctly typed. In this case, the typing rule becomes of the form shown in rule T-App, where the typing judgement below the line is true iff. the typing judgement above the line is true as well.
+Others are only typed correctly if for example a certain subexpression is correctly typed. In this case, the typing rule becomes of the form shown in rule T-App.
 
 The typing rules are divided in rules concerning the core language in \myref{fig}{fig:TypeRulesCore}, rules concerning the \emph{Module} language in \myref{fig}{fig:TypeRulesModule} and rules for the \emph{Program} language in \myref{fig}{fig:TypeRulesProgram}.
 %\clearpage
@@ -264,9 +296,10 @@ The typing rules are divided in rules concerning the core language in \myref{fig
 \label{sec:MLOperationalSemantics}
 \begin{figure}[htb]
 \begin{align*}
-\text{Value }v ::=\;&\mathit{num\;n} \; | \; \mathit{true} \; | \; \mathit{false} \\
-% &| (v,v) \\
-&| \lambda p.e\\
+\text{Value }v ::=\;&\mathit{num\;n} \\ %\; \mathit{true} \; | \; \mathit{false} \\
+&|\ (v,v) \\
+&|\ [v]
+%&|\ \lambda p.e\\
 \\
 \text{Module Table } T\; ::= \;&\emptyset \\
 &| \; (\mathit{StrId} \mapsto %\lbrace \mathit{SigId},

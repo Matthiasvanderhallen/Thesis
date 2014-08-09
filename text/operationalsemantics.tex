@@ -26,23 +26,27 @@
 %{T \vdash fix(e) \rightarrow T \vdash fix(e')}\\ \\
 %\tag{E-FixRec}
 %&T \vdash fix(\lambda(p.e)) \rightarrow T \vdash [p \mapsto (fix %(\lambda(p.e))]e \\
-\\
-\tag{E-PatternMatch}
-&T \vdash let \; (p_{1},p_{2}) \; = \; (e_{1},e_{2}) \; in \; e_{3} \rightarrow
-let \; p_{1} \; = \; e_{1} \; in \;
-(let \; p_{2}  \; = \; e_{2} \; in \; e_{3}) \\ \\
+%\\
+%\tag{E-PatternMatch}
+%&T \vdash let \; (p_{1},p_{2}) \; = \; (e_{1},e_{2}) \; in \; e_{3} \rightarrow
+%let \; p_{1} \; = \; e_{1} \; in \;
+%(let \; p_{2}  \; = \; e_{2} \; in \; e_{3}) \\ \\
 \tag{E-App1}
 &\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
-{T \vdash e_{1} e_{2} \rightarrow T \vdash e_{1}' e_{2}}\\ \\
+{T \vdash e_{1} v \rightarrow T \vdash e_{1} v}
+\\
+\\
 \tag{E-App2}
 &\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
-{T \vdash v\;e_{2} \rightarrow T \vdash v\;e_{2}'}\\ \\
-\tag{E-Lambda}
-&T \vdash (\lambda x . e) \; v \rightarrow T \vdash [x \mapsto v]e \\ \\
-\tag{E-MatchLambda}
-&T \vdash (\lambda (p_{1},p_{2}) . e_{3}) \; (e_{1},e_{2}) \rightarrow T \vdash (\lambda p_{1}.(\lambda p_{2}.e_{3})\;e_{2})\; e_{1} \\
-%\displaybreak
+{T \vdash e_{1}\;v \rightarrow T \vdash e_{1};e_{2}'}
 \\
+\\
+%\tag{E-Lambda}
+%&T \vdash (\lambda x . e) \; v \rightarrow T \vdash [x \mapsto v]e \\ \\
+%\tag{E-MatchLambda}
+%&T \vdash (\lambda (p_{1},p_{2}) . e_{3}) \; (e_{1},e_{2}) \rightarrow T \vdash (\lambda p_{1}.(\lambda p_{2}.e_{3})\;e_{2})\; e_{1} \\
+%%\displaybreak
+%\\
 \tag{E-ModField}
 &\frac{\longspace (x=e':\tau) \in T[\mathit{StrId}].\overline{d} \longspace e=[\mathit{this}.y\mapsto \mathit{StrId}.y]e'\;\forall (this.y \in e')}
 {T \vdash \mathit{StrId}.x \rightarrow T \vdash e}\\

@@ -10,8 +10,8 @@
 e \; ::= \; &\mathit{num \; n \;}     &\expl{(natural number)} \\
 &|\;\mathit{id}                       &\expl{(value identifier)}\\
 &|\;\mathit{StrId.id}                 &\expl{(struct value)}\\
-&|\;e_{1}e_{2}                        & \expl{(function application)}\\
-&|\;\lambda(x:\tau)\;.\;e             &\expl{(lambda function)}\\
+&|\;(e_{1} \overline{e_{2}})                        & \expl{(function application)}\\
+% &|\;\lambda(x:\tau)\;.\;e             &\expl{(lambda function)}\\
 &|\;\text{\lsttext{let}}\; x : \tau \; =\; e_{1}\; \text{\lsttext{in}} \; e_{2}
                                       &\expl{(let binding)}\\
 %&\longspace \longspace \;\;\;\   \\
@@ -31,13 +31,13 @@ x \; ::= \; &id                      & \expl{(value identifier)}\\
 % &|\;M_{i}.id\\
 \\
 \text{Types }\\
-\tau \; ::= \; &\text{\lsttext{int}} &\expl{(int type)}\\
-&| \; \mathit{StrId}.t                &\expl{(struct type)}\\
+\tau \; ::= \; &\text{\lsttext{int}}  &\expl{(int type)}\\
+&| \; \mathit{StrId}.t \ \overline{\tau}&\expl{(struct type)}\\
 % &| \; \mathit{bool} \\
-&| \; \tau_{1} \rightarrow \tau_{2}  & \expl{(function type)}\\
-&| \; \alpha                         & \expl{(type variable)}\\
-&| \; \tau_{1} \times \tau_{2}       & \expl{(pair type)}\\
-&| \; [\tau]                         & \expl{(array type)}\\
+&| \; \overline{\tau_{1}} \rightarrow \tau_{2} & \expl{(function type)}\\
+&| \; \alpha                                   & \expl{(type variable)}\\
+&| \; \tau_{1} \times \tau_{2}                 & \expl{(pair type)}\\
+&| \; [\tau]                                   & \expl{(array type)}\\
 % &| \; \alpha\\
 %\\
 %\text{Access Path } \mathit{path} \; ::= \; &\mathit{M_{i}}\\

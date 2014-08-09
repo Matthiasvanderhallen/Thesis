@@ -21,7 +21,7 @@ These express the manipulation of values and execution of functions to implement
 Every value expression \cmath{e} needs to have a corresponding type \cmath{\tau}, otherwise the expression is not \emph{sound}.
 The \emph{Core} language syntax is shown in \myref{fig}{fig:CoreSyntax}.
 
-\input{coresyntax}
+\input{coresyntax1}
 
 \subsubsection{Module language}
 The \emph{Module} language uses \emph{module expressions} \cmath{me} to specify how the small parts of \emph{Core} expressions can be `glued together' or \emph{composed} into larger, working programs.
@@ -51,9 +51,13 @@ The subset \cmath{T} contains only opaque types defined by structures, the int a
 As a result, any value that is accessible from outside the structure itself can only get parameters and return values of type \lsttext{int}, of an opaque type or of a function combination of those types.
 
 This results in arrays \cmath{[\tau]} and pairs \cmath{\tau_{1} \times \tau_{2}} not being primitive types for module expressions.
-Only within a structure can a value be treated as an array or pair, if the value is of an opaque type defined within the same structure with an implementation containing the array or pair type.
+Only within a structure can a value be treated as an array or pair, if the value is of an opaque type that is defined:
+\begin{enumerate}
+\item Within the same structure.
+\item With an implementation containing the array or pair type.
+\end{enumerate}
 
-\input{modulesyntax}
+\input{modulesyntax1}
 
 \subsubsection{Program}
 A \MiniML\ program consists of a set of \emph{Module expressions}.
@@ -253,7 +257,7 @@ Others are only typed correctly if for example a certain subexpression is correc
 
 The typing rules are divided in rules concerning the core language in \myref{fig}{fig:TypeRulesCore}, rules concerning the \emph{Module} language in \myref{fig}{fig:TypeRulesModule} and rules for the \emph{Program} language in \myref{fig}{fig:TypeRulesProgram}.
 %\clearpage
-\input{typerules}
+\input{typerules1}
 
 \clearpage
 \subsection{Operational semantics}
@@ -365,6 +369,7 @@ Later, the linking phase will couple this declaration to an implementation provi
 \end{description}
 \clearpage
 \section{Formalized Compiler}
+\label{sec:formalizedcompiler}
 This section formalizes the secure compilation process.
 The compilation process is a translation of a program \cmath{P} expressed in \MiniML\ to a program written in the \LLVMIR.
 It is symbolized as the translation function $\compile{\bullet}$.

@@ -375,9 +375,9 @@ The compiler formalized here aims to be
 a secure compiler, it takes a set of module expressions and translates them to \LLVMIR\
 %in a fully abstract~\cite{Abadi,Agten:2012:SCM:2354412.2355247} manner.
 to allow for fully abstract~\cite{Abadi,Agten:2012:SCM:2354412.2355247} binary protected modules or \emph{SPM}s.
-As explained in \myref{sec}{sec:}\todo{refer to introduction, to be written}, fully abstract compilation uses the notion of \emph{contextual equivalence}~($\simeq$)~\cite{Agten:2012:SCM:2354412.2355247}.
+As explained in \myref{sec}{sec:},\todo{refer to introduction, to be written} fully abstract compilation uses the notion of \emph{contextual equivalence}~($\simeq$)~\cite{Agten:2012:SCM:2354412.2355247}.
 
-This requirements of the compiler are interpreted as follows: The program \cmath{P} given to the compiler is a set of module expressions \cmath{me} that represent the secure code.
+These requirements of the compiler are interpreted as follows: The program \cmath{P} given to the compiler is a set of module expressions \cmath{me} that represent the secure code.
 This set of module expressions \cmath{me} is compiled separately from any other, insecure code to an \LLVMIR\ program \cmath{\compiled{P}} which can be processed to a fully abstract \emph{SPM}.
 %This set of module expressions \cmath{me} has to be compiled in a fully abstract way to \LLVMIR\ \cmath{P\downarrow}.
 This means that if this \cmath{\compiled{P}} is later compiled further to an object file and linked together with a context \cmath{C}, there exists no context \cmath{C} that can tell from \cmath{\compiled{P}} from the compilation \cmath{\compiled{P'}}, where \cmath{\compiled{P'}} is the compilation result of a source-level contextually equivalent \MiniML\ program \cmath{P'}.
@@ -408,6 +408,30 @@ Two programs with differently ordered module expressions \cmath{me} are contextu
 Sorting module expressions based on the name used in the binding makes sure that all \MiniML\ programs that provide the same set of bindings result in an \LLVMIR\ program with the corresponding bindings happening in the same order.
 
 \input{formalization}
+
+The code of the \lsttext{@mask}, \lsttext{@unmask} and \lsttext{@unmasktype} functions is given in \myref{lst}{lst:maskcode} in App. \ref{App:LLVMCode}. 
+It gives a more naive implementation of \lsttext{@mask}, \lsttext{@unmask} and \lsttext{@unmasktype} functions using linked lists.
+
+The translation of an expression poses no additional security concerns and is compiled to the function or value body.
+Since \myref{sec}{sec:DefinitionOfCompilation} states the module expressions making up the \emph{SPM} are compiled in a separate file, before the context, nothing in these expressions can depend on things defined in insecure code.
+This is not a fundamental restriction, it is possible to have these expressions depend on outside code by either:
+\begin{itemize}
+\item Allowing dependencies on the context to be hardcoded, which would correspond to the high-level \MiniML\ interpretation that the contex split up in two parts.
+The first part is compiled before the file containing the secure module expressions, the second part after the secure module expressions.
+
+The resulting security issues could by resolved by introducing a returnback entry point into the \emph{SPM}, as described by Agten et al.\cite{Agten:2012:SCM:2354412.2355247}.
+\item Adding the functionality of callbacks to the language, using closures.
+\end{itemize}
+
+\section{Conclusion}
+This chapter formally specified a simple version of the \MiniML\ source-language and the \LLVMIR target-language.
+It then gave a formal representation of the secure compiler from \MiniML\ to \LLVMIR.
+
+The \MiniML\ language as sketched here does not yet contain the more advanced concepts found in MLs well-known module language.
+The next chapter aims to rectify this by introducing both \emph{higher-order functions} and \emph{functors} to the \MiniML\ language.
+
+% some of the more advanced concepts within ML to \MiniML.
+
 %\mathit{id}\ \overline{x}\ =e:\tau
 
 %\begin{align*}

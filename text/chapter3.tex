@@ -316,7 +316,8 @@ For example, it would require only a very minimal change to create a dictionary 
 \noindent Note that in the example above, the structure \lsttext{StringEqual} was a valid parameter to functor \lsttext{DictionaryFn} because \lsttext{StringEqual}s signature matched to the \lsttext{EQUAL} signature that the functor expected. In the example of \myref{lst}{code:DictionaryFunctor} this is straightforward, the transparent ascription of \lsttext{StringEqual} with signature \lsttext{EQUAL} already assures this.
 However, the signature matching relation allows the \emph{candidate} signature to be more broad than the \emph{target} signature.
 For functor application this means that the argument structure that is passed can define more types or values than the functor expects.
-The existence of these types and values however is not assured and the functor can not use them in its body. \todo{mentioned as a prelude to the need of trimming}
+The existence of these types and values however is not assured and the functor can not use them in its body. 
+%\to do{mentioned as a prelude to the need of trimming}
 
 \smallskip
 
@@ -341,8 +342,8 @@ The resulting dictionary structure is secure.
 This means that values of types that are defined by the functor can only be returned to the context as masked values.
 In its implementation, the functor can freely call functions of the (possibly insecure) structure, it must however take the same precautions as any callback to insecure code.
 %todo: How do we discriminate between structures that are inside the spm and those that are outside the spm? Do we simply check the pointer value against the region? (This is presumably very unsafe).
-%todo: How do we represent the structure that was created? It can be used as a parameter for a functor *again*
-%todo: Suppose StringEqualCaseSensitive and StringEqualCaseInsensitive are given as argument 
+%to do: How do we represent the structure that was created? It can be used as a parameter for a functor *again*
+%to do: Suppose StringEqualCaseSensitive and StringEqualCaseInsensitive are given as argument 
 \item[In insecure code:] Suppose \lsttext{DictionaryFn} is defined in insecure code.
 Now the choices made when implementating the dictionary are not expected to be abstract. There is no implementation hiding in this case.
 
@@ -358,9 +359,9 @@ As a consequence, application of a functor inside the attackers context can resu
 \label{sec:FunctorCompilation}
 With the security status of functors determined in \myref{sec}{sec:FunctorSecurityStatus}, %it is possible to think about how to implement functors in the target language.
 this section aims to give an overview of the possible methods for implementing functors.
-%todo explain
-%todo: not by any Core language expression.
-%\todo{remark: It is possible to compile away functors (And signatures). See: M. Elsman, Static Interpretation of Modules}
+%to do explain
+%to do: not by any Core language expression.
+%\to do{remark: It is possible to compile away functors (And signatures). See: M. Elsman, Static Interpretation of Modules}
 
 Compilation to the target language has two distinct possibilities of handling structures and functors:
 \begin{itemize}
@@ -495,7 +496,7 @@ For clarity, this value is not shown in the figures representing frames.
 
 \subsection{Creating the Frames}
 \myref{sec}{sec:StructureOfFrames} specified how frames can represent structures.
-\todo{give functors their own chapter? Then 'The Structure of Frames' becomes a subsection with a number}
+%\to do{give functors their own chapter? Then 'The Structure of Frames' becomes a subsection with a number}
 It also concludes that in order to avoid tampering with the representation of secure frames, any secure frame must be located inside the protected memory of the \emph{SPM}.
 This section shows that this restriction causes problems with the creation of frames representing structures.
 
@@ -745,14 +746,21 @@ All other values are accessible across the security boundary. However, as frames
 Worse, the attackers context is not even allowed to know the exact location \cmath{loc_{frame}} of these secure frames.
 
 %To solve this, all $loc_{frame}$ are masked by inserting them into a list of frames, called the \emph{f-list}, in the order of their definitions.
-This is solved by inserting all \cmath{loc_{frame}} into the \emph{SPM}s list of frames (\emph{f-list}) that was introduced in \myref{sec}{sec:DynamicalCreationOfFrames}. These frame locations are added in the order of their definitions. \todo{Sort those bound in secure memory alphabetically, and append those bound to an identifier in insecure context in the order of their definition! Otherwise, contextual equivalence is broken, isn't it?}
-%TODO: Doesn't this break contextual equivalence? Solution: Sort alphabetically for those created in secure memory!
+This is solved by inserting all \cmath{loc_{frame}} into the \emph{SPM}s list of frames (\emph{f-list}) that was introduced in \myref{sec}{sec:DynamicalCreationOfFrames}. 
+
+Frames that were created in secure code are sorted alphabetically by the identifier they were bound to and put in the emph{f-list} first.
+This alphabetical ordering is necessary because changing the order of bindings does not break contextual equivalence at the high-level \MiniML\ language.
+The frame locations of frames created in insecure code are appended in the order of their definitions.
+This means that the specific mapping of an identifier to value of its index is known statically.
+
+%\to do{Sort those bound in secure memory alphabetically, and append those bound to an identifier in insecure context in the order of their definition! Otherwise, contextual equivalence is broken, isn't it?}
+%TO DO: Doesn't this break contextual equivalence? Solution: Sort alphabetically for those created in secure memory!
 Anywhere a secure structure is used in the source language, it is represented by the \cmath{loc_{frame}} pointer or its masking index in the \emph{f-list}.
 
 To allow context code to access values from secure structures, a wrapper function is provided that is located inside the \emph{SPM}.
 This wrapper function corresponds to an \emph{entry point} to the \emph{SPM}.
 The context can now pass an index in the \emph{f-list} \cmath{index_{f-list}} and an index for the structure value \cmath{index_{val}}, as well as any arguments that should to be passed to the value to this wrapper function.
-%todo: alternatively the pointer to the value is passed directly
+%to do: alternatively the pointer to the value is passed directly
 This wrapper, because it is located in secure code, can access the \emph{f-list} and the frames themselves.
 It then does the following things:
 \begin{itemize}
@@ -788,8 +796,8 @@ In order to explore the possibility of contextual equivalence breaking due to th
 %Since functor application results in a structure as well, these structures must also be representable as frames.
 %In order to allow this, frames consist of a type indicator that identifies it as a structure defined using the struct keyword, or a structure resulting from functor application.
 
-%todo: Trimming problem, problem with iterated functor applying. (When applying a secure functor, the resulting structure must be saved in the list of structures in secure memory. This consists of a pointer to the functor
-%todo: suppose functor application is done in the insecure code. Structure is in secure code. Regardless of where the functor is located, the linker knows what signature it expects and can trim down the 
+%to do: Trimming problem, problem with iterated functor applying. (When applying a secure functor, the resulting structure must be saved in the list of structures in secure memory. This consists of a pointer to the functor
+%to do: suppose functor application is done in the insecure code. Structure is in secure code. Regardless of where the functor is located, the linker knows what signature it expects and can trim down the 
 %Origin problem: What is the origin of the structure. Is it a pointer in the insecure memory, or is it a masking index?
 %Fresh type names at every application, even to the same arguments! http://books.google.be/books?id=oPaAAahVu_kC&pg=PA345&lpg=PA345&dq=functors+sml+each+new+application+provides+fresh+types&source=bl&ots=g-VRLSeChc&sig=v4t4Ch42F-pktGaLpqgMq51K92k&hl=en&sa=X&ei=YvfGU92vHYrR7Aa89oGoDw&ved=0CCsQ6AEwAQ#v=onepage&q=functors%20sml%20each%20new%20application%20provides%20fresh%20types&f=false
 %note whether the application was really performed!
@@ -820,7 +828,7 @@ Because the code of the functor is now located outside of the \emph{SPM}, specia
 Because the frame \cmath{Fr_{s}} representing the structure is now in secure memory, the functor cannot manipulate this frame or perform reads on this frame.
 In order for insecure functors to call these functions, a generic wrapper is provided by the \emph{SPM} that takes as argument a \cmath{loc_{frame}} and an \cmath{index_{val}}, as well as any arguments that would otherwise be passed directly.
 As a result, the generic wrapper returns the result of the call to its caller.
-%todo: possible variant: this generic entry point returns a pointer
+%to do: possible variant: this generic entry point returns a pointer
 %As a result, a pointer to the correct entry point is returned to the insecure code, which it can then call with the necessary arguments.
 %todo
 \end{description}

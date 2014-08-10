@@ -12,7 +12,7 @@ In \myref{chap}{chap:AdvancedConcepts}, this issue was addressed by adding two m
 The concept of \emph{higher-order functions} allows that functions receive other functions as their input, or return functions as their output.
 By allowing them to be assigned as a value to a variable, functions essentially become \emph{first-class values}, going by the name \emph{closure}.
 
-To implement closures, the ability to create anonymous functions using the $\lambda$-notation is added.
+To implement closures, the ability to create anonymous functions using the $\lambda$ notation is added.
 This addition makes it possible to define a function as: \cmath{\lambda(\overline{x}:\overline{\sigma}).e}.
 This expression is considered as the construction of a closure.
 
@@ -23,10 +23,11 @@ Its desugared form is an expression in which a closure is explicitly constructed
 \item[Functors]
 The idea of functors is that they act as functions from structures to structures.
 They provide a way to parametrizing structures.
-A parametrized structure is a structure \cmath{Str_{1}} that, instead of depending on another structure \cmath{Str_{2}} by name, receives this structure as an argument.
 
+A parametrized structure is a functor \cmath{F} that, instead of depending on another structure \cmath{Str_{2}} by name, receives this structure as an argument.
 To ensure that the structure given as an argument defines the necessary bindings, the argument structure is restricted by a signature \cmath{Sig}.
 The functor definition defines all bindings of the parametrized structure.
+In short, the definition of a functor corresponds to \lsttext{functor $\ \cmath{id}$($\cmath{ArgStr:Sig_{1}}$):>$\cmath{Sig_{2}}$ = struct $\ \overline{d}$ end}.
 
 The application of a functor \cmath{F} to a \cmath{Str_{1}}, written as \cmath{F(Str_{1})} then results in a new structure \cmath{Str_{2}} that can be bound to an identifier.
 This resulting structure, or \emph{output} structure, can be used like any regular structure. Any time the functor bindings uses \cmath{ArgStr.x}, \cmath{Str_{2}} uses \cmath{Str_{1}.x}.
@@ -34,6 +35,32 @@ This resulting structure, or \emph{output} structure, can be used like any regul
 \end{description}
 
 \subsection{Syntax}
+The additional concepts introduce some new syntactical constructs to the \MiniML\ syntax.
+The additions to the Core syntax are seen in \myref{fig}{fig:UpdatedCoreSyntax}, additions to the Module syntax in \myref{fig}{fig:UpdatedModuleSyntax}.
+The Program syntax remains unchanged by the additions from \myref{chap}{chap:AdvancedConcepts}.
+
+\subsubsection{Closures}
+Closures introduce the \cmath{\lambda}-expression to the Core syntax, \myref{fig}{fig:UpdatedCoreSyntax}.
+It specifies a number of argument, their identifiers and their types, as well as the expression that represents the function body.
+
+\input{UpdatedCoreSyntax}
+
+\subsubsection{Functors}
+Functors introduce the functor definition and functor application as module expressions to the Module syntax \myref{fig}{fig:UpdatedModuleSyntax}.
+
+A functor definition specifies:
+\begin{itemize}
+\item the functor identifier,
+\item the identifier \cmath{ArgStr} for the argument structure,
+\item the signature \cmath{Sig_{1}} to which the argument structure must comply,
+\item the signature \cmath{Sig_{2}} to which the functors body must comply,
+\item and the body \cmath{\overline{d}}.
+\end{itemize}
+
+A functor application specifies the identifier to which the resulting structure is bound, the functor identifier, and the identifier for the structure that is passed as an argument.
+
+\input{UpdatedModuleSyntax}
+
 \subsection{Type system}
 \subsection{Operational Semantics}
 

@@ -63,8 +63,18 @@
 \\[1em]
 \tag{T-EmptyList}
 &\Gamma [] : \forall \alpha.[\alpha]
+\\[1em]
+\tag{T-PairLeft}
+&\frac
+{\Gamma \vdash e:\forall \alpha . \tau \times \alpha}
+{\Gamma \vdash e.\#1:\tau}
+\\[1em]
+\tag{T-PairLeft}
+&\frac
+{\Gamma \vdash e:\forall \alpha . \alpha \times \tau}
+{\Gamma \vdash e.\#2:\tau}
 \end{align*}
-\caption{Typing rules for the Core language. The rules for pair projection are not shown. \label{fig:TypeRulesCore}}
+\caption{Typing rules for the Core language. \label{fig:TypeRulesCore}}
 \end{figure}
 
 \begin{figure}[htbp]
@@ -87,8 +97,8 @@
 \\
 \tag{T-FunDef}
 &\frac
-{\overline{(x = \tau_{2})} \cup \Gamma\ \vdash e:\tau}
-{\Gamma \vdash \text{\lsttext{fun}}\ \mathit{id}\ \overline{x}= e:\overline{\tau_{2}}\tau_{1}}
+{\overline{(x = \tau_{2})} \cup \Gamma\ \vdash e:\tau_{1}}
+{\Gamma \vdash \text{\lsttext{fun}}\ \mathit{id}\ \overline{x}= e:\overline{\tau_{2}} \rightarrow \tau_{1}}
 \\
 \\
 \tag{T-TypeDef}

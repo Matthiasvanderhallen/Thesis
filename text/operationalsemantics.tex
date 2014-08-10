@@ -7,12 +7,16 @@
 %\tag{E-IfThenElse}
 %&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
 %{T \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} \rightarrow T \vdash if \; e_{1}' \; then \; e_{2} \; else \; e_{3}}\\ \\
-%\tag{E-PairLeft}
-%&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
-%{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1}',e_{2})} \\ \\
-%\tag{E-PairRight}
-%&\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
-%{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1},e_{2}')} \\ \\
+\tag{E-PairLeft}
+&\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
+{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1}',e_{2})}
+\\
+\\
+\tag{E-PairRight}
+&\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
+{T \vdash (e_{1},e_{2}) \rightarrow T \vdash (e_{1},e_{2}')}
+\\
+\\
 \tag{E-Let}
 &\frac{T \vdash e_{1}\rightarrow T \vdash e_{1}'}
 {T \vdash let \; p \; = \; e_{1} \; in \; e_{2} \rightarrow T \vdash let \; p \; = \; e_{1}' \; in \; e_{2}}
@@ -33,12 +37,12 @@
 %(let \; p_{2}  \; = \; e_{2} \; in \; e_{3}) \\ \\
 \tag{E-App1}
 &\frac{T \vdash e_{1} \rightarrow T \vdash e_{1}'}
-{T \vdash e_{1} v \rightarrow T \vdash e_{1} v}
+{T \vdash e_{1} \overline{v} \rightarrow T \vdash [\overline{x} \mapsto \overline{v}]e_{1}'}
 \\
 \\
 \tag{E-App2}
-&\frac{T \vdash e_{2} \rightarrow T \vdash e_{2}'}
-{T \vdash e_{1}\;v \rightarrow T \vdash e_{1};e_{2}'}
+&\frac{T \vdash \overline{e_{2}} \rightarrow T \vdash \overline{v}}
+{T \vdash e_{1}\;\overline{e_{2}} \rightarrow T \vdash e_{1};\overline{v}}
 \\
 \\
 %\tag{E-Lambda}

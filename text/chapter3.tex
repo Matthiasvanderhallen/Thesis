@@ -824,7 +824,7 @@ If the application of the secure functor is done inside insecure code, the frame
 \item[Insecure functor with insecure structure]
 In this case, both the functor code and the frame are located inside unprotected memory.
 The structure that results from the application is considered to be part of the attacker's context.
-The use of values from the insecure structure by code inside the insecure functor can happen without any security precautions, as the expected behavior is simply equivalent to that of an unparametrized module in the attacker's context that depends on another module of this same context.
+The use of values from the insecure structure by code inside the insecure functor can happen without any security precautions, as the expected behavior is simply equivalent to that of an unparametrized structure in the attacker's context that depends on another structure of this same context.
 \item[Insecure functor with secure structure]
 Because the code of the functor is now located outside of the \emph{SPM}, special care needs to be taken when the functor depends on values provided by the structure.
 Because the frame \cmath{Fr_{s}} representing the structure is now in secure memory, the functor cannot manipulate this frame or perform reads on this frame.

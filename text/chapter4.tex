@@ -5,6 +5,29 @@ Later, in \myref{sec}{sec:formalizedcompiler2} extend upon the secure compiler a
 
 \section{Formal Specification of \MiniML}
 \label{sec:formalspec2}
+The \MiniML\ language as specified in \myref{chap}{chap:formalspecification} consisted of a very limited subset of the ML language.
+In \myref{chap}{chap:AdvancedConcepts}, this issue was addressed by adding two more concepts to the subset:
+\begin{description}
+\item[Higher-order functions]
+The concept of \emph{higher-order functions} allows that functions receive other functions as their input, or return functions as their output.
+By allowing them to be assigned as a value to a variable, functions essentially become \emph{first-class values}, going by the name \emph{closure}.
+
+To implement closures, the ability to create anonymous functions using the $\lambda$-notation is added.
+This addition makes it possible to define a function as: \cmath{\lambda(\overline{x}:\overline{\sigma}).e}.
+This expression is considered as the construction of a closure.
+
+These expressions are also the \emph{only} way of constructing a closure, as explained in \myref{sec}{sec:OnlyLambdaClosures} on page \pageref{sec:OnlyLambdaClosures}. 
+Essentially, when a named function is used as a closure, this is considered to be syntactic sugar.
+Its desugared form is an expression in which a closure is explicitly constructed using the $\lambda$-notation to wrap around the named function.
+
+\item[Functors] 
+
+
+\end{description}
+
+\subsection{Syntax}
+\subsection{Type system}
+\subsection{Operational Semantics}
 
 \section{Formalized Compiler}
 \label{sec:formalizedcompiler2}

@@ -61,8 +61,10 @@ If \myref{lst}{code:LexicalScopingExample} is located in secure code, its refere
 If it were located in insecure code, the closure would be located in untrusted code.
 The location of a closure in memory defines the security status of a closure: A secure closure is one that is saved in trusted memory.
 
-For module functions, whose name can be used to pass them as a value, the code where their name is used defines the security status.
-For example in \myref{lst}{code:implicit}, the closure that represents the add function is considered to be created by the code of \myref{lst}{code:implicit}.
+\label{sec:OnlyLambdaClosures}
+For named functions, whose name can be used to pass them as a value, the code where their name is used defines the security status.
+For example in \myref{lst}{code:implicit}, the closure that represents the add function is considered to be created by the code of \myref{lst}{code:implicit}, even if this is the insecure context.
+
 This is explained by looking at the unsugared version of this code, as shown in \myref{lst}{code:explicit}.
 In this desugared form, it is clear that the code presented in \myref{lst}{code:explicit} creates the closure.
 The desugared form finds its justification in examples where the function is already passed one or more of its parameters while leaving the remaining parameters unspecified, a technique called \emph{currying}.

@@ -127,7 +127,7 @@ To access the mappings from \cmath{StrId} or \cmath{SigId} to its signature, its
                                            & \expl{(Signature definition)}
 \end{aligned}
 \end{align*}
-\caption{Contexts in the MiniML type system.}
+\caption[Contexts]{Contexts in the MiniML type system.}
 \label{fig:MiniMLContexts}
 \end{figure}
 
@@ -152,7 +152,7 @@ The possible typing judgements can be seen in \myref{fig}{fig:TypingJudgements}.
 %\text{DeclarationTyping } ::= \;&\Gamma \vdash \Delta \\
 \text{Well-formedness } ::=\;&\Gamma \vdash \Diamond
 \end{align*}
-\caption{Typing judgements in the MiniML type system.}
+\caption[Typing Judgements]{Typing judgements in the MiniML type system.}
 \label{fig:TypingJudgements}
 \end{figure}
 
@@ -178,7 +178,7 @@ The concept of a type-scheme is shown in \myref{fig}{fig:MiniMLTypeSchemes}.
 &| \; \forall \alpha . \sigma
 \end{aligned}
 \end{align*}
-\caption{Type-schemes in the MiniML type system.}
+\caption[Type Schemes]{Type-schemes in the MiniML type system.}
 \label{fig:MiniMLTypeSchemes}
 \end{figure}
 
@@ -311,7 +311,7 @@ The typing rules are divided in rules concerning the core language in \myref{fig
 \\
 \text{Evaluation } ::= & T \vdash P \rightarrow T \vdash P' \\
 \end{align*}
-\caption{Relations and entities of the operational semantics.\label{fig:MiniMLOperationalSemanticEntitiesAndRelations}}
+\caption[Operational Semantic Entities]{Relations and entities of the operational semantics.\label{fig:MiniMLOperationalSemanticEntitiesAndRelations}}
 \end{figure}
 
 The operational semantics defines a module table T, and the evaluation relation, shown in \myref{fig}{fig:MiniMLOperationalSemanticEntitiesAndRelations}.
@@ -386,7 +386,7 @@ In \myref{fig}{fig:LLVMSyntax}, their reduced syntax of LLVM IR is given, with s
 %\text{} \mathit{} ::= &\mathit{} \\
 \end{aligned}
 \end{align*}
-\caption{The reduced LLVM Syntax, largely built upon Jianzhou Zhao et al. \cite{Zhao:2012:FLI:2103656.2103709} \label{fig:LLVMSyntax}}
+\caption[Syntax: LLVM]{The reduced LLVM Syntax, largely built upon Jianzhou Zhao et al. \cite{Zhao:2012:FLI:2103656.2103709} \label{fig:LLVMSyntax}}
 \end{figure}
 
 The syntax shows the idea of a module, which corresponds to a unit that can be compiled separately from other modules.
@@ -433,7 +433,7 @@ The semantics of this program counter based access control are given in \myref{f
 		Protected & r x & r x & r w & r w x \\ \hline
 		Unprotected & x & & & r w x \\ \hline
 	\end{tabular}
-    \caption{Program counter based access control semantics as specified in Agten et al.\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:PCBAC}}
+    \caption[PCBAC Semantics]{Program counter based access control semantics as specified in Agten et al.\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:PCBAC}}
 \end{figure}
 
 The result of the translation will be loaded within the protected code, and its data section will correspond to the protected data section of the pcbac model.

@@ -18,7 +18,7 @@ Since \mbox{MiniML} uses what in literature is known as \emph{lexical scoping}, 
 
 %Since \mbox{MiniML} uses lexical scoping, functions can be defined as shown in \myref{lst}{code:LexicalScopingExample}. The function \lsttext{addCurried} takes an argument \lsttext{x} and as a result returns another function. Therefore, it is a higher-order function. The function \lsttext{innerFunction} has access to the non-local or free variable \lsttext{x}, even though it is not defined in the local scope.
 
-\begin{lstlisting}[frame=single, language=ML,caption=The use of lexical scoping calls for closures., label=code:LexicalScopingExample,numbers=left]
+\begin{lstlisting}[frame=single, language=ML,caption={[Lexical Scoping]The use of lexical scoping calls for closures.}, label=code:LexicalScopingExample,numbers=left]
 fun addCurried x = 
   let innerFunction y = x + y in innerFunction
 \end{lstlisting}
@@ -70,11 +70,11 @@ In this desugared form, it is clear that the code presented in \myref{lst}{code:
 The desugared form finds its justification in examples where the function is already passed one or more of its parameters while leaving the remaining parameters unspecified, a technique called \emph{currying}.
 This technique allows for the function insert, defined by the dictionary code of \myref{lst}{code:DictionaryStructureExample}, to be passed as a value with the dictionary into which the key-value pair must be inserted already defined using this code: \lsttext{let closureValue = insert emptyDictionary}.
 
-\begin{lstlisting}[frame=single, language=ML,caption=Passing a predefined function., label=code:implicit,numbers=left]
+\begin{lstlisting}[frame=single, language=ML,caption={[Predefined Function Passing]Passing a predefined function.}, label=code:implicit,numbers=left]
 foldl (add) emptyList values
 \end{lstlisting}
 
-\begin{lstlisting}[frame=single, language=ML,caption={Passing a predefined function, unsugared.}, label=code:explicit,numbers=left]
+\begin{lstlisting}[frame=single, language=ML,caption={[Predefined Function Passing: Unsugared]Passing a predefined function, unsugared.}, label=code:explicit,numbers=left]
 foldl (\x y -> add x y) emptyList values
 \end{lstlisting}
 
@@ -98,7 +98,7 @@ If a closure is created by trusted code with free variables stemming from untrus
 This need for copying arises because the low level code could otherwise change the value of the free variable at any time, as it would be located inside untrusted memory, even mid-execution of the higher-order function.
 \myref{lst}{code:CopyFreeVariables} gives an example of two functions that are vulnerable to this kind of attack.
 
-\begin{lstlisting}[frame=single, language=ML,caption=Changing free variables inside untrusted memory mid-execution can break contextual equivalence., label=code:CopyFreeVariables,numbers=left]
+\begin{lstlisting}[frame=single, language=ML,caption={[Copy Free Variables]Changing free variables inside untrusted memory mid-execution can break contextual equivalence.}, label=code:CopyFreeVariables,numbers=left]
 fun generateClosure1 freevar =
   let innerFunction x =
     (let b = freevar
@@ -199,7 +199,7 @@ To allow insecure code to execute a closure, the \emph{SPM} offers one generic \
 
 The code that implements these different requirements and responsabilities is shown in \myref{lst}{llvm:EvalEntryPoint}.
 
-\begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption=The generic closure-evaluation entry point.,
+\begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption={[Generic Closure Evaluation: Pseudocode]The generic closure-evaluation entry point.},
 label=llvm:EvalEntryPoint]
 fun closureEvalEntryPoint(maskingIndex, spilledParameterPointer)
     if(! checkIfClosure(maskingMap, maskingIndex)){ //fails if the index does not exist or does not reference a closure.
@@ -229,7 +229,7 @@ Instead, it needs only the assurance that some specific functionality is provide
 The generic dictionary using functors is shown in \myref{lst}{code:DictionaryFunctor}. 
 Its alternative implementation is shown as well in \myref{lst}{code:DictionaryFunctorAlternative}.
 
-\begin{lstlisting}[frame=single,numbers=left, language=ML, caption=A generic dictionary that can take any type of the EQUAL typeclass as its key.,
+\begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Dictionary Functor Example]A generic dictionary that can take any type of the EQUAL typeclass as its key.},
 label=code:DictionaryFunctor, morekeywords={where}]
 signature DICTIONARY =
     sig
@@ -274,7 +274,7 @@ structure StringDict = DictionaryFn(StringEqual);
 %http://caml.inria.fr/pub/papers/xleroy-applicative_functors-popl95.pdf
 %\todo{Edit custom environment so that listings don't pagebreak}
 
-\begin{lstlisting}[frame=single,numbers=left, language=ML, caption=The alternative implementations of the dictionary,
+\begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Alternative Dictionary Functor]The alternative implementations of the dictionary.},
 label=code:DictionaryFunctorAlternative, morekeywords={where}, basicstyle=\ttfamily]
 functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
     struct
@@ -430,7 +430,7 @@ Both cases must be represented in the target language using frames.
 \mathit{Functor\ }F ::=&\mathit{functor\ } \mathit{id} = \mathit{struct\ }\cdots\mathit{\ end}
 \end{aligned}
 \end{align*}
-\caption{Excerpt from the MiniML syntax related to structures\label{fig:FunctorGrammarExcerpt}.}
+\caption[\MiniML\ Structure Syntax(excerpt)]{Excerpt from the \MiniML\ syntax related to structures\label{fig:FunctorGrammarExcerpt}.}
 \end{figure}
 
 In their most basic form, when defined using the \lsttext{struct} construct, structures are a collection of values.
@@ -448,7 +448,7 @@ StringEqual \\
 *equal \\
 \hline
 \end{tabular}
-\caption{The frame representation of the \lsttext{StringEqual} structure.\label{fig:StringEqualFrame}}
+\caption[Frame Representation Example]{The frame representation of the \lsttext{StringEqual} structure.\label{fig:StringEqualFrame}}
 \end{figure}
 
 To represent functors and the output structure of their application, more information has to be saved. 
@@ -491,7 +491,7 @@ StringDict \\
 *lookup \\
 \hline
 \end{tabular}
-\caption{The frame representation of the \lsttext{StringDict} structure, the output of applying functor \lsttext{DictionaryFn} to structure \lsttext{StringEqual}.\label{fig:StringDictFrame}}
+\caption[Frame Representation Example]{The frame representation of the \lsttext{StringDict} structure, the output of applying functor \lsttext{DictionaryFn} to structure \lsttext{StringEqual}.\label{fig:StringDictFrame}}
 \end{figure}
 
 In order to distinguish frames that represent simple structures from those that represent structures resulting from functor application, the type of frame is tracked using a single number right at the start of the frame.
@@ -514,7 +514,7 @@ However, as \myref{sec}{sec:FunctorSecurityStatus} explains, any structure that 
 Not all these applications are known when compiling \myref{lst}{code:SecureCodeFragment}.
 The application of \lsttext{DictionaryFn} to \lsttext{StringEqual} inside \myref{lst}{code:ContextFragment} results in a new secure structure being created \emph{after} the secure code was compiled.
 
-\begin{lstlisting}[frame=single,numbers=left, language=ML, caption={Secure code fragment: secure.ml.},
+\begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Secure Code Fragment]Secure code fragment: secure.ml.},
 label=code:SecureCodeFragment, morekeywords={where}]
 structure StringEqual: EQUAL = 
     struct
@@ -537,7 +537,7 @@ functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t
     end
 \end{lstlisting}
 
-\begin{lstlisting}[frame=single,numbers=left, language=ML, caption={Fragment of the insecure context: context.ml.}, label={code:ContextFragment}, morekeywords={where}]
+\begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Insecure Context Fragment]Fragment of the insecure context: context.ml.}, label={code:ContextFragment}, morekeywords={where}]
 ...
 structure StringDict = DictionaryFn(StringEqual);
 \end{lstlisting}
@@ -670,7 +670,7 @@ Then, the representation of two composite types is shown, arrays \lsttext{[]} in
     \end{subfigure}
 
 
-    \caption{This figure shows the representation of all different types \label{fig:TypeRepresentations}}
+    \caption[Type Representations For Metaframes]{This figure shows the representation of all different types \label{fig:TypeRepresentations}}
 \end{figure}
 
 \begin{figure}[htb]
@@ -694,7 +694,7 @@ Then, the representation of two composite types is shown, arrays \lsttext{[]} in
     \end{tabular}
     \caption{Value Definition\label{fig:ValueDefinitionsRepresentation}}
 \end{subfigure}
-\caption{The representation of type \textbf{(a)} and value definitions \textbf{(b)}.}
+\caption[Metaframe Elements]{The representation of type \textbf{(a)} and value definitions \textbf{(b)}.}
 \end{figure}
 
 The representation of type definitions is shown in \myref{fig}{fig:TypeDefinitionsRepresentation}, and that of value definitions in \myref{fig}{fig:ValueDefinitionsRepresentation}.

@@ -18,7 +18,7 @@ Structures provide the possibility of grouping related code and data, fulfilling
 However, the need for \emph{data abstraction} is not yet fulfilled.
 \myref{lst}{code:DictionaryStructureExample} shows how a dictionary of strings to strings might be implemented by a module.
 ~
-\begin{lstlisting}[frame=single, language=ML,caption=An example structure showing the definition of a dictionary in ML, label=code:DictionaryStructureExample,numbers=left]
+\begin{lstlisting}[frame=single, language=ML,caption={[Dictionary Definition Example]An example structure showing the definition of a dictionary in ML.}, label=code:DictionaryStructureExample,numbers=left]
 structure Dictionary =
     struct
         type dictionary = (string * string) list
@@ -38,7 +38,7 @@ A signature groups a set of types, values and functions without providing an imp
 It provides a way of abstracting over structures that implement the same logical concept using a different implementation.
 A possible signature for dictionaries is shown in \myref{lst}{code:SignatureDictionaryExample}.
 ~
-\begin{lstlisting}[frame=single, language=ML, caption=An example signature showing the declaration of a dictionary in ML, label=code:SignatureDictionaryExample, numbers=left]
+\begin{lstlisting}[frame=single, language=ML, caption={[Dictionary Declaration Example]An example signature showing the declaration of a dictionary in ML.}, label=code:SignatureDictionaryExample, numbers=left]
 signature DICTIONARYSIGNATURE =
     sig
         type dictionary
@@ -66,7 +66,7 @@ This signature describes the common traits between modules that implement a symm
 In order to implement a symmetric cipher, one must have a credential, i.e. the key, and two functions, \lsttext{encrypt} and \lsttext{decrypt}, which take data and credentials.
 The \lsttext{encrypt} function takes the raw data and encodes it in a way only those with knowledge of the correct credentials can later use the \lsttext{decrypt} function to transform the encoded data back into the raw data.
 
-\begin{lstlisting}[frame=single, language=ML,numbers=left, label=code:Example, caption=Example of a security sensitive module specifying and implementing a symmetric cypher.]
+\begin{lstlisting}[frame=single, language=ML,numbers=left, label=code:Example, caption={[Caesar Cipher Example]Example of a security sensitive module specifying and implementing a symmetric cypher.}]
 signature SYMMETRICCIPHER =
     sig 
         type cred
@@ -181,7 +181,7 @@ label & The label type. This specfies a pointer to a label. This is equivalent t
 \cmath{type_{1}}(\cmath{type list}) & The function type. This represents a function that returns a value of type \cmath{type_{1}}, and takes arguments with the types specified in the type list.\\
 \hline
 \end{tabularx}
-\caption{The LLVM types, with vector types and opaque types omitted. \label{fig:llvmtypes}}
+\caption[LLVM Types]{The LLVM types, with vector types and opaque types omitted. \label{fig:llvmtypes}}
 \end{figure}
 
 \item[Register Limitations]  The LLVM intermediate representation abstracts away the fact that real architectures have only a given amount of registers.
@@ -194,7 +194,7 @@ Variable spilling occurs by mapping the variables in use to the smaller set of a
 This implies that every register can be assigned a value only once.
 
 For example, the code in \myref{lst}{lst:reassign} reassigns the value saved in register x from 3 to  4. In SSA, this would be represented by \myref{lst}{lst:ssa}.
-\begin{lstlisting}[label=lst:reassign, caption={Reassigning a variable}, frame=single, language={[x86masm]Assembler}]
+\begin{lstlisting}[label=lst:reassign, caption={[Variable Reassignment]Reassigning a variable.}, frame=single, language={[x86masm]Assembler}]
 Block:
     %x = 3;
 ;    br i1 %cond, label %Cond, label %Ret
@@ -204,7 +204,7 @@ Ret:
     ret i32 %x;
 \end{lstlisting}
 
-\begin{lstlisting}[label=lst:ssa, caption={Code in SSA form.}, frame=single, language={[x86masm]Assembler}]
+\begin{lstlisting}[label=lst:ssa, caption={[SSA Representation 1]Code in SSA form.}, frame=single, language={[x86masm]Assembler}]
 Block:
     %x1 = 3;
 ;    br i1 %cond, label %Cond, label %Ret
@@ -225,7 +225,7 @@ The $\Phi$ function `merges' a set of variables.
 It assigns a new variable the value of one of a number of old values, where the choice of the old value depends on the control flow.
 In \myref{lst}{lst:ssaphi}, the SSA-representation of \myref{lst}{lst:reassign} with the condition uncommented is shown.
 
-\begin{lstlisting}[label=lst:ssaphi, caption={Code in SSA form with function.}, frame=single, language={[x86masm]Assembler}]
+\begin{lstlisting}[label=lst:ssaphi, caption={[SSA Representation 2]Code in SSA form with function.}, frame=single, language={[x86masm]Assembler}]
 Block:
     %x1 = 3;
     br i1 %cond, label %Cond, label %Ret
@@ -380,7 +380,7 @@ The \mbox{MiniML} language allows a programmer to define ones own types using th
 
 This is a means of information hiding, if someone were to later rewrite this dictionary structure in such a way that its internal representation becomes a pair of string lists, as in Figure , this would be a perfectly valid change. This change should not result in any changes to the external code, since the specific implementation choice for the dictionary type was not made explicit.
 
-\begin{lstlisting}[frame=single, language=ML, label=code:DictionaryStructureExample2,caption={An alternative structure defining a dictionary.}]
+\begin{lstlisting}[frame=single, language=ML, label=code:DictionaryStructureExample2,caption={[Alternative Dictionary Definition]An alternative structure defining a dictionary.}]
 structure Dictionary =
     struct
         type dictionary = (string list * string list)
@@ -407,7 +407,7 @@ When these publicly available functions receive the index, they get the pointer 
 \subsection{Translation}
 The translation to LLVM intermediate representation is given in code in \myref{lst}{llvm:Example}
 
-\begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption=LLVM IR for the example,
+\begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption={[LLVM Translation Caesar Cipher Example]LLVM IR for the example.},
 label=llvm:Example]
 %int = type i64
 %Caesar.cred = type {%int, %int}

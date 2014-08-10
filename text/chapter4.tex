@@ -20,8 +20,16 @@ These expressions are also the \emph{only} way of constructing a closure, as exp
 Essentially, when a named function is used as a closure, this is considered to be syntactic sugar.
 Its desugared form is an expression in which a closure is explicitly constructed using the $\lambda$-notation to wrap around the named function.
 
-\item[Functors] 
+\item[Functors]
+The idea of functors is that they act as functions from structures to structures.
+They provide a way to parametrizing structures.
+A parametrized structure is a structure \cmath{Str_{1}} that, instead of depending on another structure \cmath{Str_{2}} by name, receives this structure as an argument.
 
+To ensure that the structure given as an argument defines the necessary bindings, the argument structure is restricted by a signature \cmath{Sig}.
+The functor definition defines all bindings of the parametrized structure.
+
+The application of a functor \cmath{F} to a \cmath{Str_{1}}, written as \cmath{F(Str_{1})} then results in a new structure \cmath{Str_{2}} that can be bound to an identifier.
+This resulting structure, or \emph{output} structure, can be used like any regular structure. Any time the functor bindings uses \cmath{ArgStr.x}, \cmath{Str_{2}} uses \cmath{Str_{1}.x}.
 
 \end{description}
 

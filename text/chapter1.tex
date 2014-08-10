@@ -322,48 +322,86 @@ The translation to LLVM intermediate representation is given in code in \myref{l
 
 \begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption=LLVM IR for the example,
 label=llvm:Example]
-define i32 @newcredentials(){
-	%0 = call i32 @newcredentials_internal()
-	ret i32 %0
+%int = type i64
+%Caesar.cred = type {%int, %int}
+
+declare i8* @malloc(%int)
+declare void @free(i8*)
+declare void @exit(%int)
+
+define %int @Caesar.decrypt(%int %arg0, %int %arg1) {
+   %arg1int = call %int @unmask(%int %arg1)
+   %arg1type = call %int @unmasktype(%int %arg1)
+   %check1 = icmp eq %int %arg1type, 4
+   br i1 %check1, label %Continue, label %Error
+   
+   Continue:
+   %arg1ptr = inttoptr %int %arg1int to %Caesar.cred*
+   %ret = call %int @Caesar.decrypt_internal(%int %arg0, %Caesar.cred* %arg1ptr)
+   ret %int %ret
+   
+   Error:
+   call void @exit(%int -1)
+   unreachable
 }
 
-define private i32 @newcredentials_internal(){
-	%0 = call i32 @rand()
-	ret i32 %0
+define private %int @Caesar.decrypt_internal(%int %a, %Caesar.cred* %credptr) {
+   %loccred = getelementptr inbounds %Caesar.cred* %credptr, i32 0, i32 0
+   %cred = load %int* %loccred 
+   %x = sub %int %a, %cred
+   %y = urem %int 26, %x 
+   ret %int %y
 }
 
-define i32 @encrypt(i32, i32) {
-	%2 = call @encrypt_internal(i32 %0, i32 %1)
-	ret i32 %2
+define %int @Caesar.encrypt(%int %arg0, %int %arg1) {
+   %arg1int = call %int @unmask(%int %arg1)
+   %arg1type = call %int @unmasktype(%int %arg1)
+   %check1 = icmp eq %int %arg1type, 4
+   br i1 %check1, label %Continue, label %Error
+   
+   Continue:
+   %arg1ptr = inttoptr %int %arg1int to %Caesar.cred*
+   %ret = call %int @Caesar.encrypt_internal(%int %arg0, %Caesar.cred* %arg1ptr)
+   ret %int %ret
+   
+   Error:
+   call void @exit(%int -1)
+   unreachable
 }
 
-define private i32 @encrypt_internal(i32, i32) { 
-entry:
-	%x = add i32 %0, %1
-	%y = urem i32 26, %x 
-	ret i32 %y
+define private %int @Caesar.encrypt_internal(%int %a, %Caesar.cred* %credptr) {
+   %loccred = getelementptr inbounds %Caesar.cred* %credptr, i32 0, i32 0
+   %cred = load %int* %loccred
+   %x = add %int %a, %cred
+   %y = urem %int 26, %x
+   ret %int %y
 }
 
-define i32 @decrypt(i32, i32) { 
-	%2 = call i32 @decrypt_internal(i32 %0, i32 %1)
-	ret i32 %2
+define %int @Caesar.newcredentials(){
+   %credptr = call %Caesar.cred* @Caesar.newcredentials_internal()
+   %credint = ptrtoint %Caesar.cred* %credptr to %int
+   %ret = call %int @mask(%int %credint,%int 4)
+   ret %int %ret
 }
 
-define private i32 @decrypt_internal(i32, i32) { 
-entry:
-	%x = sub i32 %0, %1
-	%y = urem i32 26, %x 
-	ret i32 %y
+define private %Caesar.cred* @Caesar.newcredentials_internal(){
+   %rand = call %int @Caesar.rand()
+   %ptr1 = call i8* @malloc(%int 16)
+   %ptr = bitcast i8* %ptr1 to %Caesar.cred*
+   %locval = getelementptr inbounds %Caesar.cred* %ptr, i32 0, i32 0
+   store %int %rand,%int* %locval
+   %loctype = getelementptr inbounds %Caesar.cred* %ptr, i32 0, i32 0
+   store %int 4, %int* %loctype
+   ret %Caesar.cred* %ptr
 }
 
-define private i32 @seed() {
-    ret i32 %3
+define private %int @Caesar.rand() {
+   %t = call %int @Caesar.seed()
+   ret %int %t
 }
 
-define private i32 @rand() {
-entry:
-	%t = call i32 @seed()
-	ret i32 %t
+define private %int @Caesar.seed() {
+   ret %int 3
 }
 \end{lstlisting}
 
@@ -371,29 +409,50 @@ This code, that implicitly is part of a module, consists of a list of \emph{glob
 Every value, be it a global function or a global variable, has a \emph{linkage} type associated with it.
 Linkage types control the accessibility of of variables and functions. The two linkage types in use are \lsttext{private}, which makes a value only accessible by objects inside the same module, and the default linkage type, \lsttext{external}.
 
-The code in \myref{lst}{llvm:Example} specifies 5 different global values, corresponding to the 5 definitions in the \lsttext{Caesar} structure:
+The code in \myref{lst}{llvm:Example} specifies 9 different global values, corresponding to the 5 definitions in the \lsttext{Caesar} structure and their 4 public stubs. It also defines one type, corresponding to the cred type.
+As mentioned earlier, the ordering of these functions is alphabetically.
 \begin{description}
-\item[newcredentials] The first translated function is the \lsttext{newcredentials} function.
-On lines 1-4 in the code of \myref{lst}{llvm:Example}, a proxy for the function is defined and its return type is declared to be i32, i.e. an integer. Since no linkage type is explictly specified, linkage type `external'  is used.
+\item[cred type] To start the translation, a type definition for the cred type is given on line 2.
+It is represented as a structure, where first the effective structure is represented, and then an \%int is reserved to keep track of the type.
+Here, the number 4 is chosen to correspond with the cred type.
 
-This proxy acts as a wrapper around the real translation of \lsttext{newcredentials} that can be seen on lines 6-9. This proxy is the entry point to the function that is made available to the untrusted code. This proxy can perform the security precautions that have to be taken when taking values from or returning values to the untrusted code.
+\item[encrypt \& decrypt] The first translated functions are the \lsttext{encrypt} en \lsttext{decrypt} functions. The translation starts with the definition of \lsttext{@Caesar.decrypt_internal} on line 24 in the code of \myref{lst}{llvm:Example}, and that of \lsttext{@Caesar.encrypt_internal} on line 48.
+Both definitions use linkage type private.
+Since these functions are available in ML for untrusted code, stubs are provided as entry points where security precautions can be made. These can be found on lines 8-22 and 32-46.
 
-The body of the internal function \lsttext{newcredentials\_internal} implements the functionality of the ML \lsttext{newcredentials} function.
-\lsttext{newcredentials\_internal} performs a call to the rand function, saving the resulting return value. It does so in a temporary local variable called \%0. This is returned using the \emph{ret} assembly function.
+The definitions of these stubs take only \%int values as arguments.
+Since no linkage type is explictly specified, linkage type `external'  is used.
 
-\item[encrypt \& decrypt] Next are the \lsttext{encrypt} en \lsttext{decrypt} functions. The translation starts with the definition on line 11 in the code of \myref{lst}{llvm:Example}. Again, as these functions are available in ML for untrusted code, proxies are provided as entry points where security precautions can be made. These can be found on lines 11-14 and 23-26. The internal functions can be found on lines 16-21 and 28-33.
+The stubs know that the second argument to the internal function must be of type \%Caesar.cred*, so they use the @unmask function to get the corresponding \%Caesar.cred* value, and type check it.
 
-The definition of these proxies as well as the internal functions specify the return type, as well as the different argument types. Since these are all of type `integer', the type i32 is being used.
+The definitions of the internal functions take one \%int and one \%Caesar.cred* as argument.
+They can read the integer value that this cred represents by accessing the representation in the using the getelementptr function in combination with the pointer \%Caesar.cred*.
 
-The body of the internal function uses the arguments in two calls to arithmetical assembly functions and returns the result.
-\item[seed] The variable \lsttext{seed} is translated to a global variable. As the structure is opaquely ascribed by the signature \lsttext{SYMMETRICCIPHER}, and the variable \lsttext{seed} is not specified in this signature, it should be hidden from any outside components.
+The body of the internal function uses the effective values in two calls to arithmetical assembly functions and returns the result.
 
-To help achieve this protection and mark this information, the linkage type is specified to be \emph{private}.
+\item[newcredentials] Next is the \lsttext{newcredentials} function.
+On lines 56-61 in the code of \myref{lst}{llvm:Example}, a stub for the function is defined and its return type is declared to be \%int, since it returns an index in the masking list.
 
-The definition of \lsttext{seed} can be seen on line 35 in the code of listing~\myref{lst}{llvm:Example}
-\item[rand] The function \lsttext{rand} is defined starting line 23 and onwards in \myref{lst}{llvm:Example}. For the same reasons as the variable \lsttext{seed}, its linkage type is set to private. It also follows that no proxy is necessary for the \lsttext{rand} function.
+On line 57, the stub calls the internal function, receiving a pointer value of type \%Caesar.cred*.
+It casts this pointer to an \%int, and saves the \%int as well as type information in the masking list using a call to \lsttext{@mask}.
+This returns an index which can be returned to the context.
 
-In its body, it returns the value of the seed. Since all global values are pointers, the pointer must be dereferenced using a load operation, saving the value to a local variable. This value is then returned.
+%This proxy acts as a wrapper around the real translation of \lsttext{newcredentials} that can be seen on lines 6-9. This proxy is the entry point to the function that is made available to the untrusted code. This proxy can perform the security precautions that have to be taken when taking values from or returning values to the untrusted code.
+
+The body of the internal function \lsttext{@Caesar.newcredentials\_internal} implements the functionality of the ML \lsttext{newcredentials} function.
+\lsttext{@Caesar.newcredentials\_internal} performs a call to the rand function, saving the resulting return value and creating a pointer to it.
+This pointer is returned.
+
+\item[rand] The function \lsttext{rand} is defined starting line 74 and onwards in \myref{lst}{llvm:Example}.
+As the structure \lsttext{Caesar} is opaquely ascribed by the signature \lsttext{SYMMETRICCIPHER}, and the value \lsttext{rand} is not specified in this signature, it should be hidden from any outside components. 
+It also follows that no proxy is necessary for the \lsttext{seed} function.
+
+In its body, it returns the value of the seed.
+
+\item[seed] The value \lsttext{seed} is translated to a getter function.
+For the same reasons as the variable \lsttext{rand}, its linkage type is set to private. 
+
+The definition of \lsttext{seed} can be seen on lines 79-81 in the code of listing~\myref{lst}{llvm:Example}
 \end{description}
 
 \section{Lessons learnt}

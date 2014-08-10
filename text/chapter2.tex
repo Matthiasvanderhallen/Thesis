@@ -46,8 +46,8 @@ A structure can be ascribed a signature using \emph{transparant} ($:$) or \emph{
 If a type \cmath{t} is declared abstract in \cmath{SigId}, its implementation is not known to any code not local to the structure.
 \end{description}
 
-In order to obtain a more simple language to study, \MiniML\ signatures of restrict their declarations to a subset \cmath{T} of the \emph{Core} types \cmath{\tau}. 
-The subset \cmath{T} contains only opaque types defined by structures, the int and function types.
+In order to obtain a more simple language to study, \MiniML\ signatures restrict their declarations to a subset \cmath{T} of the \emph{Core} types \cmath{\tau}. 
+The subset \cmath{T} contains only \emph{opaque} types defined by structures, the int and function types.
 As a result, any value that is accessible from outside the structure itself can only get parameters and return values of type \lsttext{int}, of an opaque type or of a function combination of those types.
 
 This results in arrays \cmath{[\tau]} and pairs \cmath{\tau_{1} \times \tau_{2}} not being primitive types for module expressions.
@@ -338,7 +338,7 @@ When a field inside a module is referenced, the reference can be evaluated to it
 The LLVM Intermediate Representation is a language very reminiscent of assembly.
 In contrast to assembly, it is strongly typed, and operates with a slightly higher level of abstraction.
 
-This section largely builds on the work of Jianzhou Zhao et al. in formalizing the \LLVMIR \cite{Zhao:2012:FLI:2103656.2103709}.
+This section largely builds on the work of Jianzhou Zhao et al. in formalizing the \LLVMIR~\cite{Zhao:2012:FLI:2103656.2103709}.
 Their paper formalizes a reduced part of the LLVM IR in order to create mathematically verified program transformations.
 It provides a language syntax as well as static and dynamic semantics.
 
@@ -462,7 +462,7 @@ The resulting security issues could by resolved by introducing a returnback entr
 \end{itemize}
 
 \section{Conclusion}
-This chapter formally specified a simple version of the \MiniML\ source-language and the \LLVMIR target-language.
+This chapter formally specified a simple version of the \MiniML\ source-language and the \LLVMIR\ target-language.
 It then gave a formal representation of the secure compiler from \MiniML\ to \LLVMIR.
 
 The \MiniML\ language as sketched here does not yet contain the more advanced concepts found in MLs well-known module language.

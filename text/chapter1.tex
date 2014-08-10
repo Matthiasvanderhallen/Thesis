@@ -133,7 +133,7 @@ Once a source-level program is compiled to \LLVMIR, any form of optimization can
 
 When all required optimizations are performed, it is possible to compile the intermediate language into machine code and perform linking of all necessary code.
 Any special modification necessary to run on specific target platforms is shared across the 
-different source-languages as well, because the code generation uses the \LLVMIR as its input.
+different source-languages as well, because the code generation uses the \LLVMIR\ as its input.
 
 Providing a compiler for a source-level language is now confined to providing a compilation to the \LLVMIR.
 When such a compiler exists, the full power of the LLVM optimizer is accessible for the source language, and compilation is possible to every one of the multitude of platforms compatible with LLVM.
@@ -542,7 +542,7 @@ For the same reasons as the variable \lsttext{rand}, its linkage type is set to 
 The definition of \lsttext{seed} can be seen on lines 79-81 in the code of listing~\myref{lst}{llvm:Example}
 \end{description}
 
-\section{Lessons learnt}
+\section{Lessons learned}
 
 This chapter gave an introduction to the \mbox{MiniML} language, which was chosen because of its special module system and how it specifies security aspects. Formalizing the \mbox{MiniML} language semantics will be the topic of \label{chapter:formalspecification}.
 

@@ -115,45 +115,132 @@ As a result, the definitions of structures in secure code can not directly depen
 
 %This example can later be broadened so that the \lsttext{Caesar} structure becomes a functor that is parameterized to use an external module as its PRNG.
 
-\section{LLVM Intermediate Representation}
+\section{LLVM and the LLVM Intermediate Representation}
 \label{sec:LLVM}
-This section introduces the LLVM intermediate representation.
+This section introduces the LLVM and its intermediate representation.
 It also specifies the expected LLVM intermediate representation code for the example in \myref{lst}{code:Example}.
 
 \subsection{LLVM}
 LLVM, short for \emph{Low Level Virtual Machine} is the name of a project providing many different and closely affiliated utilities concerned with the compilation process.
-One of the important utilities being used in this work is LLVMs intermediate representation.
-This intermediate representation is defined in an attempt towards providing a shared abstraction that the compilers of many languages can use.
-From this point on, any form of optimization can be done on the LLVM intermediate representation, and thus might be shared between the different high-level languages.
+Created by Chris Lattner~\cite{Lattner} in 2000, the project was picked up by Apple and work on the LLVM project has continued up to this date.
 
-When all required optimizations are performed, one can compile the intermediate language into machine code and perform linking of all necessary code.
-Any special modification necessary to run on specific target platforms can be shared as well.
+The main sub-project of LLVM is the LLVM Core, which combines code generation and optimization for many platforms.
+Because the generation of code for a specific platform and the optimization of code is generally very difficult work, the LLVM Core is built around the LLVM intermediate representation, or \LLVMIR.
+
+This intermediate representation attempts to provide a shared abstraction that the compilers of many source-level languages can use.
+The idea is that any source-level language can be compiled to the \LLVMIR, using the LLVM project as a \emph{backend} for its own compilation.
+Once a source-level program is compiled to \LLVMIR, any form of optimization can be done on the LLVM intermediate representation, and thus optimizations are shared between the different source-level languages.
+
+When all required optimizations are performed, it is possible to compile the intermediate language into machine code and perform linking of all necessary code.
+Any special modification necessary to run on specific target platforms is shared across the 
+different source-languages as well, because the code generation uses the \LLVMIR as its input.
+
+Providing a compiler for a source-level language is now confined to providing a compilation to the \LLVMIR.
+When such a compiler exists, the full power of the LLVM optimizer is accessible for the source language, and compilation is possible to every one of the multitude of platforms compatible with LLVM.
+
+\subsection{\LLVMIR}
+%One of the important utilities being used in this work is LLVMs intermediate representation, 
+This work uses LLVM as a \emph{backend}.
+The secure compiler for \MiniML\ will translate \MiniML\ code into the LLVM intermediate representation.
 In order to focus on the security of the compilation, the more aggressive optimization capabilities of LLVM will not be used.
 \\[1em]
-The secure compiler for \mbox{MiniML} will translate \mbox{MiniML} code into this intermediate representation.
-It is possible to write a program in this LLVMs intermediate representation (LLVM IR) using one of three different and equivalent encodings:
+It is possible to write a program in this LLVMs intermediate representation using one of three different and equivalent encodings, according to the \emph{LLVM Language Reference}~\cite{LLVMFAQ}:
 \begin{itemize}
 \item A bitcode format
 \item Textual assembly language
-\item A symbolic representation
+\item A symbolic representation, manipulated by the LLVM API
 \end{itemize}
 
-This thesis will use the textual assembly language as representation for LLVM IR programs, because this makes examples and results more understandable and human readable.
+This text will use the textual assembly language as representation for LLVM IR programs, because this makes examples and results more understandable and human readable.
 While it is possible to generate LLVM IR programs using the LLVM API, this work chooses to generate the human readable intermediate code itself, because it offers more direct control over the resulting translation.
 
 The benefit of LLVMs intermediate representation is not limited to the points mentioned above.
 The LLVM intermediate representation works at a higher level of abstraction than standard assembly does.
-Two important additional aspects make the intermediate representation used by LLVM of a higher level of abstraction than standard assembly code:
+Some important additional aspects make the intermediate representation used by LLVM of a higher level of abstraction than standard assembly code:
 
 \begin{description}
-\item[Type System] More information about the program is captured by LLVM than when using regular assembly, using LLVMs type system
-\item[SSA] For optimization purposes, the LLVM IR adheres to the \emph{static single assigment} paradigm, or \emph{SSA}.
-This implies that every register can be assigned a value only once. However, this restriction poses no real hindrance to a functional language as \mbox{MiniML}
+\item[Type System] More information about the program is captured by LLVM than when using regular assembly, using LLVMs type system.
+This type system helps the optimalization process.
+
+The type system, as given by the \emph{LLVM Language Reference}~\cite{LLVMFAQ} consists of the types shown in \myref{fig}{fig:llvmtypes}. Not all types are shown, the vector type and opaque types are omitted.
+
+A shorthand for types can be defined using \lsttext{\%Name = type}.
+
+\begin{figure}[htb]
+\begin{tabularx}{\textwidth}{|l X|}
+\hline
+\multicolumn{2}{|c|}{\gray LLVM Basic Types}\\
+iN & Arbitrary width integer. 
+The width is specified by N \\
+Void & The void type. Like the void type in Java, this represents no value. The void value has no size.\\
+\cmath{type\ast} & The pointer type. It specifies a specific memory location. The memory location must contain a value with the correct type, as specified by \cmath{type}. It is considered by the \emph{LLVM Language Reference} to be a basic type.\\
+label & The label type. This specfies a pointer to a label. This is equivalent to i8*.\\
+\multicolumn{2}{|c|}{\gray LLVM Derived Types}\\
+\cmath{[}N x \cmath{type}\cmath{]} & The Array type. This represents \#N elements of type \cmath{type} ordered sequentially in memory.\\
+\{\cmath{type list}\} & The structure type. This represents a sequence of values in memory of type \cmath{type}. The elements are in the order of the list. The list is comma separated.\\
+\cmath{type_{1}}(\cmath{type list}) & The function type. This represents a function that returns a value of type \cmath{type_{1}}, and takes arguments with the types specified in the type list.\\
+\hline
+\end{tabularx}
+\caption{The LLVM types, with vector types and opaque types omitted. \label{fig:llvmtypes}}
+\end{figure}
+
 \item[Register Limitations]  The LLVM intermediate representation abstracts away the fact that real architectures have only a given amount of registers.
-Instead, one can write a program assuming an infinite amount of registers.
+Instead, one can write a program assuming an infinite amount of \emph{virtual registers}.
 This results in many more variables in use than available registers.
 In a later compilation stage this consequence is remedied using the technique of \emph{spilling}.
 Variable spilling occurs by mapping the variables in use to the smaller set of available registers, saving all variables that could not be assigned to a register in RAM memory in the stack.
+
+\item[SSA] For optimization purposes, the LLVM IR adheres to the \emph{static single assigment} paradigm, or \emph{SSA}.
+This implies that every register can be assigned a value only once.
+
+For example, the code in \myref{lst}{lst:reassign} reassigns the value saved in register x from 3 to  4. In SSA, this would be represented by \myref{lst}{lst:ssa}.
+\begin{lstlisting}[label=lst:reassign, caption={Reassigning a variable}, frame=single, language={[x86masm]Assembler}]
+Block:
+    %x = 3;
+;    br i1 %cond, label %Cond, label %Ret
+Cond:
+    %x = add i32 %x, 1;
+Ret:
+    ret i32 %x;
+\end{lstlisting}
+
+\begin{lstlisting}[label=lst:ssa, caption={Code in SSA form.}, frame=single, language={[x86masm]Assembler}]
+Block:
+    %x1 = 3;
+;    br i1 %cond, label %Cond, label %Ret
+Cond:
+    %x2 = add i32 %x1, 1;
+Ret:
+    ret i32 %x2;
+\end{lstlisting}
+This essentially provides a versioning postfix to the variable identifier. 
+Since all registers in \LLVMIR\ are virtual registers
+The problem becomes worse however if the modification of x depends on control flow, for example by uncommenting the conditional statement in \myref{lst}{lst:reassign}.
+
+The return statement in \myref{lst}{lst:ssa} should now return either \lsttext{\%x1} or \lsttext{\%x2}.
+But how can the code in SSA form decide which of the two registers should be returned?
+LLVM IR solves this problem by providing the $\Phi$ function\cite{Appel}.
+
+The $\Phi$ function `merges' a set of variables.
+It assigns a new variable the value of one of a number of old values, where the choice of the old value depends on the control flow.
+In \myref{lst}{lst:ssaphi}, the SSA-representation of \myref{lst}{lst:reassign} with the condition uncommented is shown.
+
+\begin{lstlisting}[label=lst:ssaphi, caption={Code in SSA form with function.}, frame=single, language={[x86masm]Assembler}]
+Block:
+    %x1 = 3;
+    br i1 %cond, label %Cond, label %Ret
+
+Cond:
+    %x2 = add i32 %x1, 1;
+    
+Ret:
+    %x3 = phi i32 [%x1 Block] [%x2 Cond]
+    return %x3;
+\end{lstlisting}
+
+%First, this restriction poses no real hindrance to a functional language as \MiniML, which already is single assignment.
+%This restriction is solved by providing the $\Phi$ function\cite{Appel} as a way to write code that modifies a registers value.
+
 %\to do{This is important for the secure compilation (clearing registers after function calls end). It might be necessary to rework this subsection to stress this more.}
 \end{description}
 

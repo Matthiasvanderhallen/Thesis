@@ -138,9 +138,16 @@ After all, the source language does not allow the memory location of the paramet
 
 This problem is effectively mitigated by ensuring that upon \emph{application} of the closure every value is copied to the secure environment, conforming to a value-passing call semantic.
 
+%Todo: Evaluate the following paragraph, and add it.
+However, the \MiniML\ language as described in this work restricts the values that can pass the border between secure code and insecure context to values of either type int or an opaque  type.
+Int types are always passed using their effective value.
+Opaque types are not susceptible to the attack described above because they can only be manipulated using functions from the structure that declared the opaque type.
+
+%the only values that can pass the border between secure code and insecure context are of an 
+
 %Todo: Remark that this is necessary for complex data in regular function calling as well.
 
-%Todo: what if the free-variable IS a reference. Then we must follow the reference chain all the way?! No, we follow high-level semantics, and Ref's make MiniML storage aware. ≈If a Reference to storage is created by the attackers context, and this reference is passed as a parameter, it is okay for the attacker to change the value in the storage location, as long as the location remains the same. 
+%To do: what if the free-variable IS a reference. Then we must follow the reference chain all the way?! No, we follow high-level semantics, and Ref's make MiniML storage aware. ≈If a Reference to storage is created by the attackers context, and this reference is passed as a parameter, it is okay for the attacker to change the value in the storage location, as long as the location remains the same. 
 
 \subsection{Insecure Free Variables For An Insecure Closure}
 
@@ -157,7 +164,7 @@ As long as we obey these measures, and represent secure free variables in the re
 The only way to interact with these secure free variables is by passing them as parameters to functions within the \emph{SPM}.
 This shows that the added power of closures does not require any new security measures for this interaction between \emph{SPM} and the attackers context.
 
-\todo{Should I move this subsection upwards, to right after the discussion of secure closures, or is it more logical to first explain all different free-variable/ closure security status combinations?}
+%\to do{Should I move this subsection upwards, to right after the discussion of secure closures, or is it more logical to first explain all different free-variable/ closure security status combinations?}
 \subsection{Cross-boundary Passing Of A Secure Closure }
 Now that it is possible to have a secure closure as a first class value, it can be passed as an object across the boundary between \emph{SPM} and the attackers context.
 This section explores the security measures that must be taken when this occurs.
@@ -750,8 +757,8 @@ Worse, the attackers context is not even allowed to know the exact location \cma
 %To solve this, all $loc_{frame}$ are masked by inserting them into a list of frames, called the \emph{f-list}, in the order of their definitions.
 This is solved by inserting all \cmath{loc_{frame}} into the \emph{SPM}s list of frames (\emph{f-list}) that was introduced in \myref{sec}{sec:DynamicalCreationOfFrames}. 
 
-Frames that were created in secure code are sorted alphabetically by the identifier they were bound to and put in the emph{f-list} first.
-This alphabetical ordering is necessary because changing the order of bindings does not break contextual equivalence at the high-level \MiniML\ language.
+Frames that were created in secure code are sorted alphabetically by the identifier they were bound to and put in the \emph{f-list} first.
+This alphabetical ordering is necessary because changing the order of structure bindings does not break contextual equivalence at the high-level \MiniML\ language.
 The frame locations of frames created in insecure code are appended in the order of their definitions.
 This means that the specific mapping of an identifier to value of its index is known statically.
 
@@ -780,9 +787,57 @@ By design, a pointer to this frame is always present within the frame representi
 
 The wrapper functions only as a wrapper, so it presumes any clearing of flags, registers, masking of values or othether precautionary measures have already been taken care of by the functions that it wraps.
 
-Since all structure values are only accessible through this wrapper function, the separate structure values do \emph{not} have to be entry points in the \emph{SPM}. The wrapper function will always be necessary, because functors that call a value in their argument structure can not hardwire a specific entry point in their generic code.
-However, in order to allow optimisations, the structure values could safely be made entry points of the \emph{SPM} with only minimal changes to the scheme above: The values within a structure resulting from functor application are stubs that expect an extra argument, the location of the argument frame. 
-If these stubs can be called directly by the context without the wrapper function, care must be taken to check that the location of the argument frame is either inside insecure memory or is interpreted as a mask in the f-table.
+Since all structure values are accessible through this wrapper function, the separate structure value stubs do \emph{not} have to be entry points in the \emph{SPM}. The wrapper function will always be necessary, because functors that call a value in their argument structure can not hardwire a specific entry point in their generic code.
+\\[1em]
+Indeed, the stubs corresponding to structure values even \emph{cannot} be made entry points in the \emph{SPM}, because the source language context is oblivious to whether a structure bound in secure code was the result of a functor application, or was statically defined. This corresponds to \myref{lst}{lst:FunctorApplicationOrStaticDefinition1} being contextually equivalent to \myref{lst}{lst:FunctorApplicationOrStaticDefinition2}.
+
+\begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Functor Application or Static Definition: 1]Binding StrA and StrB using functor application.},
+label=lst:FunctorApplicationOrStaticDefinition1, morekeywords={where}]
+functor F(ArgStruct:ArgSig) :> OutputSig =
+    struct
+        val x = ArgStruct.f x
+    end
+    
+structure StrA = F(Arg1)
+structure StrB = F(Arg2)
+\end{lstlisting}
+
+\begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Functor Application or Static Definition: 2]Binding StrA and StrB using both static definition and functor application.},
+label=lst:FunctorApplicationOrStaticDefinition2, morekeywords={where}]
+functor F(ArgStruct:ArgSig) :> OutputSig =
+    struct
+        val x = ArgStruct.f x
+    end
+    
+structure StrA :> OutputSig =
+    struct
+        val x = Arg1.f x
+    end
+
+structure StrB = F(Arg2)
+\end{lstlisting}
+
+
+If stubs were made entry points in the target language, the difference between static definition and function application would break contextual equivalence.
+\begin{itemize}
+\item Compiling \myref{lst}{lst:FunctorApplicationOrStaticDefinition1} means calling value \lsttext{StrA.x} would use the same entry point as calling \lsttext{StrB.x}.
+\item Compiling \myref{lst}{lst:FunctorApplicationOrStaticDefinition2} means calling value \lsttext{StrA.x} would use an entry point different from the one used when calling \lsttext{StrB.x}
+\end{itemize}
+Clearly, this would result in \myref{lst}{lst:FunctorApplicationOrStaticDefinition1} and \myref{lst}{lst:FunctorApplicationOrStaticDefinition2} not being contextually equivalent in the target language.
+
+%However, in order to allow optimization, the structure values could safely be made entry points of the \emph{SPM} with only minimal changes to the scheme above:
+%\begin{itemize}
+%\item The high-level language context is oblivious to whether a structure bound in secure code is the result of functor application or was statically defined.
+%As a result, when the stubs that access a structure value are made entry points to the \emph{SPM}, all stubs must take a frame location as an extra argument.
+
+%\item When all stubs must take a frame location as an extra argument, the frame location can no longer be that of the argument structure because statically defined structures do not have an argument structure. Instead, the passed frame location must be the location of the \emph{own} frame.
+%When the stub represents a value of a functor, 
+%\end{itemize}
+
+%The values within a structure resulting from functor application are stubs that expect an extra argument, the location of the \emph{own} frame.
+%If these stubs can be called directly by the context without the wrapper function, care must be taken to check that the location of the own frame is either inside insecure memory or is interpreted as a mask in the f-table.
+
+%When providing this optimization, structures that were defined statically, i.e. \emph{not} as a result of functor application, need to take the location of their extra argument 
 
 
 % is able to read the pointer corresponding to the $(loc_{frame}, index_{val})$ pair and call the necessary value.

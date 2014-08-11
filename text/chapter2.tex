@@ -442,6 +442,7 @@ The formalization of the translation function \cmath{\compile{\bullet}} will pro
 These are actions such as the specification of entry points in the \emph{SPM} layout or the clearing of low-level registers and flags.
 
 \subsection{Formalization}
+\label{sec:formalization}
 First, all module expressions are sorted based on the name used in the binding.
 Two programs with differently ordered module expressions \cmath{me} are contextually equivalent as long as long as no module expression \cmath{me} has unresolved dependencies on other module expressions when it is bound.
 Sorting module expressions based on the name used in the binding makes sure that all \MiniML\ programs that provide the same set of bindings result in an \LLVMIR\ program with the corresponding bindings happening in the same order.

@@ -7,6 +7,7 @@ Next, the typing rules that a correct program must adhere to is shown.
 Lastly, the operational semantics determine what a correct program must do once it runs.
 
 \section{MiniML}
+\label{sec:MiniMLFormalSpecification}
 \subsection{Syntax}
 \label{sec:ch2syntax}
 First this section introduce the syntax of the \MiniML\ language, as seen in \myref{fig}{fig:CoreSyntax}, \myref{fig}{fig:ModuleSyntax} and \myref{fig}{fig:ProgramSyntax}.
@@ -320,12 +321,12 @@ module identifiers to their definition.
 
 The module table T allows looking up the definition behind a certain identifier and accessing a certain part of it using projection. $T[\mathit{StrId}].\mathit{SigId}$ will give access to the \cmath{SigId} in the definition of \cmath{StrId}. 
 
-The evaluation relation allows the evaluation of an expression $e$ to a (simpler) expression $e'$, while potentially making a lookup in T.
+The evaluation relation allows the evaluation of a program $P$, which consists of expressions $e$ and module expressions \cmath{me}, to a (simpler) Program $P'$, while potentially making a lookup in T.
 
 \subsubsection{Rules}
 In \myref{fig}{fig:MiniMLOperationalSemantics}, the evaluation rules of a \MiniML\ program are shown.
-It first collects evaluates module expressions, skipping \lsttext{signature}-bindings and adding \lsttext{structure}-bindings to the 
-When a field inside a module is referenced, the reference can be evaluated to its definition, with the exception that all references to fields \cmath{y} defined within the module are correctly substituted with \cmath{StrId.y}.
+It first collects evaluates module expressions, skipping \lsttext{signature}-bindings and adding \lsttext{structure}-bindings to the table T.
+When a field inside a structure is referenced, the reference can be evaluated to its definition, with the exception that all references to fields \cmath{y} defined within the module are correctly substituted with \cmath{StrId.y}.
 
 \input{operationalsemantics}
 

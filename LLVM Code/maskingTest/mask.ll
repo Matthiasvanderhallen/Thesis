@@ -98,7 +98,7 @@ define private %int @unmask_rec(%int %cindex, %masktype** %cpointer){
 	Loop:
 		%nextptr = getelementptr inbounds %masktype* %current, i32 0, i32 1 ; Get pointer to next ll-element pointer.
 		%newindex = sub %int %cindex, 1
-		%ret = call %int @unmask_rec(%int %newindex, %masktype** %nextptr)
+		%ret = tail call %int @unmask_rec(%int %newindex, %masktype** %nextptr)
 		ret %int %ret
 }
 
@@ -117,7 +117,6 @@ define private %int @unmasktype_rec(%int %cindex, %masktype** %cpointer){
   		unreachable
 
 	ZeroTest:
-		%current = load %masktype** %cpointer ; Get pointer to current masktype.
 		%check2 = icmp eq %int %cindex, 0
 		br i1 %check2, label %RetVal, label %Loop
 
@@ -129,7 +128,7 @@ define private %int @unmasktype_rec(%int %cindex, %masktype** %cpointer){
 	Loop:
 		%nextptr = getelementptr inbounds %masktype* %current, i32 0, i32 1  ; Get pointer to next ll-element pointer.
 		%newindex = sub %int %cindex, 1
-		%ret = call %int @unmasktype_rec(%int %newindex, %masktype** %nextptr)
+		%ret = tail call %int @unmasktype_rec(%int %newindex, %masktype** %nextptr)
 		ret %int %ret
 }
 

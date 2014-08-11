@@ -22,7 +22,6 @@ Since \mbox{MiniML} uses what in literature is known as \emph{lexical scoping}, 
 fun addCurried x = 
   let innerFunction y = x + y in innerFunction
 \end{lstlisting}
-\label{code:LexicalScopingExample}
 
 %fun addCurried x = someSPMFunction x
 %This is an example of currying.
@@ -109,7 +108,6 @@ fun generateClosure2 freevar =
   let innerFunction x = x + callback 2 + freevar
   in innerFunction
 \end{lstlisting}
-\label{code:CopyFreeVariables}
 
 The two functions shown in \myref{lst}{code:CopyFreeVariables} are contextually equivalent in \mbox{MiniML}.
 Their compiled versions however are not contextually equivalent unless the free variables from untrusted code are copied to the trusted memory.

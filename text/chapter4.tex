@@ -31,8 +31,10 @@ In short, the definition of a functor corresponds to \lsttext{functor $\ \cmath{
 
 The application of a functor \cmath{F} to a \cmath{Str_{1}}, written as \cmath{F(Str_{1})} then results in a new structure \cmath{Str_{2}} that can be bound to an identifier.
 This resulting structure, or \emph{output} structure, can be used like any regular structure. Any time the functor bindings uses \cmath{ArgStr.x}, \cmath{Str_{2}} uses \cmath{Str_{1}.x}.
-
 \end{description}
+
+These additions have important consequences for the way \MiniML\ is compiled.
+To be able to describe these consequences, the formalization of \MiniML\ as given in \myref{chap}{chap:formalspecification} is revisited.
 
 \subsection{Syntax}
 The additional concepts introduce some new syntactical constructs to the \MiniML\ syntax.
@@ -61,6 +63,27 @@ A functor application specifies the identifier to which the resulting structure 
 
 \subsection{Type system}
 The type system also needs some minor modifications to allow the new concepts, shown in \myref{fig}{fig:UpdatedTypeRulesCore} and \myref{fig}{fig:UpdatedTypeRulesModule}. As earlier, due to its simplicity the Program type system sees no modifications.
+
+First, the concept of a \emph{context} $\Gamma$ is extended (\myref{fig}{fig:UpdatedMiniMLContexts}, so that it can contain conclusions related to functors.
+
+\begin{figure}[!htb]
+\begin{align*}
+\begin{aligned}
+\text{Context }\\
+\Gamma ::=\; &\emptyset     & \expl{(Empty context)}\\
+&| \; (\mathit{id}:\sigma),\Gamma          & \expl{(identifier type assumption)}\\
+&| \; (t = \tau), \Gamma                   & \expl{(type definition)}\\
+&| \; (\mathit{StrId} \mapsto \lbrace \Sigma,\overline{d}\rbrace), \Gamma 
+                                           & \expl{(Structure definition)}\\
+% &| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), \Gamma \\
+&| \; (\mathit{SigId} \mapsto \Sigma), \Gamma
+                                           & \expl{(Signature definition)}
+\end{aligned}
+\end{align*}
+\caption[Updated Contexts]{Contexts in the MiniML type system, extending \earlier{fig}{fig:MiniMLContexts}.}
+\label{fig:UpdatedMiniMLContexts}
+\end{figure}
+
 
 \input{UpdatedTypeRules}
 \subsection{Operational Semantics}

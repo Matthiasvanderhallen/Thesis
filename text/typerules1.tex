@@ -85,8 +85,13 @@
 \\
 \\
 \tag{T-Structure}
+%&\frac
+%{\Gamma[SigId].\Sigma \succeq \mathit{PS}(\overline{d}) \longspace PS(\overline{d}) \cup \Gamma \vdash \overline{d}}
+%{\Gamma \vdash StrId : SigId = \overline{d} \rightarrow (\mathit{StrId} \mapsto \lbrace \mathit{ES}(\overline{d}), \overline{d}\rbrace),\Gamma}
 &\frac
-{\Gamma[SigId].\Sigma \succeq \mathit{PS}(\overline{d}) \longspace PS(\overline{d}) \cup \Gamma \vdash \overline{d}}
+{\Gamma[SigId].\Sigma \succeq \mathit{PS}(\overline{d})
+\longspace
+\forall d_{1} \in \overline{d} : PS(\overline{d}\setminus \{ d_{1}\}) \cup \Gamma \vdash d_{1}}
 {\Gamma \vdash StrId : SigId = \overline{d} \rightarrow (\mathit{StrId} \mapsto \lbrace \mathit{ES}(\overline{d}), \overline{d}\rbrace),\Gamma}
 \\
 \\

@@ -1,7 +1,7 @@
 \chapter{Advanced Concepts: Formalization}
 
-First, \myref{sec}{sec:formalspec2} of this chapter will extend the formalization made in \myref{chap}{chap:formalspecification} with the additions made in \myref{chap}{chap:AdvancedConcepts}.
-Later, in \myref{sec}{sec:formalizedcompiler2} extend upon the secure compiler as it was formalized in \myref{sec}{sec:formalizedcompiler}.
+First, \myref{sec}{sec:formalspec2} of this chapter will extend the formalization of \MiniML\ made in \myref{sec}{sec:MiniMLFormalSpecification} with the additions described in \myref{chap}{chap:AdvancedConcepts}.
+Later, \myref{sec}{sec:formalizedcompiler2} extends upon the secure compiler as it was formalized in \myref{sec}{sec:formalizedcompiler}.
 
 \section{Formal Specification of \MiniML}
 \label{sec:formalspec2}
@@ -71,9 +71,9 @@ First, the concept of a \emph{context} $\Gamma$ is extended in \myref{fig}{fig:U
 \begin{align*}
 \begin{aligned}
 \text{Context }\\
-\Gamma ::=\; \ldots \\ 
+\Gamma ::=\; & \ldots \\ 
 &| \; (\mathit{FunId} \mapsto \lbrace \Sigma, \overline{d}, SigId\rbrace), \Gamma
-                                           & \expl{(Signature definition)}
+                                           & \expl{(functor definition)}
 \end{aligned}
 \end{align*}
 \caption[Updated Contexts]{Contexts in the MiniML type system, extending \earlier{fig}{fig:MiniMLContexts}.}
@@ -81,14 +81,132 @@ First, the concept of a \emph{context} $\Gamma$ is extended in \myref{fig}{fig:U
 \end{figure}
 
 Next, the typing rules are updated, as shown in \myref{fig}{fig:UpdatedTypeRulesCore} and \myref{fig}{fig:UpdatedTypeRulesModule}.
+
+\subsubsection{Closures}
 The addition of closures, as a Core concept, modifies the function application rule T-App inside the Core typing system in \myref{fig}{fig:UpdatedTypeRulesCore}, so that it allows arguments or return values to be of the function type.
 It also adds the $\lambda$-expression typing rule T-Lambda. 
 This rule describes that a $\lambda$-expression is well typed if its defining expression can be typed to the result type, assuming each argument is of the stated argument type.
 
-Functors are strictly
+\begin{figure}[htb]
+\begin{align*}
+\tag{T-App}
+&\frac
+{\Gamma \vdash e_{1}:\overline{\tau_{2}} \rightarrow \tau_{1}
+    \longspace
+    \Gamma \vdash \overline{e_{2}}:\overline{\tau_{2}}}
+{\Gamma \vdash e_{1} \overline{e_{2}}:\tau_{1}}
+\\[1em]
+\tag{T-Lambda}
+&\frac
+{\overline{(x:\tau_{2})} \cup \Gamma \vdash e : \tau_{1}}
+{\Gamma \vdash \lambda\ \overline{x}.e : \overline{\tau_{2}} \rightarrow \tau_{1}}
+\end{align*}
+\caption[Updated Typing Rules: Core Language]{Updated typing rules for the Core language, extending \earlier{fig}{fig:TypeRulesCore}. \label{fig:UpdatedTypeRulesCore}}
+\end{figure}
+
+\subsubsection{Functors}
+Functors are strictly a Module language concept, which means modifications are limited to Module language, updated in \myref{fig}{fig:UpdatedTypeRulesModule}.
+It adds two rules:
+\begin{description}
+\item[T-FunctorDef]
+A rule to type a functor definition.
+This rule says that the \emph{principal signature} of the body (\cmath{PS(\overline{d})}) must match with the signature specified in the ascription of the functor.
+Furthermore, each definition in the body must be correctly typed, assuming the well-typedness of all other definitions and the values defined in the argument structure. 
+\item[T-FunctorApp]
+A rule that types functor applications.
+This rule says that a functor application is well typed if the effective signature of the structure that was passed as an argument matches to the expected signature.
+Furthermore, it specifies that the structure is saved in the context.
+The output structures identifier maps to the result signature of the functor and the body of the functor after substituting all references to the argument structure.
+\end{description}
+
 
 \input{UpdatedTypeRules}
 \subsection{Operational Semantics}
+The updated formalization of \MiniML\ is concluded with a description of the updates to the operational semantics.
+
+Fist, the concepts of values v is extended in \myref{fig}{fig:UpdatedValues} to reflect the addition of closures as a \emph{first class value}.
+A closure is a pair, consisting of an expression and an environment in which this expression is evaluated.
+The environment consists of a set of bindings of identifiers to values, as shown in \myref{fig}{fig:Environments}.
+
+\begin{figure}[htb]
+\begin{align*}
+\text{Value }v ::=\;& \ldots \\
+&| (e, \rho)\ 
+\end{align*}
+\caption[Updated Value Concept]{Updated concept of `values', extending \earlier{fig}{fig:MiniMLOperationalSemanticEntitiesAndRelations}.\label{fig:UpdatedValues}}
+\end{figure}
+
+\begin{figure}[htb]
+\begin{align*}
+\text{Environment }\rho ::=\;& \emptyset \\
+&| (x \mapsto v), \rho\ 
+\end{align*}
+\caption[Environment entity]{Environments.\label{fig:Environments}}
+\end{figure}
+
+Next, the concept of the module table T is extended, as shown in \myref{fig}{fig:UpdatedModuleTable} so that it can keep track of the definitions of functors.
+The module table maps functor identifiers to their body of definitions.
+
+\begin{figure}[htb]
+\begin{align*}
+\text{Module Table } T\; ::= \;& \ldots \\
+&| \; \cmath{(FunId) \mapsto \overline{d}}, T
+\end{align*}
+\caption[Updated Module Table Concept]{Updated concept of a `module table', extending \earlier{fig}{fig:MiniMLOperationalSemanticEntitiesAndRelations}.\label{fig:UpdatedModuleTable}}
+\end{figure}
+
+\subsubsection{Closures}
+The addition of closures adds two evaluation rules, one concerning their definition and one for their application, shown in \myref{fig}{fig:ClosureEvaluationRules}.
+\begin{description}
+\item[E-ClosureDef]
+This rule describes how a $\lambda$-expression is evaluated.
+The $\lambda$-expression creates a closure value, consisting of the expression $e$ and the environment.
+The environment contains bindings for all variables used in the defining expression~$e$, but not defined within the expression. These are called the non-local of free variables of e, defined as \cmath{FreeVar(e)}.
+\item[E-ClosureApplication]
+This rule describes how the evaluation of a closure happens.
+When the first expression of regular function application is evaluated to a closure value, it the function application is evaluated to the defining expression with all the arguments identifiers substituted with their values, and all mappings inside the environment applied.
+\end{description}
+
+\begin{figure}[htb]
+\begin{align*}
+\tag{E-ClosureDef}
+&\frac
+{\rho = \cmath{FreeVar(e)}}
+{T \vdash \lambda \overline{x}.e \rightarrow T \vdash (e,\rho)}
+\\
+\\
+\tag{E-ClosureApplication}
+&\frac
+{T \vdash e_{1} \rightarrow T \vdash (e_{2}, \rho)}
+{T \vdash e_{1} \overline{v} \rightarrow [\overline{x} \mapsto \rho \cup \overline{v}] e_{2}}
+\end{align*}
+\caption[Closure Evaluation Rules]{The evaluation rules concerning closures, extending on \earlier{fig}{fig:MiniMLOperationalSemantics}. \label{fig:ClosureEvaluationRules}}
+\end{figure}
+
+
+\subsubsection{Functors}
+Adding functors to the language means there must be a way to evaluate functor definitions and functor applications.
+This means the additions of functors introduces two evaluation rules, as described in \myref{fig}{fig:FunctorEvaluationRules}
+\begin{description}
+\item[E-FunctorDef]
+When a functor definition is encountered, a mapping from the functor identifier to its definition body should be saved in the module table T.
+\item[E-FunctorApp]
+When a structure is bound by a functor application, a mapping for the structure identifier is added in the module table T.
+
+\end{description}
+
+\begin{figure}[htb]
+\begin{align*}
+\tag{E-FunctorDef}
+&\cmath{T \vdash FunId(ArgStr:SigId_{1}) = \overline{d}, P \rightarrow (FunId \mapsto \overline{d}), T \vdash P}
+\\
+\\
+\tag{E-FunctorApp}
+&\cmath{T \vdash StrId_{1} = FunId(StrId_{2}), P \rightarrow (StrId_{1} \mapsto [ArgStr \mapsto StrId_{2}]\overline{d}), T \vdash P}
+\end{align*}
+\caption[Functor Evaluation Rules]{The evaluation rules concerning functors, extending on \earlier{fig}{fig:MiniMLOperationalSemantics} and \myref{fig}{fig:ClosureEvaluationRules}. \label{fig:FunctorEvaluationRules}}
+\end{figure}
+
 
 \section{Formalized Compiler}
 \label{sec:formalizedcompiler2}

@@ -4,10 +4,10 @@
 %
 \text{Mod Exp }\\
 \mathit{me} ::= \; & \text{\lsttext{structure}} \;  \mathit{StrId : SigId} = \text{\lsttext{struct}}\; \overline{\mathit{d}}\; \text{\lsttext{end}}
-                                             & \expl{(Trans. struct. binding)}\\
+                                             & \expl{(trans. struct. binding)}\\
 &|\; \text{\lsttext{structure}} \;  \mathit{StrId :> SigId} = 
 \text{\lsttext{struct}}\; \overline{\mathit{d}}\; \text{\lsttext{end}}
-                                             & \expl{(Opaque struct. binding)}\\
+                                             & \expl{(opaque struct. binding)}\\
 &|\; \text{\lsttext{signature}} \; SigId = 
 \text{\lsttext{sig}}\; \Sigma \; \text{\lsttext{end}} 
                                              & \expl{(sig. binding)}\\
@@ -20,7 +20,7 @@ d \; ::= \; &\text{\lsttext{val}}\ \mathit{id}=e:\tau   & \expl{(value def.)} \\
 % TO DO: type variables
 %
 \text{Signature body } \\
-\Sigma \; ::= \; &\overline{\delta}                    & \expl{(Signature body)}\\
+\Sigma \; ::= \; &\overline{\delta}                    & \expl{(signature body)}\\
 %
 \text{Declaration }\\
 \delta \; ::= \; & \text{\lsttext{type}}\ \ova\ t  & \expl{(abstract type declaration.)} \\

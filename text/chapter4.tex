@@ -44,7 +44,7 @@ Closures introduce the \cmath{\lambda}-expression to the Core syntax, \myref{fig
 It specifies a number of argument, their identifiers and their types, as well as the expression that represents the function body.
 
 \input{UpdatedCoreSyntax}
-
+\vspace{-1em} %Todo: LaTeX magic, see if this is necessary!
 \subsubsection{Functors}
 Functors introduce the functor definition and functor application as module expressions to the Module syntax \myref{fig}{fig:UpdatedModuleSyntax}.
 
@@ -56,12 +56,13 @@ A functor definition specifies:
 \item the signature \cmath{Sig_{2}} to which the functors body must comply,
 \item and the body \cmath{\overline{d}}.
 \end{itemize}
-
 A functor application specifies the identifier to which the resulting structure is bound, the functor identifier, and the identifier for the structure that is passed as an argument.
-
 \input{UpdatedModuleSyntax}
 
 \subsection{Type system}
+The type system also needs some minor modifications to allow the new concepts, shown in \myref{fig}{fig:UpdatedTypeRulesCore} and \myref{fig}{fig:UpdatedTypeRulesModule}. As earlier, due to its simplicity the Program type system sees no modifications.
+
+\input{UpdatedTypeRules}
 \subsection{Operational Semantics}
 
 \section{Formalized Compiler}

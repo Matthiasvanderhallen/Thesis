@@ -1,3 +1,13 @@
-\begin{figure}[htb]
-\caption[Updated Module Syntax]{The Module Syntax, updated from {\protect\myref{fig}{fig:ModuleSyntax}}.\label{fig:UpdatedModuleSyntax}}
+\begin{figure}[H]
+\begin{align*}
+\begin{aligned}
+%
+\text{Mod Exp }\\
+\mathit{me} ::= \; & \ldots\\
+&|\; \text{\lsttext{functor $\ \cmath{FunId}$($\cmath{ArgStr:SigId_{1}}$):>$\cmath{SigId_{2}}$ = struct $\ \overline{d}$ end}} & \expl{(opaque functor)}\\
+&|\; \text{\lsttext{functor $\ \cmath{FunId}$($\cmath{ArgStr:SigId_{1}}$):$\cmath{SigId_{2}}$ = struct $\ \overline{d}$ end}} & \expl{(trans. functor)}\\
+&|\; \text{\lsttext{structure}}\ \mathit{StrId_{1} = FunId(StrId_{2})}&\expl{(functor application)}\\
+\end{aligned}
+\end{align*}
+\caption[Updated Module Syntax]{The Module syntax, updated from {\protect\myref{fig}{fig:ModuleSyntax}}.\label{fig:UpdatedModuleSyntax}}
 \end{figure}

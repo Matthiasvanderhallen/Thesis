@@ -1,69 +1,76 @@
 \begin{figure}[htb]
 \begin{align*}
-%&\Gamma \vdash true : bool \tag{T-True} \\
-%&\Gamma \vdash false : bool \tag{T-False} \\
-&\Gamma \vdash num \; n : nat \tag{T-Num}
-\\[1em]
-\tag{T-Mono}
-&\frac{\sigma_{2} \geq \sigma_{1} \longspace id:\sigma_{2} \in \Gamma}{\Gamma \vdash id:\sigma_{1}}
-\\[1em]
+%%&\Gamma \vdash true : bool \tag{T-True} \\
+%%&\Gamma \vdash false : bool \tag{T-False} \\
+%&\Gamma \vdash num \; n : nat \tag{T-Num}
+%\\[1em]
+%\tag{T-Mono}
+%&\frac{\sigma_{2} \geq \sigma_{1} \longspace id:\sigma_{2} \in \Gamma}{\Gamma \vdash id:\sigma_{1}}
+%\\[1em]
 \tag{T-App}
-&\frac{\Gamma \vdash e_{1}:\overline{\tau_{2}} \rightarrow \tau_{1} \longspace \Gamma \vdash \overline{e_{2}}:\overline{\tau_{2}} \longspace \tau_{1} \neq \tau_{3} \rightarrow \tau_{4} \longspace \forall \tau \in \overline{\tau_{2}} : \tau \neq \tau_{3} \rightarrow \tau_{4}}
+&\frac
+{\Gamma \vdash e_{1}:\overline{\tau_{2}} \rightarrow \tau_{1}
+    \longspace
+    \Gamma \vdash \overline{e_{2}}:\overline{\tau_{2}}}
 {\Gamma \vdash e_{1} \overline{e_{2}}:\tau_{1}}
 \\[1em]
-%\tag{BuildContext1}
-%& id:\sigma \rightarrow \emptyset, (id:\sigma) \\ \\
-%\tag{BuildContext2}
-%%&\frac{p_{1}:\sigma_{1} \rightarrow \Gamma_{1} \longspace p_{2}:\sigma_{2}\rightarrow \Gamma_{2}}
-%{(p_{1},p_{2}):\sigma_{1}\times \sigma_{2} \rightarrow \Gamma_{1}\cup \Gamma_{2}} \\ \\
-%\tag{T-Fun}
-%&\frac{p:\tau_{2} \rightarrow \Gamma_{2} \longspace \Gamma_{2} \cup \Gamma_{1} \vdash e:\tau_{1}}
-%{\Gamma_{1} \vdash \lambda(p:\tau).e:\tau_{2} \rightarrow \tau_{1}} \\ \\
-%
-%\tag{T-IfThenElse}
-%&\frac{\Gamma \vdash e_{1}:bool \longspace \Gamma \vdash e_{2}:\tau \longspace \Gamma \vdash e_{3} : \tau}
-%{\Gamma \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} : \tau} \\ \\
-%
+\tag{T-Lambda}
+&\frac
+{\overline{(x:\tau_{2})} \cup \Gamma \vdash e : \tau_{1}}
+{\Gamma \vdash \lambda\ \overline{x}.e : \overline{\tau_{2}} \rightarrow \tau_{1}}
+%%\tag{BuildContext1}
+%%& id:\sigma \rightarrow \emptyset, (id:\sigma) \\ \\
+%%\tag{BuildContext2}
+%%%&\frac{p_{1}:\sigma_{1} \rightarrow \Gamma_{1} \longspace p_{2}:\sigma_{2}\rightarrow \Gamma_{2}}
+%%{(p_{1},p_{2}):\sigma_{1}\times \sigma_{2} \rightarrow \Gamma_{1}\cup \Gamma_{2}} \\ \\
+%%\tag{T-Fun}
+%%&\frac{p:\tau_{2} \rightarrow \Gamma_{2} \longspace \Gamma_{2} \cup \Gamma_{1} \vdash e:\tau_{1}}
+%%{\Gamma_{1} \vdash \lambda(p:\tau).e:\tau_{2} \rightarrow \tau_{1}} \\ \\
+%%
+%%\tag{T-IfThenElse}
+%%&\frac{\Gamma \vdash e_{1}:bool \longspace \Gamma \vdash e_{2}:\tau \longspace \Gamma \vdash e_{3} : \tau}
+%%{\Gamma \vdash if \; e_{1} \; then \; e_{2} \; else \; e_{3} : \tau} \\ \\
+%%
+%%\tag{T-Pair}
+%%&\frac{\Gamma \vdash e_{1}:\tau_{1} \longspace \Gamma \vdash e_{2}:%\tau_{2}}
+%%{\Gamma \vdash (e_{1},e_{2}) : \tau_{1}\times\tau_{2}} \\ \\
+%%\tag{T-PairLeft}
+%%&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
+%%{\Gamma \vdash \mathit{p.left} : \tau_{1}} \\
+%%\\
+%% \tag{T-PairRight}
+%%&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
+%%{\Gamma \vdash \mathit{p.right} : \tau_{2}} \\
+%%\\
+%\tag{T-Let}
+%&\frac{\Gamma \vdash e_{2}:\sigma \longspace \Gamma, x:\sigma \vdash e_{1}:\tau}
+%{\Gamma \vdash let\;p\;=\;e_{2}\;in\;e_{1}:\tau}
+%\\[1em]
+%\tag{T-Gen}
+%&\frac{\Gamma \vdash e:\sigma \longspace \alpha \not\in \mathit{free(\Gamma)}}{\Gamma \vdash e : \forall \alpha . \sigma}
+%\\[1em]
 %\tag{T-Pair}
-%&\frac{\Gamma \vdash e_{1}:\tau_{1} \longspace \Gamma \vdash e_{2}:%\tau_{2}}
-%{\Gamma \vdash (e_{1},e_{2}) : \tau_{1}\times\tau_{2}} \\ \\
+%&\frac
+%{\Gamma \vdash e_{1}:\tau_{1} \longspace \Gamma \vdash e_{2}:\tau_{2})}
+%{\Gamma \vdash (e_{1},e_{2}):\tau_{1} \times \tau_{2}}
+%\\[1em]
+%\tag{T-List}
+%&\frac
+%{\Gamma \vdash e_{1}:\tau \longspace \Gamma \vdash e_{2}:[\tau]}
+%{\Gamma \vdash e_{1}::e_{2}:[\tau]}
+%\\[1em]
+%\tag{T-EmptyList}
+%&\Gamma [] : \forall \alpha.[\alpha]
+%\\[1em]
 %\tag{T-PairLeft}
-%&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
-%{\Gamma \vdash \mathit{p.left} : \tau_{1}} \\
-%\\
-% \tag{T-PairRight}
-%&\frac{\Gamma \vdash p:\tau_{1}\times\tau_{2}}
-%{\Gamma \vdash \mathit{p.right} : \tau_{2}} \\
-%\\
-\tag{T-Let}
-&\frac{\Gamma \vdash e_{2}:\sigma \longspace \Gamma, x:\sigma \vdash e_{1}:\tau}
-{\Gamma \vdash let\;p\;=\;e_{2}\;in\;e_{1}:\tau}
-\\[1em]
-\tag{T-Gen}
-&\frac{\Gamma \vdash e:\sigma \longspace \alpha \not\in \mathit{free(\Gamma)}}{\Gamma \vdash e : \forall \alpha . \sigma}
-\\[1em]
-\tag{T-Pair}
-&\frac
-{\Gamma \vdash e_{1}:\tau_{1} \longspace \Gamma \vdash e_{2}:\tau_{2})}
-{\Gamma \vdash (e_{1},e_{2}):\tau_{1} \times \tau_{2}}
-\\[1em]
-\tag{T-List}
-&\frac
-{\Gamma \vdash e_{1}:\tau \longspace \Gamma \vdash e_{2}:[\tau]}
-{\Gamma \vdash e_{1}::e_{2}:[\tau]}
-\\[1em]
-\tag{T-EmptyList}
-&\Gamma [] : \forall \alpha.[\alpha]
-\\[1em]
-\tag{T-PairLeft}
-&\frac
-{\Gamma \vdash e:\forall \alpha . \tau \times \alpha}
-{\Gamma \vdash e.\#1:\tau}
-\\[1em]
-\tag{T-PairLeft}
-&\frac
-{\Gamma \vdash e:\forall \alpha . \alpha \times \tau}
-{\Gamma \vdash e.\#2:\tau}
+%&\frac
+%{\Gamma \vdash e:\forall \alpha . \tau \times \alpha}
+%{\Gamma \vdash e.\#1:\tau}
+%\\[1em]
+%\tag{T-PairLeft}
+%&\frac
+%{\Gamma \vdash e:\forall \alpha . \alpha \times \tau}
+%{\Gamma \vdash e.\#2:\tau}
 \end{align*}
 \caption[Updated Typing Rules: Core Language]{Updated typing rules for the Core language. \label{fig:UpdatedTypeRulesCore}}
 \end{figure}

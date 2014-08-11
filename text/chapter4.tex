@@ -62,21 +62,17 @@ A functor application specifies the identifier to which the resulting structure 
 \input{UpdatedModuleSyntax}
 
 \subsection{Type system}
-The type system also needs some minor modifications to allow the new concepts, shown in \myref{fig}{fig:UpdatedTypeRulesCore} and \myref{fig}{fig:UpdatedTypeRulesModule}. As earlier, due to its simplicity the Program type system sees no modifications.
+The type system also needs some minor modifications to allow the new concepts.
+As earlier, due to its simplicity the Program type system sees no modifications.
 
-First, the concept of a \emph{context} $\Gamma$ is extended (\myref{fig}{fig:UpdatedMiniMLContexts}, so that it can contain conclusions related to functors.
+First, the concept of a \emph{context} $\Gamma$ is extended in \myref{fig}{fig:UpdatedMiniMLContexts}, so that it can contain conclusions related to functors: The signature it conforms to, its body of definitions, and the name of the signature that its argument must conform to.
 
 \begin{figure}[!htb]
 \begin{align*}
 \begin{aligned}
 \text{Context }\\
-\Gamma ::=\; &\emptyset     & \expl{(Empty context)}\\
-&| \; (\mathit{id}:\sigma),\Gamma          & \expl{(identifier type assumption)}\\
-&| \; (t = \tau), \Gamma                   & \expl{(type definition)}\\
-&| \; (\mathit{StrId} \mapsto \lbrace \Sigma,\overline{d}\rbrace), \Gamma 
-                                           & \expl{(Structure definition)}\\
-% &| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), \Gamma \\
-&| \; (\mathit{SigId} \mapsto \Sigma), \Gamma
+\Gamma ::=\; \ldots \\ 
+&| \; (\mathit{FunId} \mapsto \lbrace \Sigma, \overline{d}, SigId\rbrace), \Gamma
                                            & \expl{(Signature definition)}
 \end{aligned}
 \end{align*}
@@ -84,6 +80,12 @@ First, the concept of a \emph{context} $\Gamma$ is extended (\myref{fig}{fig:Upd
 \label{fig:UpdatedMiniMLContexts}
 \end{figure}
 
+Next, the typing rules are updated, as shown in \myref{fig}{fig:UpdatedTypeRulesCore} and \myref{fig}{fig:UpdatedTypeRulesModule}.
+The addition of closures, as a Core concept, modifies the function application rule T-App inside the Core typing system in \myref{fig}{fig:UpdatedTypeRulesCore}, so that it allows arguments or return values to be of the function type.
+It also adds the $\lambda$-expression typing rule T-Lambda. 
+This rule describes that a $\lambda$-expression is well typed if its defining expression can be typed to the result type, assuming each argument is of the stated argument type.
+
+Functors are strictly
 
 \input{UpdatedTypeRules}
 \subsection{Operational Semantics}

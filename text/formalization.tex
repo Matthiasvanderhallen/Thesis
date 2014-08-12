@@ -34,7 +34,8 @@ This depends on the value being declared in the signature \cmath{SigId}.
 }
 
 \compile{\lsttext{type}$\ \ova\ t= \tau$} \makes \lsttext{\%t = type $\ \{\tau\}$} \nl
-\annot{The type is tracked and assigned a unique integer $\ \tau_{int}$ to identify it.
+\annot{The type and its definition are tracked.
+The type is assigned a unique integer $\ \tau_{int}$ to identify it.
 This way, when a masked pointer is received in an entry stub, its type can be checked.}\\
 & & \\
 \compile{\lsttext{val} $id = e : \tau$}$^{\mathit{SigId}}$ \makes \lsttext{define private\ $\tau$* @}$id$\lsttext{_internal()\{} \compile{$e$}$^{\mathit{SigId}}$ \lsttext{\}} \nl

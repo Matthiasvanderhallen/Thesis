@@ -111,6 +111,8 @@ define %int @Pair.getLeft(%int %pair){
 }
 
 define private %int @main(){
+	
+
 	%argptr = call i8* @malloc(%int 100)
 	%argptr1 = bitcast i8* %argptr to %tyvar*
 	%arg1 = insertvalue %tyvar undef, %int 1, 0
@@ -126,6 +128,7 @@ define private %int @main(){
 @.ImplTable = private constant [6 x %int] [%int 0, %int 1, %int 2, %int 3, %int 4, %int 2]
 
 define private i1 @tyvarcheck(%tyvar* %v1, %tyvar* %v2){
+	Start:
 	%v1.1 = load %tyvar* %v1
 	%v2.1 = load %tyvar* %v2
 	%t1 = extractvalue %tyvar %v1.1, 1
@@ -134,9 +137,10 @@ define private i1 @tyvarcheck(%tyvar* %v1, %tyvar* %v2){
 	br i1 %equal, label %Continue, label %Error
 
 	Continue:
-		%t = getelementptr [6 x %int]* @.ImplTable, i32 0, i64 %t1
+		%basetype = phi %int [%t1, %Start], [%t.1, %Continue]
+		%t = getelementptr [6 x %int]* @.ImplTable, i32 0, %int %basetype
 		%t.1 = load %int* %t
-		switch %int %t.1, label %Error [%int 0, label %Ok
+		switch %int %t.1, label %Continue [%int 0, label %Ok
 										%int 1, label %Ok
 									 	%int 3, label %PairRec
 									 	%int 4, label %ArrayRec]

@@ -505,6 +505,7 @@ In order to distinguish frames that represent simple structures from those that 
 For clarity, this value is not shown in the figures representing frames.
 
 \subsection{Creating the Frames}
+\label{sec:creatingframes}
 \myref{sec}{sec:StructureOfFrames} specified how frames can represent structures.
 %\to do{give functors their own chapter? Then 'The Structure of Frames' becomes a subsection with a number}
 It also concludes that in order to avoid tampering with the representation of secure frames, any secure frame must be located inside the protected memory of the \emph{SPM}.
@@ -780,8 +781,10 @@ In this case the wrapper function must not allow the \cmath{index_{f-list}} to b
 \item Check whether the frame represents a simple structure or the result of functor application.
 \item Look up \cmath{index_{val}} in the list of pointers within the frame to get a pointer to the accessed value.
 \item Call this value with any relevant arguments.
-In case the frame represented the result of functor application, the pointer to the argument frame must be provided when calling the value.
-By design, a pointer to this frame is always present within the frame representing the functor output itself.
+In case the frame represents the result of functor application, the pointer to the frame must be provided as a parameter when calling the value.
+The function implementing the value will uses this frame to determine the argument frame.
+%argument frame must be provided when calling the value.
+%By design, a pointer to this frame is always present within the frame representing the functor output itself.
 \item return any results to the caller.
 \end{itemize}
 

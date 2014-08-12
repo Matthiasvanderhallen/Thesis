@@ -1,96 +1,212 @@
 \begin{tabularx}{\textwidth}{@{}l c X@{}}
-%\compile{$\overline{me}$} \makes \compile{sort($\overline{me}$)}\\
-
-%\intertextt{
-%Next, all module expressions can be translated individually.
-%The signature \cmath{SigId} used in the ascription of \cmath{StrId} is saved:
-%}
-
-%\compile{\cmath{me, \overline{me}}} \makes \compile{sort($\overline{me}$)} \\
-%\compile{\cmath{StrId:SigId = \overline{d}}} \makes \compile{$\overline{d}$}\cmath{^{SigId}}\\
-
-%\intertextt{
-%All fields in a module are sorted alphabetically as well. 
-%This is done for the same reason as the sorting of module expressions: two \MiniML\ programs \cmath{P} differing only in the order of their fields are contextually equivalent.
-%To prevent leakage of this ordering in the target-level, outputting the fields in the target language happens in a fixed ordering.
-%}
 \intertextt{The processing of module expressions $me$ still occurs in alphabetical order of the identifiers.
+}
+
+\compile{$\overline{me}$}\cmath{^{SigId}} \makes \compile{sort($\overline{me}$)}\cmath{^{SigId}} \\
+\end{tabularx}
+
+\subsubsection{Static structure bindings}
 Processing structure bindings using the \lsttext{struct} expression happens in much the same way as detailed in \myref{sec}{sec:formalization}. 
 The following changes are made:
 \begin{itemize}
 \item The stubs are no longer made entry points.
 \item Stubs use the \lsttext{va_arg} instruction and the accompanying intrinsic functions \lsttext{@llvm.va_start}, \lsttext{@llvm.va_copy} and \lsttext{@llvm.va_end}.
 
-This way, the \LLVMIR\ type of any stub is exactly the same: \lsttext{\%int (...)*}.
-\item The necessary information to eventually output a frame for the frame list is saved.
+This way, the \LLVMIR\ type of any stub is exactly the same: \lsttext{\%int (\%frame*, i8*)*}.
+Giving all the stubs the same type is beneficial because then their pointers can all be saved together in an LLVM array:  \lsttext{\{\%int, [0 x \%int (\%frame* i8*)*]\}*}.
+\item The code creating a representation of the structure as an LLVM value of type \lsttext{\%frame} and corresponding \lsttext{\%metaframe} is built while processing the structure.
+
+The target frame pointer is set to null in this value, well as the pointer to the trimming list, since these values are irrelevant for a staticly defined structure.
+
+This code will outputted by the compiler only later, inside the @initialize function.
 \end{itemize}
 The stubs still perform the masking and unmasking, as well as the stack switches or clearing the registers and flags.
+
+\subsubsection{Functor Definitions}
+Functors are processed just a little different from static structure bindings.
+
+An additional function is generated, with signature \lsttext{void (\%int, i1, ...)}.
+This function is tasked with dynamically creating frames resulting from functor applications, as detailed in \myref{sec}{sec:creatingframes}.
+
+\begin{itemize}
+\item
+The first integer represents the location of a frame. 
+This frame must correspond to the argument structure.
+
+\item
+Variable i1 specifies whether the value of the first integer is an address of a frame in insecure memory, or whether it must interpreted as an index in the \emph{f-list}.
+
+\item
+The rest of the arguments specify the trimming map.
+\end{itemize}
+
+$\compile{\cmath{FunId(ArgStr:ArgSig):SigId = \overline{d}}} \rightarrow$
+
+\begin{lstlisting}[language={[x86masm]Assembler}]
+define void @±\cmath{FunId}±(%int %frame, i1 %ext, ...){
+   call void @initialize()
+   ; The initialize function will initialize the f-list, if it isn't initialized already.
+   br i1 %ext label %External, label %Secure
+   External:
+    ; The frame and metaframe can be built.
+    ; Read the trimming list using va_arg.
+    ; No checking is necessary.
+    ; Add frame to the f-list.
+    ret void
+   Secure:
+    ; Get memory location of frame through f-list
+    ; Use meta information associated with the argument frame to typecheck functor application
+    ; build the frame. The metaframe can be built statically, because it uses only information provided by the signature.
 }
-%\compile{$\overline{d}$}\cmath{^{SigId}} \makes \compile{sort($\overline{d}$)}\cmath{^{SigId}} \\
-%
-%\intertextt{
-%The compiler can now continue by translating the elements specified within the module expression.
-%Every definition is translated separately.
-%}
-%\compile{$\overline{d}$}$^{\mathit{SigId}}$ \makes \compile{$d$}$^{\mathit{SigId}}$;\compile{$\overline{d}$}$^{\mathit{SigId}}$\\
-%
-%\intertextt{
-%The translation of a definition depends on a number of things.
-%\begin{itemize}
-%\item Whether the definition is that of a type or that of a field.
-%%The definition of a type is not translated to llvm.
-%\item Whether or not the value is local to the structure \cmath{StrId}.
-%This depends on the value being declared in the signature \cmath{SigId}.
-%\end{itemize}
-%}
-%
-%\compile{\lsttext{type}$\ \ova\ t= \tau$} \makes \lsttext{\%t = type $\ \{\tau\}$} \nl
-%\annot{The type is tracked and assigned a unique integer $\ \tau_{int}$ to identify it.
-%This way, when a masked pointer is received in an entry stub, its type can be checked.}\\
-%& & \\
-%\compile{\lsttext{val} $id = e : \tau$}$^{\mathit{SigId}}$ \makes \lsttext{define private\ $\tau$* @}$id$\lsttext{_internal()\{} \compile{$e$}$^{\mathit{SigId}}$ \lsttext{\}} \nl
-%\annot{The next part is only included if the value is declared in the signature}\nl
-%\lsttext{define \%int @}$id$ \lsttext{()\{} \nl
-%\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in spm for @\cmath{id}}\nl
-%\longspace \lsttext{\%0 = call $\ \tau$* @}$id$\lsttext{_internal()} \nl
-%\longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 to \%int} \nl
-%\longspace \lsttext{\%2 = call \%int @mask(\%int \%1,\%int $\ \tau_{int}$)} \nl
-%\longspace [Switch stack, clear registers] \nl
-%\longspace \lsttext{ret \%int \%2} \nl
-%\lsttext{\}} \\
-%& & \\
-%\compile{\lsttext{fun\ $\cmath{id\ \overline{x} = e : \tau}$}}$^{\mathit{SigId}}$ \makes \lsttext{define private\ $\tau$* @}$id$\lsttext{_internal($\mathit{\overline{\tau_{x}*}\ \overline{x}}$)\{}\nl
-%\longspace \compile{$e$}$^{\mathit{SigId}}$ \nl
-%\lsttext{\}} \nl
-%\annot{The next part is only included if the value is declared in the signature}\nl
-%\lsttext{define \%int @}$id$ \lsttext{($\mathit{\overline{\%int}\ \overline{y}}$)\{} \nl
-%%\longspace [Switch stack, move parameters, add entry point in spm for @\cmath{id}]\nl
-%\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in spm for @\cmath{id}}\nl
-%\longspace \lsttext{$\overline{\%z}$ = call \%int @unmask($\overline{\%int}\ \overline{\%y}$)} \nl
-%\longspace \lsttext{$\overline{\%t}$ = call \%int @unmasktype($\overline{\%int}\ \overline{\%y}$)} \nl
-%\longspace \lsttext{$\overline{\%c}$ = icmp eq \%int $\ \overline{\%t}$\ $\overline{\%\tau_{x,int}}$}\nl
-%\longspace \lsttext{br i1 $\ \overline{\%c}$, label \%Continue, label \%Error}\nl
-%\nl
-%\longspace \lsttext{Continue:} \nl
-%\longspace \lsttext{$\overline{\%x}$ = inttoptr \%int\ $\overline{\%z}$ to $\ \overline{\tau_{x}*}$} \nl
-%\longspace \lsttext{\%0 = call $\ \tau$* @}$id$\lsttext{_internal($\overline{\tau_{x}*}\ \overline{\%x}$)} \nl
-%\longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 to \%int} \nl
-%\longspace \lsttext{\%2 = call \%int @mask(\%int \%1, \%int $\ \tau_{int}$)} \nl
-%\longspace [Switch stack, clear registers] \nl
-%\longspace \lsttext{ret \%int \%2} \nl
-%\nl
-%\longspace \lsttext{Error:}\nl
-%\longspace \lsttext{call void @exit(i32 -1)}\nl
-%\longspace \lsttext{unreachable}\nl
-%\lsttext{\}} \\ 
-%\intertextt{The code of the \lsttext{@mask}, \lsttext{@unmask} and \lsttext{@unmasktype} functions is given in \myref{lst}{lst:maskcode} in App. \ref{App:LLVMCode}. 
-%It provides a naive implementation of \lsttext{@mask}, \lsttext{@unmask} and \lsttext{@unmasktype} functions using linked lists.}
-%\intertextt{If a function receives polymorphic arguments, for example \lsttext{createPair :: a -> a -> Pair a}, the internal functions arguments are of type \%tyvar*.
-%When the function is called from insecure code, the stub loads the parameters from the masking list and wraps them in a \%tyvar.
-%
-%Before passing these arguments to the internal function, the compiler inserts code to check the consistency of the underlying type equation, using the \lsttext{@tyvarcheck} function.
-%The code implementing \lsttext{@tyvarcheck} is given in \myref{lst}{lst:tyvarcheck} in App. \ref{App:LLVMCode}.
-%
-%As an example, \myref{sec}{sec:PolymorphicExample} in App. \ref{App:LLVMCode} provides an example of the compilation of a polymorphic function.
-%}
+\end{lstlisting}
+
+The body of definitions is translated just like static structure bindings, with a few notable exceptions:
+\begin{itemize}
+\item Stubs and internal functions that represent values $x$ defined by a functor \cmath{FunId} take an extra argument: A frame location \cmath{loc_{frame}}.
+The frame \cmath{f} in this location represents the result of an application of functor \cmath{FunId}.
+\item The stubs read the frame \cmath{f} at location \cmath{loc_{frame}} and can use this to see what ints represent the types that were created by the functor application.
+This is important to type the other arguments.
+
+Indeed, every application of a functor to a structure creates new types. 
+A stub statically knows that the type of an argument is supposed to be of the $n$th type that the structure defines. It does not know which integer is associated with this type, because this changes from application to application.
+
+However, from the frame that represents a functor application, it can perform a lookup, using the knowledge that it is the $n$th type the structure defines, gives back the associated integer value.
+\item The internal functions use the frame to look up the frame representing the argument structure.
+They need this to call values from argument structure.
+
+Frames contain a boolean i1 that signals whether the frame corresponds to an insecure structure or a secure structure.
+If the frame is an insecure structure, additional measures must be taken:
+\begin{itemize}
+\item Mask all arguments
+\item Clear the registers and switch the stack pointer
+\item Push the return address to the return address stack.
+\item Change the return address of the call to the returnback entry point.\footnote{As the return address is not manipulatable using LLVM, this security measure must be implemented during the compilation from \LLVMIR\ to assembly.}
+\item When execution returns, the return value is interpreted as a masked index.
+\end{itemize}
+\end{itemize}
+
+\subsubsection{Functor Applications}
+Functor applications result only in code creating the LLVM frame representation being built by the compiler.
+Just as for static structure bindings, this frame creating code will be outputted inside the \lsttext{@initialize} function.
+
+\subsubsection{$\lambda$-expressions}
+$\lambda$-expressions will be compiled to their own private function, with a compiler generated unique name \cmath{ClosureN}.
+This private function will take a variable amount of arguments.
+
+\begin{tabularx}{\textwidth}{@{}X@{}}
+\cmath{\compile{\lambda\ \overline{x}.e:(\overline{\tau_{1}}\rightarrow\tau_{2})} \rightarrow}\\
+\lsttext{define private \%int @$\mathit{ClosureN}$(i1 \%sec, \{\%int, [0 x \%int]\}* \%env, i8* \%vargs)\{}\\
+ \longspace $\compile{e}$\\
+ \lsttext{\}}
 \end{tabularx}
+
+\begin{itemize}
+\item The first of these arguments is a one bit wide integer, which indicates whether the function was called by the generic closure evaluation point or by other code inside the secure context.
+As this value is always set within the secure context, its value can be trusted.
+
+Depending on this value, the next arguments are interpreted as pointers cast to int, or as indices in the masking map.
+It will also determine whether the return value is a pointer cast to int, or is being masked.
+\item The other arguments correspond to the arguments $\overline{x}$ of the $\lambda$-expression itself and the pointer to the environment.
+\item The compilation of $e$ will be adjusted so that it references variables that are neither the parameters, nor defined within expression e itself using the their offset in the environment.
+\end{itemize}
+
+The lambda expression will also lead to the creation of an llvm object of type\ \lsttext{\%closure}.
+It is initialized with
+\begin{itemize}
+\item a reference to a list of pointers cast to int, representing the environment,
+\item a pointer to the function the $\lambda$-expression was translated to,
+\item and a one bit integer to indicate whether the closure was secure or insecure.
+\end{itemize}
+
+\subsubsection{Applying closures}
+When application is performed in secure code on an identifier that represents a closure, the closure value is loaded. The secure code checks whether the closure value represents a secure or an insecure closure.
+
+If the closure is secure, the secure context can simply convert the integer in the closure value to a function pointer and call the function.
+As arguments, it provides a value 1 to signal that the arguments are unmasked, followed by the arguments and the pointer to the environment.
+
+If the closure is insecure, the secure context masks all arguments it wants to pass. It then must call the closure evaluation point provided by the \emph{insecure context} with the masked arguments and the int representation of the closure value.
+In this call, the return address must be changed to the returnback entry point, and the real return address must be pushed on the return address stack.
+When execution returns, the return value must be interpreted as a masking index.
+
+\subsubsection{Generic Closure Evaluation Entry Point}
+This is a generic entry point into the \emph{SPM} provided to evaluate closure values created within the secure code and passed to the insecure context. It receives an int, which is the masked index of the closure value, and a variable number of arguments.
+
+\begin{lstlisting}
+define %int @GenericClosureEvaluation(%int %closure.mask, ...){
+    %closure.unmask = call %int @unmask(%int %closure.mask)
+    %closure.valptr = bitcast %int %closure.unmask to %closure*
+    %closure = load %closure* %closure.valptr
+    %closure.ptr = extractvalue %closure %closure, i32 0
+    %closure.env = extractvalue %closure %closure, i32 1
+    %ap = call i8* malloc(%int 8)
+    call void @llvm.va_start(i8* %ap)
+    %ret = call %int %closure.ptr(i1 0, {%int, [0 x %int]}* %closure.env, i8* %ap)
+    call void @llvm.va_end(i8* %ap)
+    ret %int %ret
+}
+\end{lstlisting}
+
+\subsubsection{Structure Value Entry Point}
+The addition of functors required that values were called by specifying the frame that corresponds to the structure that defines them, and the offset of the value within the frame.
+This Structure Value entry point had the following arguments:
+\begin{itemize}
+\item an index in the f-list,
+\item an offset for the value to be called,
+\item and any number of arguments meant for the value 
+\end{itemize}
+
+%{%int, [0 x %int (%frame*, i8*)*]}*
+\begin{lstlisting}
+@.flist = private global {i32, [0 x %frame*]}* [0, []]
+
+define %int @StructureEntryPoint(%int %findex, %int index, ...){
+    %flist.ptr = load %{i32, [0 x %frame*]}** @.f-list
+    %flist = load %{i32, [0 x %frame*]}* %flist.ptr
+    %elems = extractvalue %{i32, [0 x %frame*]} flist, i32 0
+    
+    %check = icmp lt %int %findex, %elems
+    br i1 %check, label %Continue, label %Error
+    
+    Continue:
+    %frame.ptr2 = getelementptr %{i32, [0 x %frame*]}* %flist.ptr, %int 0, %int findex
+    %frame.ptr = load %frame** %frame.ptr2
+    %frame = load %frame %frame.ptr
+    %valuelist.ptr = extractvalue %frame %frame, i32 4
+    %valuelist = load {%int, [0 x %int (%frame*, i8*)*]}* %valuelist.ptr
+    %list.ptr = getelementptr {%int, [0 x %int (%frame*, i8*)*]}* %valuelist.ptr, i32 0, i32 1
+    %elems2 = extractvalue {%int, [0 x %int (%frame*, i8*)*]} %valuelist, i32 0
+    %check2 = icmp lt %int %index, %elems2
+    br i1 %check2, label %Continue2, label %Error
+    
+    Continue2:
+    %val.ptr = getelementptr {[0 x %int (%frame*, i8*)*]}* %list.ptr, i32 0, %int %index
+    %val = load %int (%frame*, i8*)** %val.ptr
+
+    %ap = call i8* malloc(%int 8)
+    call void @llvm.va_start(i8* %ap)
+    %ret = call %int %val(%frame* %frame.ptr,i8* %ap)
+    call void @llvm.va_end(i8* %ap)
+    ret %int %ret
+    
+    Error:
+    call void @exit(i32 -1)
+    unreachable
+}
+\end{lstlisting}
+
+\subsubsection{Returnback Entry Point}
+The returnback entry point, as specified by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247} is used to return from callbacks.
+Whenever a secure function calls a function in insecure memory, either directly or through the insecure closure evaluation point, the return address is changed to the returnback entry point and the real return address is pushed on the return address stack. When the returnback entry point is called, it will pop the first value off the return pointer stack, and jump to it.
+
+The return address register however can normally not be manipulated from within LLVM. This is a consequence of LLVMs target independent nature.
+This leaves two options to implement this security measure, both out of the scope of this work:
+\begin{itemize}
+\item 
+Add the security measure when the llvm backend compiles the \LLVMIR source to assembly.
+
+\item 
+Use the experimental \lsttext{llvm.read_register} and \lsttext{llvm.writeregister} intrinsics to perform platform dependent modifications.
+\end{itemize}
+
+\subsection{Conclusion}
+\todo{Schrijf een conclusie over dit wtf stuk.}

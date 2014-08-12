@@ -212,4 +212,15 @@ When a structure is bound by a functor application, a mapping for the structure 
 \label{sec:formalizedcompiler2}
 This section adapts the secure compiler formalized in \myref{sec}{sec:formalization} to the security measures and concerns introduced with the addition of closures and functors in \myref{chap}{chap:AdvancedConcepts}.
 
+A few additional base types are defined, to represent frames, metaframes and closures. These types are the straightforward implementation of their representations as defined in \myref{chap}{chap:AdvancedConcepts}.
+The type \lsttext{[0 x i8]*} is used to point to names and type \lsttext{\{\%int, [0 x \%int]\}*} is used for lists.
+\begin{lstlisting}
+%frame = type {[0 x i8]*, %frame*, {%int, [0 x %int]}*, {%int, [0 x %int]}*, %metaframe*}
+%metaframe = type {{%int, [0 x %typedef]}*, {%int, [0 x %valuedef]}*}
+%typedef = type {[0 x i8]*, %int, %int, %type*, i1}
+%valuedef = type {[0 x i8]*, type*}
+%type = type {%int, %int, %int}
+%closure = type {%int, {%int, [0 x %int]}*, i1}
+\end{lstlisting}
+
 \input{UpdatedFormalization}

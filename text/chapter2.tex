@@ -444,10 +444,10 @@ These are actions such as the specification of entry points in the \emph{SPM} la
 \subsection{Formalization}
 First, before translating the program, 4 \LLVMIR\ types are defined:
 \begin{lstlisting}
-%int = type i64 ; 0
-%tyvar = type {%int, %int} ; 1
-%pair = type {%tyvar*, %tyvar*} ; 2
-%array = type {%int, [0 x %tyvar*]} ;3
+%int = type i64 ; 1
+%tyvar = type {%int, %int} ; 2
+%pair = type {%tyvar*, %tyvar*} ; 3
+%array = type {%int, [0 x %tyvar*]} ;4
 \end{lstlisting}
 These will be used to represent the \MiniML\ int, $\alpha$, $(\tau,\tau)$ and $[\tau]$ types.
 

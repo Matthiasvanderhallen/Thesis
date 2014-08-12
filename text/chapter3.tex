@@ -143,7 +143,7 @@ Opaque types are not susceptible to the attack described above because they can 
 
 %the only values that can pass the border between secure code and insecure context are of an 
 
-%Todo: Remark that this is necessary for complex data in regular function calling as well.
+%To do: Remark that this is necessary for complex data in regular function calling as well.
 
 %To do: what if the free-variable IS a reference. Then we must follow the reference chain all the way?! No, we follow high-level semantics, and Ref's make MiniML storage aware. ≈If a Reference to storage is created by the attackers context, and this reference is passed as a parameter, it is okay for the attacker to change the value in the storage location, as long as the location remains the same. 
 
@@ -171,9 +171,11 @@ If an \emph{SPM} would pass a closure generated inside its body to the untrusted
 Each of these actions break contextual equivalence:
 \begin{description}
 \item[Change pointer value.] The pointer to the code might be changed to code that makes certain assumptions about the structure used to implement abstract data types.
-This way, the context could discern between contextually equivalent SPMs in which the assumptions may or may not hold. \todo{provide vulnerability example}
+This way, the context could discern between contextually equivalent SPMs in which the assumptions may or may not hold. 
+%\to do{provide vulnerability example}
 \item[Inspect environment values.]
-Assumptions about the way abstract data types are structured can be checked by inspecting the environment values. \todo{provide vulnerability example}
+Assumptions about the way abstract data types are structured can be checked by inspecting the environment values.
+%\to do{provide vulnerability example}
 \item[Change environment values.] Changing values in the reference environment allows an attacker to discern between higher order functions which first copy their free variables and higher order functions that do not, as shown in \myref{lst}{code:CopyFreeVariables}.
 \end{description}
 
@@ -349,7 +351,7 @@ Regardless of whether its argument, \lsttext{KeyStruct}, was defined in secure c
 The resulting dictionary structure is secure.
 This means that values of types that are defined by the functor can only be returned to the context as masked values.
 In its implementation, the functor can freely call functions of the (possibly insecure) structure, it must however take the same precautions as any callback to insecure code.
-%todo: How do we discriminate between structures that are inside the spm and those that are outside the spm? Do we simply check the pointer value against the region? (This is presumably very unsafe).
+%to do: How do we discriminate between structures that are inside the spm and those that are outside the spm? Do we simply check the pointer value against the region? (This is presumably very unsafe).
 %to do: How do we represent the structure that was created? It can be used as a parameter for a functor *again*
 %to do: Suppose StringEqualCaseSensitive and StringEqualCaseInsensitive are given as argument 
 \item[In insecure code:] Suppose \lsttext{DictionaryFn} is defined in insecure code.
@@ -873,7 +875,7 @@ However, because contextually equivalent implementations of the functor must per
 As a result, the regular precautions, such as clearing registers, switching the stack and masking values that pass from secure code to the insecure context, are sufficient to ensure preservation of contextual equivalence of the functors in the target language.
 
 If the application of the secure functor is done inside insecure code, the frame creating function corresponding to this functor must be called, and the types are checked dynamically using type information in the \emph{meta-frame}.
-%todo: OR depends on values
+%to do: OR depends on values
 \item[Insecure functor with insecure structure]
 In this case, both the functor code and the frame are located inside unprotected memory.
 The structure that results from the application is considered to be part of the attacker's context.
@@ -888,7 +890,7 @@ As a result, the generic wrapper returns the result of the call to its caller.
 %todo
 \end{description}
 
-\todo{When calling values of the argument structure, the functor must at all times take care to determine whether the argument frame represents another functor output, or a basic structure, since calling a value within functor output requires the first argument to be a frame pointer to the argument structure. Should I add this remark in text, or should I provide code that does this check, and refer to that.}
+%\to do{When calling values of the argument structure, the functor must at all times take care to determine whether the argument frame represents another functor output, or a basic structure, since calling a value within functor output requires the first argument to be a frame pointer to the argument structure. Should I add this remark in text, or should I provide code that does this check, and refer to that.}
 
 \section{Conclusion}
 In this chapter, some more advanced concepts of ML were added to the \MiniML\ language:

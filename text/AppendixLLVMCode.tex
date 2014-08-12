@@ -1,0 +1,28 @@
+\chapter{LLVM Code}
+\label{App:LLVMCode}
+\section{@mask, @unmask \& @unmasktype}
+\input{maskllvm}
+\section{@tyvarcheck}
+\input{tyvarcheck}
+\section{Polymorphic Example}
+\label{sec:PolymorphicExample}
+
+In \myref{lst}{llvm:polymorphic}, the \LLVMIR translation of \myref{lst}{ml:polymorphic} is shown, to illustrate how polymorphic functions are handled.
+
+\begin{lstlisting}[frame=single, language=ML,numbers=left, label=ml:polymorphic, caption={[Pair structure MiniML]The polymorphic Pair structure.}]
+signature PAIRSIG =
+    sig 
+        type t a
+        val createPair : a -> a -> t a
+        val getLeft : t a -> a
+    end
+
+structure Pair :> PAIRSIG =
+    struct
+        type t a = (a,a)
+        fun createPair left right = (left,right)
+        fun getLeft pair = pair.#1
+    end
+\end{lstlisting}
+
+\input{PolymorphFunction}

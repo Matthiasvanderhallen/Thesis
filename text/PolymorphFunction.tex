@@ -72,7 +72,7 @@ define %int @Pair.createPair(%int %left, i2 %left.mask, %int %right, i2 %right.m
 	br label %Create2
 
 	Create2:
-	%rightAsTyvar = phi %tyvar [%rightAsTyvar.unmask.2, %Unmask1], [%rightAsTyvar.ext.2, %External1], [%rightAsTyvar.int.2,%Int1]
+	%rightAsTyvar = phi %tyvar [%rightAsTyvar.unmask.2, %Unmask2], [%rightAsTyvar.ext.2, %External2], [%rightAsTyvar.int.2,%Int2]
 	store %tyvar %rightAsTyvar, %tyvar* %rightTyvar.ptr
 
 	call i1 @tyvarcheck(%tyvar* %leftTyvar.ptr, %tyvar* %rightTyvar.ptr) ; type equation
@@ -110,5 +110,87 @@ define %int @Pair.getLeft(%int %pair){
 	Error:
 	call void @exit(i32 -1)
 	unreachable
+}
+
+define private %int @main(){
+	%argptr = call i8* @malloc(%int 100)
+	%argptr1 = bitcast i8* %argptr to %tyvar*
+	%arg1 = insertvalue %tyvar undef, %int 1, 0
+	%arg2 = insertvalue %tyvar %arg1, %int 0, 1
+	
+	store %tyvar %arg2, %tyvar* %argptr1
+	call %Pair.t* @Pair.createPair_internal(%tyvar* %argptr1, %tyvar* %argptr1)
+
+	call void @free(i8* %argptr)
+	ret i64 0
+}
+
+@.ImplTable = private constant [6 x %int] [%int 0, %int 1, %int 2, %int 3, %int 4, %int 2]
+
+define private i1 @tyvarcheck(%tyvar* %v1, %tyvar* %v2){
+	%v1.1 = load %tyvar* %v1
+	%v2.1 = load %tyvar* %v2
+	%t1 = extractvalue %tyvar %v1.1, 1
+	%t2 = extractvalue %tyvar %v2.1, 1
+	%equal = icmp eq %int %t1, %t2
+	br i1 %equal, label %Continue, label %Error
+
+	Continue:
+		%t = getelementptr [6 x %int]* @.ImplTable, i32 0, i64 %t1
+		%t.1 = load %int* %t
+		switch %int %t.1, label %Error [%int 0, label %Ok
+										%int 1, label %Ok
+									 	%int 3, label %PairRec
+									 	%int 4, label %ArrayRec]
+
+	PairRec:
+		%pairptrv1 = extractvalue %tyvar %v1.1, 0
+		%pairptrv1.1 = inttoptr %int %pairptrv1 to %pair*
+		%tyvarlptrv1 = getelementptr inbounds %pair*  %pairptrv1.1, i32 0, i32 0
+		%tyvarlptrv1.1 = load %tyvar** %tyvarlptrv1
+		%tyvarrptrv1 = getelementptr inbounds %pair*  %pairptrv1.1, i32 0, i32 0
+		%tyvarrptrv1.1 = load %tyvar** %tyvarrptrv1
+		%pairptrv2 = extractvalue %tyvar %v2.1, 0
+		%pairptrv2.1 = inttoptr %int %pairptrv2 to %pair*
+		%tyvarlptrv2 = getelementptr inbounds %pair*  %pairptrv2.1, i32 0, i32 0
+		%tyvarlptrv2.1 = load %tyvar** %tyvarlptrv2
+		%tyvarrptrv2 = getelementptr inbounds %pair*  %pairptrv2.1, i32 0, i32 0
+		%tyvarrptrv2.1 = load %tyvar** %tyvarrptrv2
+		call i1 @tyvarcheck(%tyvar* %tyvarlptrv1.1, %tyvar*  %tyvarlptrv2.1)
+		%pairret = call i1 @tyvarcheck(%tyvar* %tyvarrptrv1.1, %tyvar*  %tyvarrptrv2.1)
+		ret i1 %pairret
+
+	ArrayRec:
+		%arrayptrv1 = extractvalue %tyvar %v1.1, 0
+		%arrayptrv1.1 = inttoptr %int %arrayptrv1 to %array*
+		%v1length = getelementptr inbounds %array* %arrayptrv1.1, i32 0, i32 0
+		%v1length.1 = load %int* %v1length
+		%zerolv1 = icmp eq %int 0, %v1length.1
+		%arrayptrv2 = extractvalue %tyvar %v2.1, 0
+		%arrayptrv2.1 = inttoptr %int %arrayptrv2 to %array*
+		%v2length = getelementptr inbounds %array* %arrayptrv2.1, i32 0, i32 0
+		%v2length.1 = load %int* %v2length
+		%zerolv2 = icmp eq %int 0, %v2length.1
+		br i1 %zerolv1, label %Ok, label %ArrayCont1
+
+	ArrayCont1:
+		br i1 %zerolv2, label %Ok, label %ArrayCont2
+
+	ArrayCont2:
+		%v1el1 = getelementptr inbounds %array* %arrayptrv1.1, i32 0, i32 1
+		%v1el1.1 = getelementptr [0 x %tyvar*]* %v1el1, i32 0, i32 0
+		%v1el1.2 = load %tyvar** %v1el1.1
+		%v2el1 = getelementptr inbounds %array* %arrayptrv2.1, i32 0, i32 1
+		%v2el1.1 = getelementptr [0 x %tyvar*]* %v2el1, i32 0, i32 0
+		%v2el1.2 = load %tyvar** %v2el1.1
+		%arrayret = call i1 @tyvarcheck(%tyvar* %v1el1.2, %tyvar* %v2el1.2)
+		ret i1 %arrayret
+
+	Ok:
+		ret i1 1
+
+	Error:
+		call void @exit(i32 -1)
+  		unreachable
 }
 \end{lstlisting}

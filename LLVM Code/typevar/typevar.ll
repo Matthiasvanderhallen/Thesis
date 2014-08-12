@@ -70,7 +70,7 @@ define %int @Pair.createPair(%int %left, i2 %left.mask, %int %right, i2 %right.m
 	br label %Create2
 
 	Create2:
-	%rightAsTyvar = phi %tyvar [%rightAsTyvar.unmask.2, %Unmask1], [%rightAsTyvar.ext.2, %External1], [%rightAsTyvar.int.2,%Int1]
+	%rightAsTyvar = phi %tyvar [%rightAsTyvar.unmask.2, %Unmask2], [%rightAsTyvar.ext.2, %External2], [%rightAsTyvar.int.2,%Int2]
 	store %tyvar %rightAsTyvar, %tyvar* %rightTyvar.ptr
 
 	call i1 @tyvarcheck(%tyvar* %leftTyvar.ptr, %tyvar* %rightTyvar.ptr) ; type equation
@@ -160,12 +160,12 @@ define private i1 @tyvarcheck(%tyvar* %v1, %tyvar* %v2){
 
 	ArrayRec:
 		%arrayptrv1 = extractvalue %tyvar %v1.1, 0
-		%arrayptrv1.1 = inttoptr %int %pairptrv1 to %array*
+		%arrayptrv1.1 = inttoptr %int %arrayptrv1 to %array*
 		%v1length = getelementptr inbounds %array* %arrayptrv1.1, i32 0, i32 0
 		%v1length.1 = load %int* %v1length
 		%zerolv1 = icmp eq %int 0, %v1length.1
 		%arrayptrv2 = extractvalue %tyvar %v2.1, 0
-		%arrayptrv2.1 = inttoptr %int %pairptrv2 to %array*
+		%arrayptrv2.1 = inttoptr %int %arrayptrv2 to %array*
 		%v2length = getelementptr inbounds %array* %arrayptrv2.1, i32 0, i32 0
 		%v2length.1 = load %int* %v2length
 		%zerolv2 = icmp eq %int 0, %v2length.1

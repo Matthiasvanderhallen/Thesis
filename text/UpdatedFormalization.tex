@@ -15,13 +15,14 @@
 %To prevent leakage of this ordering in the target-level, outputting the fields in the target language happens in a fixed ordering.
 %}
 \intertextt{The processing of module expressions $me$ still occurs in alphabetical order of the identifiers.
-Processing structure bindings using the \lsttext{struct} expression happens in much the same way as \myref{sec}{sec:formalization}. 
+Processing structure bindings using the \lsttext{struct} expression happens in much the same way as detailed in \myref{sec}{sec:formalization}. 
 The following changes are made:
 \begin{itemize}
 \item The stubs are no longer made entry points.
 \item Stubs use the \lsttext{va_arg} instruction and the accompanying intrinsic functions \lsttext{@llvm.va_start}, \lsttext{@llvm.va_copy} and \lsttext{@llvm.va_end}.
 
 This way, the \LLVMIR\ type of any stub is exactly the same: \lsttext{\%int (...)*}.
+\item The necessary information to eventually output a frame for the frame list is saved.
 \end{itemize}
 The stubs still perform the masking and unmasking, as well as the stack switches or clearing the registers and flags.
 }

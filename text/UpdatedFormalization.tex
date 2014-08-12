@@ -1,20 +1,21 @@
-\begin{tabularx}{\textwidth}{l c X}
-\compile{$\overline{me}$} \makes \compile{sort($\overline{me}$)}\\
+\begin{tabularx}{\textwidth}{@{}l c X@{}}
+%\compile{$\overline{me}$} \makes \compile{sort($\overline{me}$)}\\
 
-\intertextt{
-Next, all module expressions can be translated individually.
-The signature \cmath{SigId} used in the ascription of \cmath{StrId} is saved:
-}
+%\intertextt{
+%Next, all module expressions can be translated individually.
+%The signature \cmath{SigId} used in the ascription of \cmath{StrId} is saved:
+%}
 
-\compile{\cmath{me, \overline{me}}} \makes \compile{sort($\overline{me}$)} \\
-\compile{\cmath{StrId:SigId = \overline{d}}} \makes \compile{$\overline{d}$}\cmath{^{SigId}}\\
+%\compile{\cmath{me, \overline{me}}} \makes \compile{sort($\overline{me}$)} \\
+%\compile{\cmath{StrId:SigId = \overline{d}}} \makes \compile{$\overline{d}$}\cmath{^{SigId}}\\
 
-\intertextt{
-All fields in a module are sorted alphabetically as well. 
-This is done for the same reason as the sorting of module expressions: two \MiniML\ programs \cmath{P} differing only in the order of their fields are contextually equivalent.
-To prevent leakage of this ordering in the target-level, outputting the fields in the target language happens in a fixed ordering.
-}
-
+%\intertextt{
+%All fields in a module are sorted alphabetically as well. 
+%This is done for the same reason as the sorting of module expressions: two \MiniML\ programs \cmath{P} differing only in the order of their fields are contextually equivalent.
+%To prevent leakage of this ordering in the target-level, outputting the fields in the target language happens in a fixed ordering.
+%}
+\intertextt{The processing of module expressions $me$ still occurs in alphabetical order of the identifiers.
+Processing structure definitions}
 \compile{$\overline{d}$}\cmath{^{SigId}} \makes \compile{sort($\overline{d}$)}\cmath{^{SigId}} \\
 
 \intertextt{
@@ -33,7 +34,7 @@ This depends on the value being declared in the signature \cmath{SigId}.
 \end{itemize}
 }
 
-\compile{\lsttext{type}$\ \ova\ t= \tau$} \makes \lsttext{\%t = type $\ \{\tau, \%int\}$} \nl
+\compile{\lsttext{type}$\ \ova\ t= \tau$} \makes \lsttext{\%t = type $\ \{\tau\}$} \nl
 \annot{The type is tracked and assigned a unique integer $\ \tau_{int}$ to identify it.
 This way, when a masked pointer is received in an entry stub, its type can be checked.}\\
 & & \\
@@ -57,19 +58,29 @@ This way, when a masked pointer is received in an entry stub, its type can be ch
 \annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in spm for @\cmath{id}}\nl
 \longspace \lsttext{$\overline{\%z}$ = call \%int @unmask($\overline{\%int}\ \overline{\%y}$)} \nl
 \longspace \lsttext{$\overline{\%t}$ = call \%int @unmasktype($\overline{\%int}\ \overline{\%y}$)} \nl
-\longspace \lsttext{$\overline{\%c}$ = icmp eq \%int $\overline{\%t}$ $\overline{\%\tau_{x,int}}$}\nl
-\longspace \lsttext{br i1 $\overline{\%c}$, label \%Continue, label \%Error}\nl
+\longspace \lsttext{$\overline{\%c}$ = icmp eq \%int $\ \overline{\%t}$\ $\overline{\%\tau_{x,int}}$}\nl
+\longspace \lsttext{br i1 $\ \overline{\%c}$, label \%Continue, label \%Error}\nl
 \nl
 \longspace \lsttext{Continue:} \nl
 \longspace \lsttext{$\overline{\%x}$ = inttoptr \%int\ $\overline{\%z}$ to $\ \overline{\tau_{x}*}$} \nl
 \longspace \lsttext{\%0 = call $\ \tau$* @}$id$\lsttext{_internal($\overline{\tau_{x}*}\ \overline{\%x}$)} \nl
 \longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 to \%int} \nl
-\longspace \lsttext{\%2 = call \%int @mask(\%int \%1)} \nl
+\longspace \lsttext{\%2 = call \%int @mask(\%int \%1, \%int $\ \tau_{int}$)} \nl
 \longspace [Switch stack, clear registers] \nl
 \longspace \lsttext{ret \%int \%2} \nl
 \nl
 \longspace \lsttext{Error:}\nl
 \longspace \lsttext{call void @exit(i32 -1)}\nl
 \longspace \lsttext{unreachable}\nl
-\lsttext{\}}
+\lsttext{\}} \\ 
+\intertextt{The code of the \lsttext{@mask}, \lsttext{@unmask} and \lsttext{@unmasktype} functions is given in \myref{lst}{lst:maskcode} in App. \ref{App:LLVMCode}. 
+It provides a naive implementation of \lsttext{@mask}, \lsttext{@unmask} and \lsttext{@unmasktype} functions using linked lists.}
+\intertextt{If a function receives polymorphic arguments, for example \lsttext{createPair :: a -> a -> Pair a}, the internal functions arguments are of type \%tyvar*.
+When the function is called from insecure code, the stub loads the parameters from the masking list and wraps them in a \%tyvar.
+
+Before passing these arguments to the internal function, the compiler inserts code to check the consistency of the underlying type equation, using the \lsttext{@tyvarcheck} function.
+The code implementing \lsttext{@tyvarcheck} is given in \myref{lst}{lst:tyvarcheck} in App. \ref{App:LLVMCode}.
+
+As an example, \myref{sec}{sec:PolymorphicExample} in App. \ref{App:LLVMCode} provides an example of the compilation of a polymorphic function.
+}
 \end{tabularx}

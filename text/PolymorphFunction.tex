@@ -1,0 +1,114 @@
+\begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption={[Pair Structure: LLVM]Translation of the Pair structure.},
+label=llvm:polymorphic]
+%int = type i64 ; 1
+%tyvar = type {%int, %int} ; 2
+%pair = type {%tyvar*, %tyvar*} ; 3
+%array = type {%int, [0 x %tyvar*]} ; 4
+%Pair.t = type {%pair} ; 5
+
+declare i8* @malloc(%int)
+declare void @free(i8*)
+declare void @exit(i32)
+
+define private %Pair.t* @Pair.createPair_internal(%tyvar* %p1, %tyvar* %p2){
+	%ptr = call i8* @malloc(%int 16)
+	%ptr1 = bitcast i8* %ptr to %pair*
+	%fst = getelementptr %pair* %ptr1, i32 0, i32 0 ;%tyvar**
+	store %tyvar* %p1, %tyvar** %fst
+	%snd = getelementptr %pair* %ptr1, i32 0, i32 1 ;%tyvar**
+	store %tyvar* %p2, %tyvar** %snd
+
+	%ptr2 = bitcast %pair* %ptr1 to %Pair.t*
+	ret %Pair.t* %ptr2
+}
+
+define %int @Pair.createPair(%int %left, i2 %left.mask, %int %right, i2 %right.mask){
+	;We need extra parameters, because we don't know the type that was passed. Is it an externally defined type, is it an int, or is it a mask?
+	%leftTyvar.ptr.1 = call i8* @malloc(%int 16)
+	%leftTyvar.ptr = bitcast i8* %leftTyvar.ptr.1 to %tyvar*
+	switch i2 %left.mask, label %Unmask1 [i2 0, label %External1
+											i2 1, label %Int1]
+	Unmask1:
+	%left.ptr = call %int @unmask(%int %left)
+	%left.type = call %int @unmasktype(%int %left)
+	%leftAsTyvar.unmask.1 = insertvalue %tyvar undef, %int %left.ptr, 0
+	%leftAsTyvar.unmask.2 = insertvalue %tyvar %leftAsTyvar.unmask.1, %int %left.type, 1
+	br label %Create1
+	
+	External1:
+	%leftAsTyvar.ext.1 = insertvalue %tyvar undef, %int %left, 0
+	%leftAsTyvar.ext.2 = insertvalue %tyvar %leftAsTyvar.ext.1, %int 0, 1
+	br label %Create1
+
+	Int1:
+	%leftAsTyvar.int.1 = insertvalue %tyvar undef, %int %left, 0
+	%leftAsTyvar.int.2 = insertvalue %tyvar %leftAsTyvar.int.1, %int 1, 1
+	br label %Create1
+
+	Create1:
+	%leftAsTyvar = phi %tyvar [%leftAsTyvar.unmask.2, %Unmask1], [%leftAsTyvar.ext.2, %External1], [%leftAsTyvar.int.2,%Int1]
+	store %tyvar %leftAsTyvar, %tyvar* %leftTyvar.ptr
+
+	%rightTyvar.ptr.1 = call i8* @malloc(%int 16)
+	%rightTyvar.ptr = bitcast i8* %rightTyvar.ptr.1 to %tyvar*
+	switch i2 %right.mask, label %Unmask2 [i2 0, label %External2
+										   i2 1, label %Int2]
+
+	Unmask2:
+	%right.ptr = call %int @unmask(%int %right)
+	%right.type = call %int @unmasktype(%int %right)
+	%rightAsTyvar.unmask.1 = insertvalue %tyvar undef, %int %right.ptr, 0
+	%rightAsTyvar.unmask.2 = insertvalue %tyvar %rightAsTyvar.unmask.1, %int %right.type, 1
+	br label %Create2
+
+	External2:
+	%rightAsTyvar.ext.1 = insertvalue %tyvar undef, %int %left, 0
+	%rightAsTyvar.ext.2 = insertvalue %tyvar %rightAsTyvar.ext.1, %int 0, 1
+	br label %Create2
+
+	Int2:
+	%rightAsTyvar.int.1 = insertvalue %tyvar undef, %int %right, 0
+	%rightAsTyvar.int.2 = insertvalue %tyvar %rightAsTyvar.int.1, %int 1, 1
+	br label %Create2
+
+	Create2:
+	%rightAsTyvar = phi %tyvar [%rightAsTyvar.unmask.2, %Unmask1], [%rightAsTyvar.ext.2, %External1], [%rightAsTyvar.int.2,%Int1]
+	store %tyvar %rightAsTyvar, %tyvar* %rightTyvar.ptr
+
+	call i1 @tyvarcheck(%tyvar* %leftTyvar.ptr, %tyvar* %rightTyvar.ptr) ; type equation
+
+	%pair = call %Pair.t* @Pair.createPair_internal(%tyvar* %leftTyvar.ptr, %tyvar* %rightTyvar.ptr)
+
+	%pair.ptr = ptrtoint %Pair.t* %pair to %int
+	%pair.mask = call %int @mask(%int %pair.ptr, %int 4)
+
+	ret %int %pair.mask
+}
+
+define private %tyvar* @Pair.getLeft_internal(%Pair.t* %pair.ptr){
+	%pair.ptr.1 = bitcast %Pair.t* %pair.ptr to %pair*
+	%left.ptr = getelementptr %pair* %pair.ptr.1, i32 0, i32 0 ;%tyvar**
+	%left = load %tyvar** %left.ptr
+	ret %tyvar* %left
+}
+
+define %int @Pair.getLeft(%int %pair){
+	%pair.unmask = call %int @unmask(%int %pair)
+	%pair.type = call %int @unmasktype(%int %pair)
+	%pair.check = icmp eq %int %pair.type, 5
+	br i1 %pair.check, label %Continue, label %Error
+
+	Continue:
+	%pair.ptr = inttoptr %int %pair.unmask to %Pair.t*
+	%return = call %tyvar* @Pair.getLeft_internal(%Pair.t* %pair.ptr)
+	%left = load %tyvar* %return
+	%left.addr = extractvalue %tyvar %left, 0
+	%left.type = extractvalue %tyvar %left, 1
+	%retval = call %int @mask(%int %left.addr, %int %left.type)
+	ret %int %retval
+
+	Error:
+	call void @exit(i32 -1)
+	unreachable
+}
+\end{lstlisting}

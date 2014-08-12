@@ -442,15 +442,31 @@ The formalization of the translation function \cmath{\compile{\bullet}} will pro
 These are actions such as the specification of entry points in the \emph{SPM} layout or the clearing of low-level registers and flags.
 
 \subsection{Formalization}
-\label{sec:formalization}
-First, all module expressions are sorted based on the name used in the binding.
+First, before translating the program, 4 \LLVMIR\ types are defined:
+\begin{lstlisting}
+%int = type i64 ; 0
+%tyvar = type {%int, %int} ; 1
+%pair = type {%tyvar*, %tyvar*} ; 2
+%array = type {%int, [0 x %tyvar*]} ;3
+\end{lstlisting}
+These will be used to represent the \MiniML\ int, $\alpha$, $(\tau,\tau)$ and $[\tau]$ types.
+
+Type variables are represented by a tuple of integers.
+The first integer is a pointer to the value, cast to an int.
+The second integer is an integer that identifies the effective type of the value stored inside the type variable.
+
+To do this, every \MiniML\ type $\tau$ must correspond to an integer $\tau_{int}$.
+The int, $\alpha$, $(\tau,\tau)$ and $[\tau]$ types are defined to correspond with integers 0 to 4.
+\\[0.5em]
+Next, the real translation of the program, which corresponds to a set of module expressions $me$, starts.
+
+All module expressions are sorted based on the name used in the binding.
 Two programs with differently ordered module expressions \cmath{me} are contextually equivalent as long as long as no module expression \cmath{me} has unresolved dependencies on other module expressions when it is bound.
 Sorting module expressions based on the name used in the binding makes sure that all \MiniML\ programs that provide the same set of bindings result in an \LLVMIR\ program with the corresponding bindings happening in the same order.
 
-\input{formalization}
+\label{sec:formalization}
 
-The code of the \lsttext{@mask}, \lsttext{@unmask} and \lsttext{@unmasktype} functions is given in \myref{lst}{lst:maskcode} in App. \ref{App:LLVMCode}. 
-It gives a more naive implementation of \lsttext{@mask}, \lsttext{@unmask} and \lsttext{@unmasktype} functions using linked lists.
+\input{formalization}
 
 The translation of an expression poses no additional security concerns and is compiled to the function or value body.
 Since \myref{sec}{sec:DefinitionOfCompilation} states the module expressions making up the \emph{SPM} are compiled in a separate file, before the context, nothing in these expressions can depend on things defined in insecure code.

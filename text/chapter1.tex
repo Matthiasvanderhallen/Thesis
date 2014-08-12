@@ -414,7 +414,7 @@ label=llvm:Example]
 
 declare i8* @malloc(%int)
 declare void @free(i8*)
-declare void @exit(%int)
+declare void @exit(i32)
 
 define %int @Caesar.decrypt(%int %arg0, %int %arg1) {
    %arg1int = call %int @unmask(%int %arg1)
@@ -428,7 +428,7 @@ define %int @Caesar.decrypt(%int %arg0, %int %arg1) {
    ret %int %ret
    
    Error:
-   call void @exit(%int -1)
+   call void @exit(i32 -1)
    unreachable
 }
 
@@ -452,7 +452,7 @@ define %int @Caesar.encrypt(%int %arg0, %int %arg1) {
    ret %int %ret
    
    Error:
-   call void @exit(%int -1)
+   call void @exit(i32 -1)
    unreachable
 }
 

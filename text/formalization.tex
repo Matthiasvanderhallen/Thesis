@@ -65,7 +65,7 @@ This way, when a masked pointer is received in an entry stub, its type can be ch
 \longspace \lsttext{\%0 = call $\ \tau$* @}$id$\lsttext{_internal($\overline{\tau_{x}*}\ \overline{\%x}$)} \nl
 \longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 to \%int} \nl
 \longspace \lsttext{\%2 = call \%int @mask(\%int \%1, \%int $\ \tau_{int}$)} \nl
-\longspace [Switch stack, clear registers] \nl
+\longspace [Switch stack, clear registers and flags] \nl
 \longspace \lsttext{ret \%int \%2} \nl
 \nl
 \longspace \lsttext{Error:}\nl

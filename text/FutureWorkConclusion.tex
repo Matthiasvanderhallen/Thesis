@@ -1,3 +1,44 @@
-\chapter{Future Work and Conclusion}
+\chapter{Conclusion}
+This chapter discusses possible future work in section \myref{sec}{sec:FutureWork}.
+A conclusion to the work is formulated as well in \myref{sec}{sec:Conclusion}
 \section{Future Work}
-The \MiniML\ language as described in \label{chap:FormalizationOfAdvancedConcepts}
+\label{sec:FutureWork}
+The \MiniML\ language as described in \myref{chap}{chap:FormalizationOfAdvancedConcepts} still does not provide the full feature set of ML. This section proposes some valuable extensions that could be made to the language.
+
+\begin{itemize}
+\item
+Currently, the \MiniML\ language allows only a very restricted set of types to be communicated between the secure and insecure code. 
+Arrays and pairs can be used within a structure or to implement an opaque type, but they cannot be the argument or return value of a publicly available function or the type of a public field.
+This is not a very limiting restriction: a structure can be created to implementing an abstract data type (ADT) that behaves like a list.
+
+However, it could still be a valuable expansion to the language to once again allow lists and pairs as a basic and first class type in the Module language.
+As mentioned in \myref{sec}{sec:insecurevaluessecureclosure}, the call-by-value semantics and declarative style of the ML source language do make this addition more difficult.
+
+For example, when passing a list from the insecure context to a function in the secure code, in source-level semantics this list is passed as a value, and its content is immutable.
+
+As the insecure memory is readable by secure code, the target language translation of the function can read the list directly from the memory, without passing execution to the insecure code.
+As the attack described in \myref{sec}{sec:insecurevaluessecureclosure} shows, this capability can introduce security risks if the inherently mutable  memory is changed during a callback to insecure code.
+\item
+The full-fledged ML language is aware of mutable memory locations, using the concept of a reference type \lsttext{ref $\ \tau$}.
+Future work could add this type to \MiniML.
+
+\item
+\MiniML\ functors are monadic, they only take a single argument structure.
+There are several ways of introducing polyadic functors into \MiniML.
+One would work with the current version of \MiniML:
+A functor taking multiple arguments could be decomposed in several functors that take a single argument, and output a structure for the next functor to be applied to. 
+A drawback to this is that the current \MiniML\ implementation would make each of the intermediate structures available.
+
+Possibly nicer ways of implementing this functionality are:
+\begin{itemize}
+\item Implementing polyadic functors as real functors whose stubs take more than one frame argument.
+Additional difficulties would represent themselves in the way structures are represented by frames.
+\item The addition of substructures to the module language.
+\end{itemize}
+\end{itemize}
+
+
+\section{Conclusion}
+\label{sec:Conclusion}
+While ML is a larger and more capable language than the \MiniML\ language of \myref{chap}{chap:FormalizationOfAdvancedConcepts}, the final version of the language does achieve this thesis' goal of providing secure compilation for functors.
+Functors are one of the main features of MLs powerful module language.

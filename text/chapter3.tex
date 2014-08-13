@@ -93,6 +93,7 @@ In this case, the code that is executed when the closure is called runs within t
 The \emph{function pointer} and the \emph{referencing environment} are both in secure memory and are protected from any tampering by the low-level access control model and the checking performed upon compilation.
 
 \subsection{Insecure Free Variables For A Secure Closure}
+\label{sec:insecurevaluessecureclosure}
 If a closure is created by trusted code with free variables stemming from untrusted code, the values of these free variables should be copied to the referencing environment inside the closure. This is in contrast to the more straightforward low-level solution of having a pointer in the referencing environment to the original value in insecure memory.
 This need for copying arises because the low level code could otherwise change the value of the free variable at any time, as it would be located inside untrusted memory, even mid-execution of the higher-order function.
 \myref{lst}{code:CopyFreeVariables} gives an example of two functions that are vulnerable to this kind of attack.

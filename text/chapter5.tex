@@ -1,5 +1,68 @@
-\chapter{Informal Proof}
+\chapter{Proving Full Abstraction}
 \label{chap:InformalProof}
-This chapters aims to give an informal proof for the compilation scheme presented earlier.
-%The informal proof builds on the same ideas as the formal proof technique \emph{trace semantics}\cite{Patrignani}.
+Some formal techniques of proving full abstraction exist, the ideas of one of these proof techniques are described in \myref{sec}{sec:prooftechniques}.
+\myref{sec}{sec:informalproof} aims to give a short and informal proof for the compilation scheme presented earlier.
+
+\section{Formal Proof Techniques}
+\label{sec:prooftechniques}
+Recalling from \myref{}{}\todo{provide ref to introduction}, \emph{full abstraction} is a compiler property.
+It expresses that \emph{contextual equivalence} for source-level objects is preserved by and reflected from their target-level translations.
+\[
+    O_{1} \simeq O_{2} \iff \compiled{O_{1}} \simeq \compiled{O_{2}}
+\]
+
+Proving full abstraction requires a proof for soundness  and completeness.
+\begin{description}
+\item[Soundness]
+Soundess expresses that the compilation of two source-level objects does not `introduce' contextual equivalence in the target language.
+Instead, for the target-level objects to be contextually equivalent, the source-level objects have to contextually equivalent already.
+\[
+    \compiled{O_{1}} \simeq \compiled{O_{2}} \implies O_{1} \simeq O_{2}
+\]
+Soundness corresponds closely to the informal notion of compiler \emph{correctness}.
+Indeed, formulating the logically equivalent contrapositive of the soundness property gives:
+\[
+    O_{1} \not\simeq O_{2} \implies \compiled{O_{1}} \not\simeq \compiled{O_{2}}
+\]
+
+This expresses that two contextually \emph{un}equivalent source-level objects result in contextually \emph{un}equivalent translations.
+If a compilation scheme would \emph{not} be sound, there would exist two contextualy \emph{un}equivalent sourcle-level objects, whose translations would be contextually equivalent.
+
+Clearly, this compiler does not function `correctly', as there is a context in which the source-level objects behave differently, but the translations do not.
+One of these translations does not accurately behave like the source-object it is derived from.
+\item[Completeness]
+Completeness says that all contextually equivalent source-level objects are translated to contextually equivalent target-level objects.
+It expressess that the contextual equivalence of source-level objects, which provids certain security guarantuees, are preserved when compiling.
+\[
+    O_{1} \simeq O_{2} \implies \compiled{O_{1}} \simeq \compiled{O_{2}}
+\]
+\end{description}
+
+As most compilers are expected to be `correct' or sound, the most important part of the full abstraction proof is the proof of completeness.
+Proving completeness can be done using \emph{trace semantics} and looking at the contrapositive of completeness.
+\[
+    \compiled{O_{1}} \not\simeq \compiled{O_{2}} \implies O_{1} \not\simeq O_{2}
+\]
+The following section will detail how trace semantics can be used to prove completeness of a compilation scheme.
+
+\subsection{Trace Semantics}
+\label{sec:tracesemantics}
+Trace semantics\cite{Rathke} describe the behavior of a component as a series of method calls and returns.
+
+Full abstraction proofs based on trace semantics first show that the operational semantics of the target-language are equivalent to the proposed trace semantics.
+As a consequence, the interaction of context objects $O_{c}$ with target-level objects $O_{1}$ and $O_{2}$ in the definition of contextual equivalence can be represented by traces $T_{1}$ \& $T_{2}$.
+
+If two target-level objects $\compiled{O_1}$ and $\compiled{O_2}$ are not contextually equivalent, their traces $T_1$ and $T_2$ must be different.
+The proof of fully abstract compilation then must show that if two source-level objects $O_1$,$O_2$ have different target-level traces $T_1$ and $T_2$, a source-level context object $O_C$ can be created from those two traces.
+This $O_C$ will be able to serve as a source-level object that differentiates between two objects $O_1$ and $O_2$.
+The existence of such an object effectively means the source-level objects $O_1$ and $O_2$ are not contextually equivalent, which concludes the completeness proof.
+
+\section{Informal Proof}
+\label{sec:informalproof}
+
+This section gives a short and informal reasoning that suggests that the compilation scheme presented in \myref{sec}{sec:formalizedcompiler2} is fully abstract.
+The argument is highly influenced by the formal proof technique described in \myref{sec}{sec:tracesemantics}.
+
+The first important step in a formal proof would be showing that the operational semantics of the target-language have an equivalent trace semantics.
+The secure compilation ensures this by limiting all communication between context and 
 %Find other references as well!

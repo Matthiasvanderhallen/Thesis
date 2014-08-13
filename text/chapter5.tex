@@ -1,7 +1,7 @@
 \chapter{Proving Full Abstraction}
 \label{chap:InformalProof}
-Some formal techniques of proving full abstraction exist, the ideas of one of these proof techniques are described in \myref{sec}{sec:prooftechniques}.
-\myref{sec}{sec:informalproof} aims to give a short and informal proof for the compilation scheme presented earlier.
+Some formal techniques of proving full abstraction exist and the idea of one of these proof techniques, based on trace semantics, is sketched in \myref{sec}{sec:prooftechniques}.
+Using the ideas of this proof technique, \myref{sec}{sec:informalproof} aims to give a short and informal proof for the compilation scheme presented earlier.
 
 \section{Formal Proof Techniques}
 \label{sec:prooftechniques}
@@ -47,9 +47,9 @@ The following section will detail how trace semantics can be used to prove compl
 
 \subsection{Trace Semantics}
 \label{sec:tracesemantics}
-Trace semantics\cite{Rathke} describe the behavior of a component as a series of method calls and returns.
+Trace semantics~\cite{Rathke, Patrignani:TraceSemantics} describe the behavior of a component as a series of method calls and returns.
 
-Full abstraction proofs based on trace semantics first show that the operational semantics of the target-language are equivalent to the proposed trace semantics.
+Full abstraction proofs based on trace semantics, such as~\cite{Patrignani,Agten:2012:SCM:2354412.2355247}, first show that the operational semantics of the target-language are equivalent to the proposed trace semantics.
 As a consequence, the interaction of context objects $O_{c}$ with target-level objects $O_{1}$ and $O_{2}$ in the definition of contextual equivalence can be represented by traces $T_{1}$ \& $T_{2}$.
 
 If two target-level objects $\compiled{O_1}$ and $\compiled{O_2}$ are not contextually equivalent, their traces $T_1$ and $T_2$ must be different.
@@ -62,7 +62,28 @@ The existence of such an object effectively means the source-level objects $O_1$
 
 This section gives a short and informal reasoning that suggests that the compilation scheme presented in \myref{sec}{sec:formalizedcompiler2} is fully abstract.
 The argument is highly influenced by the formal proof technique described in \myref{sec}{sec:tracesemantics}.
-
+\\[1em]
 The first important step in a formal proof would be showing that the operational semantics of the target-language have an equivalent trace semantics.
-The secure compilation ensures this by limiting all communication between context and 
+The secure compilation ensures this by limiting the information passed between insecure context and secure code.
+
+This is achieved by clearing flags and registers\cite{Agten:2012:SCM:2354412.2355247} when control flow passes from secure code to insecure context.
+Secondly, the leaking of information about memory locations is prevented.
+This is partly achieved by the use of  masking\cite{Patrignani}, and for the other part by making fields available using the generic structure value entry point and a (masked) reference to a frame.
+
+Information leakage about the order of definitions, whether it be value definitions of structure definitions, is prevented by imposing an alphabetical ordering on the definitions.
+An alphabetic reordering at compilation makes sure that the order of fields within a frame, or frames within the f-list is insensitive to reorderings of the source-level code.
+The addition of functors requires additional care to ensure that there is no way of telling whether a structure was created by a static binding or using functor application.
+\\[1em]
+The next step would be showing that any pair of low level traces $T_1$ and $T_2$ that differentiate two compiled objects $\compiled{O_1}$ and $\compiled{O_2}$ makes it possible to construct a high level context $O_c$ that could differentiate between $O_1$ and $O_2$.
+To ensure this, tampering with the control flow must be prevented.
+
+In the compilation scheme presented here, the control flow is secured by the memory access model, which limits the execution rights of the insecure context to the entry points specified.
+Only by jumping to these entry points can the execution switch between the insecure context and the secure code.
+
+However, jumping to one of the entry points corresponds to making a call to something in the API of the source-level object.
+Because every call from insecure context to secure code listed in the trace corresponds to a call to the API of the source-level object, it can be shown that a pair of traces can be merged to a source-level context object. 
+This source-level context object will be able to differentiate between the source-level objects, just as the pair of traces could for the target-level translations.
+\\[1em]
+The existence of such a source-level context object shows that the source-level objects are not contextually equivalent.
+This proves the completeness property, using its contrapositive form $\compiled{O_{1}} \not\simeq \compiled{O_{2}} \implies O_{1} \not\simeq O_{2}$.
 %Find other references as well!

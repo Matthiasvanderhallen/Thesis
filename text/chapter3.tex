@@ -171,6 +171,7 @@ If an \emph{SPM} would pass a closure generated inside its body to the untrusted
 Each of these actions break contextual equivalence:
 \begin{description}
 \item[Change pointer value.] The pointer to the code might be changed to code that makes certain assumptions about the structure used to implement abstract data types.
+%For example, if the environment contains 
 This way, the context could discern between contextually equivalent SPMs in which the assumptions may or may not hold. 
 %\to do{provide vulnerability example}
 \item[Inspect environment values.]

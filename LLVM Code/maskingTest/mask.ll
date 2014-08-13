@@ -6,12 +6,12 @@ declare i8* @malloc(%int)
 declare void @free(i8*)
 declare void @exit(i32)
 
-%masktype = type {%int, %masktype*, %int}
-
 ;@.str = private unnamed_addr constant [12 x i8] c"maskptr:%d\0A\00", align 1
 @.strval = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 @.nonnull = private unnamed_addr constant [9 x i8] c"nonnull\0A\00", align 1
 ;@.noneq = private unnamed_addr constant [7 x i8] c"noneq\0A\00", align 1
+
+%masktype = type {%int, %masktype*, %int}
 
 ;Initial table pointer
 @vtable = private global %masktype* null

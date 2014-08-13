@@ -99,7 +99,7 @@ This private function will take a variable amount of arguments.
  \longspace $\compile{e}$\\
  \lsttext{\}}
 \end{tabularx}
-
+\vspace{-2.9em} %Todo: latex voodoo!
 \begin{itemize}
 \item The first of these arguments is a one bit wide integer, which indicates whether the function was called by the generic closure evaluation point or by other code inside the secure context.
 As this value is always set within the secure context, its value can be trusted.
@@ -119,7 +119,9 @@ It is initialized with
 \end{itemize}
 
 \subsubsection{Applying closures}
-When application is performed in secure code on an identifier that represents a closure, the closure value is loaded. The secure code checks whether the closure value represents a secure or an insecure closure.
+When application is performed in secure code on an identifier that represents a closure, the closure value is loaded.
+The secure code checks whether the closure value represents a secure or an insecure closure.
+This is done using the i1 boolean value provided in the \lsttext{\%closure} type.
 
 If the closure is secure, the secure context can simply convert the integer in the closure value to a function pointer and call the function.
 As arguments, it provides a value 1 to signal that the arguments are unmasked, followed by the arguments and the pointer to the environment.
@@ -127,72 +129,6 @@ As arguments, it provides a value 1 to signal that the arguments are unmasked, f
 If the closure is insecure, the secure context masks all arguments it wants to pass. It then must call the closure evaluation point provided by the \emph{insecure context} with the masked arguments and the int representation of the closure value.
 In this call, the return address must be changed to the returnback entry point, and the real return address must be pushed on the return address stack.
 When execution returns, the return value must be interpreted as a masking index.
-
-\subsubsection{Generic Closure Evaluation Entry Point}
-This is a generic entry point into the \emph{SPM} provided to evaluate closure values created within the secure code and passed to the insecure context. It receives an int, which is the masked index of the closure value, and a variable number of arguments.
-
-\begin{lstlisting}
-define %int @GenericClosureEvaluation(%int %closure.mask, ...){
-    %closure.unmask = call %int @unmask(%int %closure.mask)
-    %closure.valptr = bitcast %int %closure.unmask to %closure*
-    %closure = load %closure* %closure.valptr
-    %closure.ptr = extractvalue %closure %closure, i32 0
-    %closure.env = extractvalue %closure %closure, i32 1
-    %ap = call i8* malloc(%int 8)
-    call void @llvm.va_start(i8* %ap)
-    %ret = call %int %closure.ptr(i1 0, {%int, [0 x %int]}* %closure.env, i8* %ap)
-    call void @llvm.va_end(i8* %ap)
-    ret %int %ret
-}
-\end{lstlisting}
-
-\subsubsection{Structure Value Entry Point}
-The addition of functors required that values were called by specifying the frame that corresponds to the structure that defines them, and the offset of the value within the frame.
-This Structure Value entry point had the following arguments:
-\begin{itemize}
-\item an index in the f-list,
-\item an offset for the value to be called,
-\item and any number of arguments meant for the value 
-\end{itemize}
-
-%{%int, [0 x %int (%frame*, i8*)*]}*
-\begin{lstlisting}
-@.flist = private global {i32, [0 x %frame*]}* [0, []]
-
-define %int @StructureEntryPoint(%int %findex, %int index, ...){
-    %flist.ptr = load %{i32, [0 x %frame*]}** @.f-list
-    %flist = load %{i32, [0 x %frame*]}* %flist.ptr
-    %elems = extractvalue %{i32, [0 x %frame*]} flist, i32 0
-    
-    %check = icmp lt %int %findex, %elems
-    br i1 %check, label %Continue, label %Error
-    
-    Continue:
-    %frame.ptr2 = getelementptr %{i32, [0 x %frame*]}* %flist.ptr, %int 0, %int findex
-    %frame.ptr = load %frame** %frame.ptr2
-    %frame = load %frame %frame.ptr
-    %valuelist.ptr = extractvalue %frame %frame, i32 4
-    %valuelist = load {%int, [0 x %int (%frame*, i8*)*]}* %valuelist.ptr
-    %list.ptr = getelementptr {%int, [0 x %int (%frame*, i8*)*]}* %valuelist.ptr, i32 0, i32 1
-    %elems2 = extractvalue {%int, [0 x %int (%frame*, i8*)*]} %valuelist, i32 0
-    %check2 = icmp lt %int %index, %elems2
-    br i1 %check2, label %Continue2, label %Error
-    
-    Continue2:
-    %val.ptr = getelementptr {[0 x %int (%frame*, i8*)*]}* %list.ptr, i32 0, %int %index
-    %val = load %int (%frame*, i8*)** %val.ptr
-
-    %ap = call i8* malloc(%int 8)
-    call void @llvm.va_start(i8* %ap)
-    %ret = call %int %val(%frame* %frame.ptr,i8* %ap)
-    call void @llvm.va_end(i8* %ap)
-    ret %int %ret
-    
-    Error:
-    call void @exit(i32 -1)
-    unreachable
-}
-\end{lstlisting}
 
 \subsubsection{Returnback Entry Point}
 The returnback entry point, as specified by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247} is used to return from callbacks.
@@ -208,5 +144,106 @@ Add the security measure when the llvm backend compiles the \LLVMIR source to as
 Use the experimental \lsttext{llvm.read_register} and \lsttext{llvm.writeregister} intrinsics to perform platform dependent modifications.
 \end{itemize}
 
+
+\subsubsection{Generic Closure Evaluation Entry Point}
+\label{sec:genericclosureevaluationentrypoint}
+This is a generic entry point into the \emph{SPM} provided to evaluate closure values created within the secure code and passed to the insecure context. It receives an int, which is the masked index of the closure value, and a variable number of arguments.
+
+\begin{lstlisting}
+define %int @GenericClosureEvaluation(%int %closure.mask, ...){
+    %closure.unmask = call %int @unmask(%int %closure.mask)
+    %type = call %int @unmasktype(%int %closure.mask) ; Check that it really is a closure
+    switch %int %type, label %Error [%int 5, label %Continue1]
+    
+    Continue1:
+    %closure.valptr = inttoptr %int %closure.unmask to %closure*
+    %closure = load %closure* %closure.valptr
+    %closure.ptr = extractvalue %closure %closure, 0
+    %closure.env = extractvalue %closure %closure, 1
+    %closure.type = extractvalue %closure %closure, 2;Check that the closure is a secure closure.
+    switch i1 %closure.type, label %Error [i1 1, label %Continue2]
+    
+    Continue2:
+    %closure.fn = inttoptr %int %closure.ptr to %int (i1, {%int, [0 x %int]}*, i8*)*
+    %ap = call i8* @malloc(%int 8)
+    call void @llvm.va_start(i8* %ap)
+    %ret = call %int %closure.fn(i1 0, {%int, [0 x %int]}* %closure.env, i8* %ap)
+    call void @llvm.va_end(i8* %ap)
+    call void @free(i8* %ap)
+    ret %int %ret
+    
+    Error:
+    call void @exit(i32 -1)
+    unreachable
+}
+\end{lstlisting}
+
+\subsubsection{Structure Value Entry Point}
+The addition of functors required that values were called by specifying the frame that corresponds to the structure that defines them, and the offset of the value within the frame.
+This Structure Value entry point had the following arguments:
+\begin{itemize}
+\item an index in the f-list,
+\item an offset for the value to be called,
+\item and any number of arguments meant for the value 
+\end{itemize}
+
+%{%int, [0 x %int (%frame*, i8*)*]}*
+\begin{lstlisting}
+@.flist = private global {%int, [0 x %frame*]}* null
+
+define %int @StructureEntryPoint(%int %findex, %int %index, ...){
+    %flist.ptr = load {%int, [0 x %frame*]}** @.flist
+    %flist = load {%int, [0 x %frame*]}* %flist.ptr
+    %elems = extractvalue {%int, [0 x %frame*]} %flist, 0
+    
+    %check = icmp ult %int %findex, %elems
+    br i1 %check, label %Continue, label %Error
+    
+    Continue:
+    %frame.ptr2 = getelementptr {%int, [0 x %frame*]}* %flist.ptr, i32 0, i32 1, %int %index
+    %frame.ptr = load %frame** %frame.ptr2
+    %frame = load %frame* %frame.ptr
+    %valuelist.ptr = extractvalue %frame %frame, 4
+    %valuelist = load {%int, [0 x %int (%frame*, i8*)*]}* %valuelist.ptr
+    %list.ptr = getelementptr {%int, [0 x %int (%frame*, i8*)*]}* %valuelist.ptr, i32 0, i32 1
+    %elems2 = extractvalue {%int, [0 x %int (%frame*, i8*)*]} %valuelist, 0
+    %check2 = icmp ult %int %index, %elems2
+    br i1 %check2, label %Continue2, label %Error
+    
+    Continue2:
+    %val.ptr = getelementptr [0 x %int (%frame*, i8*)*]* %list.ptr, i32 0, %int %index
+    %val = load %int (%frame*, i8*)** %val.ptr
+
+    %ap = call i8* @malloc(%int 8)
+    call void @llvm.va_start(i8* %ap)
+    %ret = call %int %val(%frame* %frame.ptr,i8* %ap)
+    call void @llvm.va_end(i8* %ap)
+    call void @free(i8* %ap)
+    ret %int %ret
+    
+    Error:
+    call void @exit(i32 -1)
+    unreachable
+}
+\end{lstlisting}
 \subsection{Conclusion}
-\todo{Schrijf een conclusie over dit wtf stuk.}
+The addition of closures and functors to \MiniML\ demands some significant changes on the inner workings of a secure compilation scheme.
+
+The addition of closures generates changes that are mostly \emph{orthogonal} to the simpler compiler sketched in \myref{sec}{sec:formalization}.
+An additional base type is created to represent a closure.
+The compiler can determine statically whether a function application in \MiniML\ happens on a closure value or on a known function, but must perform a runtime check to know whether the closure is insecure or secure.
+How the closure application is then performed ofcourse depends on this runtime check.
+
+Furthermore, the secure compilation of closures makes more demands about the calling convention between secure code and insecure context.
+\begin{itemize}
+\item 
+The insecure context must provide a representation of an insecure closure as a single integer.
+It is up to the insecure context to choose whether this integer is simply a memory address, or an index in a map, or any other argument passing scheme.
+\item The insecure context must provide a way of evaluating any closure using a single function.
+This function should show the same functional behavior as the \emph{generic closure evaluation entry point} to the \emph{SPM}, described on \mypageref{sec:genericclosureevaluationentrypoint}.
+\end{itemize}
+
+The addition of functors makes more fundamental changes in the compiler of \myref{sec}{sec:formalization}.
+Because changing the binding of a structure identifier from a static definition to a functor application preserves source-level contextual equivalence (see \myref{sec}{sec:StaticDefinitionFunctorApplication} on \mypageref{sec:StaticDefinitionFunctorApplication}), the stubs that structure values generate are no longer entry points to the secure code.
+
+Instead, a \emph{structure value entry point} is created that can call any value using only a (masked) reference to a \emph{frame}, and the offset of the value in the value list within that frame.

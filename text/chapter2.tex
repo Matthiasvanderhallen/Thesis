@@ -251,7 +251,7 @@ Type-scheme generalization is the opposite process of type-scheme specialization
 Just like set of valid value expressions \cmath{e} is restricted by the type system using types, the set of valid structure expressions is restricted using \emph{signature ascription}. As mentioned earlier, these ascriptions happen either \emph{transparant} or \emph{opaque}.
 This subsection explains how a structure expression is restricted by a signature using the \emph{signature matching} relation.
 
-Every structure expression has a corresponding \emph{principal signature}, symbolized by \cmath{PS(\overline{d})}, where \cmath{\overline{d}} is the body of the \lsttext{struct} expression.
+Every structure expression has a corresponding \emph{principal signature}~\cite{Pierce:Adv}, symbolized by \cmath{PS(\overline{d})}, where \cmath{\overline{d}} is the body of the \lsttext{struct} expression.
 The principal signature of a structure expression consists of all type specifications and all values with their corresponding types.
 
 When a structure is ascribed a signature, its principal signature must \emph{match} with the ascribed signature.
@@ -261,7 +261,7 @@ The signature matching relation is formalized using $\mathit{\Sigma_{target}}\su
 For a \emph{candidate} signature to match its \emph{target}, any value or type specification in the \emph{target} signature must have an equivalent specification in the \emph{candidate} signature.
 \begin{enumerate}
 \item For types, this means that for each type in the \emph{target}, there is a type in the \emph{candidate} with the same name.
-If \emph{target} carries a definition for the type, \emph{candidate} must provide the same definition.
+If \emph{target} carries a definition for the type, \emph{candidate} must provide an equivalent definition.
 \item For values, this means that for each value in the \emph{target}, there exists a value with the same name in the \emph{candidate} whose type is at least as general as the corresponding type in the \emph{target}.
 \end{enumerate}
 

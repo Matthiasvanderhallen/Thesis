@@ -790,8 +790,9 @@ The function implementing the value will uses this frame to determine the argume
 
 The wrapper functions only as a wrapper, so it presumes any clearing of flags, registers, masking of values or othether precautionary measures have already been taken care of by the functions that it wraps.
 
-Since all structure values are accessible through this wrapper function, the separate structure value stubs do \emph{not} have to be entry points in the \emph{SPM}. The wrapper function will always be necessary, because functors that call a value in their argument structure can not hardwire a specific entry point in their generic code.
+Since all structure values are accessible through this wrapper function, the separate structure value stubs do \emph{not} have to be entry points in the \emph{SPM}. The wrapper function will always be necessary, because insecure functors that call a value in their argument structure can not hardwire a specific entry point in their generic code.
 \\[1em]
+\label{sec:StaticDefinitionFunctorApplication}
 Indeed, the stubs corresponding to structure values even \emph{cannot} be made entry points in the \emph{SPM}, because the source language context is oblivious to whether a structure bound in secure code was the result of a functor application, or was statically defined. This corresponds to \myref{lst}{lst:FunctorApplicationOrStaticDefinition1} being contextually equivalent to \myref{lst}{lst:FunctorApplicationOrStaticDefinition2}.
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Functor Application or Static Definition: 1]Binding StrA and StrB using functor application.},

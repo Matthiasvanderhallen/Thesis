@@ -109,7 +109,7 @@ This means that a definition can only use elements that were defined \emph{befor
 When talking about the secure compilation of \MiniML, the remainder of this text will expect that a file containing all secure signature and structure definitions is passed to the compiler first.
 This represents the secure module or \emph{SPM}, which contains all secure code.
 
-Next, all code representing the context is compiled separately and later linked to the result of the compilation of the secure
+Next, all code representing the context is compiled separately and later linked to the result of the compilation of the secure code.
 \todo{This is an important remark} 
 As a result, the definitions of structures in secure code can not directly depend on elements that are defined only later, in the insecure context.
 

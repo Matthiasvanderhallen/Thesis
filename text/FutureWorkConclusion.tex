@@ -35,10 +35,26 @@ Possibly nicer ways of implementing this functionality are:
 Additional difficulties would represent themselves in the way structures are represented by frames.
 \item The addition of substructures to the module language.
 \end{itemize}
+\item
+As \LLVMIR\ is not architecture aware, not all necessary security precautions can be described in \LLVMIR.
+Specifically, methods of manipulating the stack pointer or the return address are either experimental or nonexistent.
+
+These security precautions are mentioned here, and should be added when the \LLVMIR\ is eventually compiled to machine code by the LLVM backend.
 \end{itemize}
 
 
 \section{Conclusion}
 \label{sec:Conclusion}
-While ML is a larger and more capable language than the \MiniML\ language of \myref{chap}{chap:FormalizationOfAdvancedConcepts}, the final version of the language does achieve this thesis' goal of providing secure compilation for functors.
-Functors are one of the main features of MLs powerful module language.
+The goal of this thesis was to describe a secure compilation scheme for a language that implements ML-style modules.
+\begin{itemize}
+\item
+\myref{chap}{chap:ACompilationExample} and \myref{chap}{chap:formalspecification} of this thesis describe and formalize a basic version of \MiniML\ and its secure compilation scheme.
+Many of the concepts introduced in literature regarding the secure compilation other, object oriented languages can be reused with only small modifications.
+
+\item
+\myref{chap}{chap:AdvancedConcepts} expanded the \MiniML\ language, with \myref{chap}{chap:FormalizationOfAdvancedConcepts} providing a formalization of the additions.
+While ML is  still a larger and more capable language than the \MiniML\ language of \myref{chap}{chap:FormalizationOfAdvancedConcepts}, the final version of the language does include functors, one of the most important features of MLs powerful module language, as well as closures.
+\end{itemize}
+
+\myref{sec}{sec:formalizedcompiler2} formalized a compilation scheme for these additions, bringing secure compilation to an ML-style module language, thereby achieving the original goal of this thesis. 
+%Additionally, an informal proof was given in \myref{chap}{chap:InformalProof} that suggests that this compilation is indeed a secure compilation.

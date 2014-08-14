@@ -4,7 +4,7 @@
 %array = type {%int, [0 x %tyvar*]} ; 4
 %Pair.t = type {%pair} ; 5
 
-@.typeOfTypevar = private unnamed_addr constant [10 x i8] c"type: %d\0A\00", align 1
+;@.typeOfTypevar = private unnamed_addr constant [10 x i8] c"type: %d\0A\00", align 1
 @.strval = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 declare i32 @printf(i8*, ...)
 
@@ -114,8 +114,7 @@ define %int @Pair.getLeft(%int %pair) nounwind noinline{
 	unreachable
 }
 
-define private %int @main() nounwind noinline{
-	
+define %int @main() nounwind noinline{
 
 	%argptr = call i8* @malloc(%int 16)
 	%argptr1 = bitcast i8* %argptr to %tyvar*
@@ -137,7 +136,7 @@ define private %int @main() nounwind noinline{
 		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), i1 1)
 	call i1 @tyvarcheck(%tyvar* %argptr2, %tyvar* %argptr2)
 		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), i1 1)
-	;call i1 @tyvarcheck(%tyvar* %argptr1, %tyvar* %argptr2)
+	call i1 @tyvarcheck(%tyvar* %argptr1, %tyvar* %argptr2)
 		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), i1 1)
 
 

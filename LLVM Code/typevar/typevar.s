@@ -1,21 +1,10 @@
 	.section	__TEXT,__text,regular,pure_instructions
 	.align	4, 0x90
 L_Pair.createPair_internal:             ## @Pair.createPair_internal
-	.cfi_startproc
 ## BB#0:
 	pushq	%r14
-Ltmp3:
-	.cfi_def_cfa_offset 16
 	pushq	%rbx
-Ltmp4:
-	.cfi_def_cfa_offset 24
 	pushq	%rax
-Ltmp5:
-	.cfi_def_cfa_offset 32
-Ltmp6:
-	.cfi_offset %rbx, -24
-Ltmp7:
-	.cfi_offset %r14, -16
 	movq	%rsi, %r14
 	movq	%rdi, %rbx
 	movl	$16, %edi
@@ -26,38 +15,16 @@ Ltmp7:
 	popq	%rbx
 	popq	%r14
 	ret
-	.cfi_endproc
 
 	.globl	_Pair.createPair
 	.align	4, 0x90
 _Pair.createPair:                       ## @Pair.createPair
-	.cfi_startproc
 ## BB#0:
 	pushq	%rbp
-Ltmp14:
-	.cfi_def_cfa_offset 16
 	pushq	%r15
-Ltmp15:
-	.cfi_def_cfa_offset 24
 	pushq	%r14
-Ltmp16:
-	.cfi_def_cfa_offset 32
 	pushq	%r12
-Ltmp17:
-	.cfi_def_cfa_offset 40
 	pushq	%rbx
-Ltmp18:
-	.cfi_def_cfa_offset 48
-Ltmp19:
-	.cfi_offset %rbx, -48
-Ltmp20:
-	.cfi_offset %r12, -40
-Ltmp21:
-	.cfi_offset %r14, -32
-Ltmp22:
-	.cfi_offset %r15, -24
-Ltmp23:
-	.cfi_offset %rbp, -16
 	movl	%ecx, %r12d
 	movq	%rdx, %r15
 	movl	%esi, %ebp
@@ -128,34 +95,20 @@ LBB1_11:                                ## %Create2
 	popq	%r15
 	popq	%rbp
 	ret
-	.cfi_endproc
 
 	.align	4, 0x90
 L_Pair.getLeft_internal:                ## @Pair.getLeft_internal
-	.cfi_startproc
 ## BB#0:
 	movq	(%rdi), %rax
 	ret
-	.cfi_endproc
 
 	.globl	_Pair.getLeft
 	.align	4, 0x90
 _Pair.getLeft:                          ## @Pair.getLeft
-	.cfi_startproc
 ## BB#0:
 	pushq	%r14
-Ltmp27:
-	.cfi_def_cfa_offset 16
 	pushq	%rbx
-Ltmp28:
-	.cfi_def_cfa_offset 24
 	pushq	%rax
-Ltmp29:
-	.cfi_def_cfa_offset 32
-Ltmp30:
-	.cfi_offset %rbx, -24
-Ltmp31:
-	.cfi_offset %r14, -16
 	movq	%rdi, %rbx
 	callq	_unmask
 	movq	%rax, %r14
@@ -176,49 +129,64 @@ Ltmp31:
 LBB3_2:                                 ## %Error
 	movl	$-1, %edi
 	callq	_exit
-	.cfi_endproc
 
+	.globl	_main
 	.align	4, 0x90
-L_main:                                 ## @main
-	.cfi_startproc
+_main:                                  ## @main
 ## BB#0:
+	pushq	%r15
+	pushq	%r14
 	pushq	%rbx
-Ltmp34:
-	.cfi_def_cfa_offset 16
-Ltmp35:
-	.cfi_offset %rbx, -16
-	movl	$100, %edi
+	movl	$16, %edi
 	callq	_malloc
 	movq	%rax, %rbx
-	movq	$0, 8(%rbx)
+	movq	$1, 8(%rbx)
 	movq	$1, (%rbx)
 	movq	%rbx, %rdi
 	movq	%rbx, %rsi
 	callq	L_Pair.createPair_internal
+	movq	%rax, %r15
+	movl	$16, %edi
+	callq	_malloc
+	movq	%rax, %r14
+	movq	%r15, (%r14)
+	movq	$5, 8(%r14)
+	movq	%rbx, %rdi
+	movq	%rbx, %rsi
+	callq	L_tyvarcheck
+	leaq	L_.strval(%rip), %r15
+	movq	%r15, %rdi
+	movl	$1, %esi
+	xorb	%al, %al
+	callq	_printf
+	movq	%r14, %rdi
+	movq	%r14, %rsi
+	callq	L_tyvarcheck
+	movq	%r15, %rdi
+	movl	$1, %esi
+	xorb	%al, %al
+	callq	_printf
+	movq	%rbx, %rdi
+	movq	%r14, %rsi
+	callq	L_tyvarcheck
+	movq	%r15, %rdi
+	movl	$1, %esi
+	xorb	%al, %al
+	callq	_printf
 	movq	%rbx, %rdi
 	callq	_free
 	xorl	%eax, %eax
 	popq	%rbx
+	popq	%r14
+	popq	%r15
 	ret
-	.cfi_endproc
 
 	.align	4, 0x90
 L_tyvarcheck:                           ## @tyvarcheck
-	.cfi_startproc
 ## BB#0:                                ## %Start
 	pushq	%r14
-Ltmp39:
-	.cfi_def_cfa_offset 16
 	pushq	%rbx
-Ltmp40:
-	.cfi_def_cfa_offset 24
 	pushq	%rax
-Ltmp41:
-	.cfi_def_cfa_offset 32
-Ltmp42:
-	.cfi_offset %rbx, -24
-Ltmp43:
-	.cfi_offset %r14, -16
 	movq	8(%rsi), %rax
 	movq	8(%rdi), %rdx
 	cmpq	%rax, %rdx
@@ -272,50 +240,26 @@ LBB5_8:                                 ## %ArrayCont2
 LBB5_12:                                ## %Error
 	movl	$-1, %edi
 	callq	_exit
-	.cfi_endproc
 
 	.globl	_mask
 	.align	4, 0x90
 _mask:                                  ## @mask
-	.cfi_startproc
 ## BB#0:
 	pushq	%rax
-Ltmp45:
-	.cfi_def_cfa_offset 16
 	leaq	L_vtable(%rip), %rdx
 	xorl	%ecx, %ecx
 	callq	L_mask_rec
 	popq	%rdx
 	ret
-	.cfi_endproc
 
 	.align	4, 0x90
 L_mask_rec:                             ## @mask_rec
-	.cfi_startproc
 ## BB#0:
 	pushq	%r15
-Ltmp51:
-	.cfi_def_cfa_offset 16
 	pushq	%r14
-Ltmp52:
-	.cfi_def_cfa_offset 24
 	pushq	%r12
-Ltmp53:
-	.cfi_def_cfa_offset 32
 	pushq	%rbx
-Ltmp54:
-	.cfi_def_cfa_offset 40
 	pushq	%rax
-Ltmp55:
-	.cfi_def_cfa_offset 48
-Ltmp56:
-	.cfi_offset %rbx, -40
-Ltmp57:
-	.cfi_offset %r12, -32
-Ltmp58:
-	.cfi_offset %r14, -24
-Ltmp59:
-	.cfi_offset %r15, -16
 	movq	%rcx, %rbx
 	movq	%rdx, %r12
 	movq	%rsi, %r14
@@ -354,29 +298,21 @@ LBB7_4:                                 ## %Loop
 	popq	%r14
 	popq	%r15
 	jmp	L_mask_rec              ## TAILCALL
-	.cfi_endproc
 
 	.globl	_unmask
 	.align	4, 0x90
 _unmask:                                ## @unmask
-	.cfi_startproc
 ## BB#0:
 	pushq	%rax
-Ltmp61:
-	.cfi_def_cfa_offset 16
 	leaq	L_vtable(%rip), %rsi
 	callq	L_unmask_rec
 	popq	%rdx
 	ret
-	.cfi_endproc
 
 	.align	4, 0x90
 L_unmask_rec:                           ## @unmask_rec
-	.cfi_startproc
 ## BB#0:
 	pushq	%rax
-Ltmp63:
-	.cfi_def_cfa_offset 16
 	movq	(%rsi), %rsi
 	testq	%rsi, %rsi
 	je	LBB9_3
@@ -395,29 +331,21 @@ LBB9_4:                                 ## %RetVal
 LBB9_3:                                 ## %Error
 	movl	$-1, %edi
 	callq	_exit
-	.cfi_endproc
 
 	.globl	_unmasktype
 	.align	4, 0x90
 _unmasktype:                            ## @unmasktype
-	.cfi_startproc
 ## BB#0:
 	pushq	%rax
-Ltmp65:
-	.cfi_def_cfa_offset 16
 	leaq	L_vtable(%rip), %rsi
 	callq	L_unmasktype_rec
 	popq	%rdx
 	ret
-	.cfi_endproc
 
 	.align	4, 0x90
 L_unmasktype_rec:                       ## @unmasktype_rec
-	.cfi_startproc
 ## BB#0:
 	pushq	%rax
-Ltmp67:
-	.cfi_def_cfa_offset 16
 	movq	(%rsi), %rsi
 	testq	%rsi, %rsi
 	je	LBB11_3
@@ -436,7 +364,10 @@ LBB11_4:                                ## %RetVal
 LBB11_3:                                ## %Error
 	movl	$-1, %edi
 	callq	_exit
-	.cfi_endproc
+
+	.section	__TEXT,__cstring,cstring_literals
+L_.strval:                              ## @.strval
+	.asciz	 "%d\n"
 
 	.section	__TEXT,__const
 	.align	4                       ## @.ImplTable
@@ -446,7 +377,7 @@ L_.ImplTable:
 	.quad	2                       ## 0x2
 	.quad	3                       ## 0x3
 	.quad	4                       ## 0x4
-	.quad	2                       ## 0x2
+	.quad	3                       ## 0x3
 
 .zerofill __DATA,__bss,L_vtable,8,3     ## @vtable
 

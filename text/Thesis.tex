@@ -1,12 +1,27 @@
 \documentclass[10pt,a4paper,master=cws, masteroption=ai,english,inputenc=utf8]{kulemt}
 \setup{title={Secure Compilation of ML Modules},
        author={Matthias van der Hallen},
-       promotor={Prof. Dr. Ir. Frank Piessens},
-       assessor={Onbekend},
-       assistant={Marco Patrignani}}
-\setup{filingcard, translatedtitle=,
+       promotor={Prof. dr. ir. F. Piessens},
+       assessor={Dr. ir. W. Meert \and Dr. D. Devriese},
+       assistant={M. Patrignani \and R. Strackx}}
+\setup{filingcard, translatedtitle={Veilige Compilatie van ML-stijl Modulesystemen},
         udc=621.1,
-        shortabstract={A short abstract}}
+        shortabstract={Malware infects many new computers each day.
+Some estimates suggest that up to 30\% of all computers are in fact infected.
+This malware is transmitted by exploiting bugs in computer software.
+In many cases, these bugs abused by the exploit originate from the disparity between the computing model presented by high-level source language and the effective module used by the low-level target language.
+\\
+These bugs are not prevented by analysis of the source language, for example using formal software verification tools, because they are effectively `introduced' by the process of compilation from source language to target language.
+Instead, they must be prevented by strengthening the compilation process in a way that reduces the power of low-level attackers to that of high-level attackers.
+Compilers that achieve this provide `secure compilation'.
+\\
+This work uses the notions of full abstraction and contextual equivalence to formalize the requirements for a secure compilation scheme, and shows how secure compilation can be achieved for MiniML, a subset of the ML language.
+As a prerequisite however, the secure compilation scheme assumes that the result of compilation runs on an architecture that provides program counter based access control, called a protected module platform.
+\\
+The source language for this secure compilation scheme, MiniML, is not object oriented. 
+Instead it uses a module system with the powerful notion of a functor to provide modularization of code.
+It targets the LLVM Intermediate Representation as a target language.
+A formalization of this MiniML source language and the LLVM IR target language is presented, enabling a formalization of the secure compilation scheme to be given as well.}}
 %\usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{amsfonts}
@@ -23,6 +38,7 @@
 %\usepackage{longtable}
 \usepackage{ltablex}
 \usepackage{appendix}
+\usepackage{amsthm}
 %\usepackage{tabu}
 %\usepackage{longtabu}
 %\usepackage[sorting=none, style=authoryear, backend=bibtex]{biblatex}
@@ -35,11 +51,12 @@
 %\setlength\parindent{1em}
 
 
-\lstset{basicstyle=\ttfamily,breaklines=true, keepspaces=true, columns=flexible, numberstyle=\small,escapeinside={/±}{±/}}
+\lstset{basicstyle=\ttfamily,breaklines=true, keepspaces=true, columns=flexible, numberstyle=\small,escapeinside={±}{±}}
 %\lstset{language=ML}
 \lstset{
  morekeywords={where}
 }
+\renewcommand{\lstlistlistingname}{List of Listings}
 \input{./tex/cmds}
 %\bibliography{bibliography}
 
@@ -50,13 +67,24 @@
 \newcommand{\lsttext}[1]{\lstinline[mathescape]!#1!} %inline text as in listings
 \newcommand{\longspace}{\;\;\;\;\;\;}
 \newcommand{\inlinecode}{\texttt}
-\newcommand{\expl}[1]{\footnotesize\text{#1}}
+\newcommand{\expl}[1]{{\text{\footnotesize#1}}}
 \newcommand{\LLVMIR}{\mbox{LLVM IR}}
-\newcommand{\compile}[1]{\mathit{\left[\left[#1\right]\right]}}
+%\newcommand{\compile}[1]{\mathit{\left[\left[#1\right]\right]}}
 \newcommand{\compiled}[1]{#1^{\downarrow}}
-\newcommand{\makes}{& \rightarrow}
+%\newcommand{\makes}{& \rightarrow}
 \newcommand{\ova}{\overline{\alpha}}
 \newcommand{\gray}{\cellcolor{lightgray}}
+\newcommand{\earlier}[2]{{\protect\myref{#1}{#2}} on {\protect\mypageref{#2}}}
+\newcommand{\intertextt}[1]{
+& & \\
+\multicolumn{3}{@{}p{\textwidth}@{}}{\indent#1}\\
+& & \\
+}
+\newcommand{\annot}[1]{[#1]}
+\newcommand{\nl}{\\ & &}
+\newcommand{\makes}{& \ensuremath{\rightarrow} &}
+\newcommand{\compile}[1]{[[#1]]}
+\newcommand{\mypageref}[1]{Page~\pageref{#1}}
 
 %Describe an attack nicely.
 \newcommand{\surroundrule}[2][0.3em]{
@@ -68,29 +96,53 @@
 \hypersetup{colorlinks=false, pdfborder={0 0 0}}
 
 \begin{preface}
+I would like to thank everyone who helped me to produce this master thesis.
+First, I would like to thank my promoter,
+prof. dr. ir. Frank Piessens, for providing me with this opportunity.
+Next, many thanks go out to my supervisors, M. Patrignani and R. Strackx for supporting me throughout the year.
+Futhermore, I would like to thank my friends and classmates with whom many moments of joy or frustration could be shared.
+Finally, I would like to thank my family for the encouragement and moral support I was lucky to receive.
 \end{preface}
 
 \tableofcontents*
+\listoffigures
+\lstlistoflistings
 
 \begin{abstract}
-The \texttt{abstract} environment contains a more extensive overview of
-the work. But it should be limited to one page.
+Malware infects many new computers each day.
+Some estimates suggest that up to 30\% of all computers are in fact infected.
+This malware is transmitted by exploiting bugs in computer software.
+In many cases, these bugs abused by the exploit originate from the disparity between the computing model presented by high-level source language and the effective module used by the low-level target language.
+
+These bugs are not prevented by analysis of the source language, for example using formal software verification tools, because they are effectively `introduced' by the process of compilation from source language to target language.
+Instead, they must be prevented by strengthening the compilation process in a way that reduces the power of low-level attackers to that of high-level attackers.
+Compilers that achieve this provide `secure compilation'.
+
+This work uses the notions of full abstraction and contextual equivalence to formalize the requirements for a secure compilation scheme, and shows how secure compilation can be achieved for MiniML, a subset of the ML language.
+As a prerequisite however, the secure compilation scheme assumes that the result of compilation runs on an architecture that provides program counter based access control, called a protected module platform.
+
+The source language for this secure compilation scheme, MiniML, is not object oriented. 
+Instead it uses a module system with the powerful notion of a functor to provide modularization of code.
+It targets the LLVM Intermediate Representation as a target language.
+A formalization of this MiniML source language and the LLVM IR target language is presented, enabling a formalization of the secure compilation scheme to be given as well.
 \end{abstract}
 
-\begin{abstract*}
-\end{abstract*}
+%\begin{abstract*}
+%\end{abstract*}
 
 
 \mainmatter
+\include{Introduction}
 \include{chapter1}
 \include{chapter2}
 \include{chapter3}
 \include{chapter4}
+\include{chapter5}
+\include{RelatedWork}
+\include{FutureWorkConclusion}
 
 \begin{appendices}
-\chapter{LLVM Code}
-\label{App:LLVMCode}
-\input{maskllvm}
+\input{AppendixLLVMCode}
 \end{appendices}
 
 

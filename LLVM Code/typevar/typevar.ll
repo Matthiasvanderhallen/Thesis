@@ -4,11 +4,15 @@
 %array = type {%int, [0 x %tyvar*]} ; 4
 %Pair.t = type {%pair} ; 5
 
+@.typeOfTypevar = private unnamed_addr constant [10 x i8] c"type: %d\0A\00", align 1
+@.strval = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+declare i32 @printf(i8*, ...)
+
 declare i8* @malloc(%int)
 declare void @free(i8*)
 declare void @exit(i32)
 
-define private %Pair.t* @Pair.createPair_internal(%tyvar* %p1, %tyvar* %p2){
+define private %Pair.t* @Pair.createPair_internal(%tyvar* %p1, %tyvar* %p2) nounwind noinline{
 	%ptr = call i8* @malloc(%int 16)
 	%ptr1 = bitcast i8* %ptr to %pair*
 	%fst = getelementptr %pair* %ptr1, i32 0, i32 0 ;%tyvar**
@@ -20,7 +24,7 @@ define private %Pair.t* @Pair.createPair_internal(%tyvar* %p1, %tyvar* %p2){
 	ret %Pair.t* %ptr2
 }
 
-define %int @Pair.createPair(%int %left, i2 %left.mask, %int %right, i2 %right.mask){
+define %int @Pair.createPair(%int %left, i2 %left.mask, %int %right, i2 %right.mask) nounwind noinline{
 	;We need extra parameters, because we don't know the type that was passed. Is it an externally defined type, is it an int, or is it a mask?
 	%leftTyvar.ptr.1 = call i8* @malloc(%int 16)
 	%leftTyvar.ptr = bitcast i8* %leftTyvar.ptr.1 to %tyvar*
@@ -83,14 +87,14 @@ define %int @Pair.createPair(%int %left, i2 %left.mask, %int %right, i2 %right.m
 	ret %int %pair.mask
 }
 
-define private %tyvar* @Pair.getLeft_internal(%Pair.t* %pair.ptr){
+define private %tyvar* @Pair.getLeft_internal(%Pair.t* %pair.ptr) nounwind noinline{
 	%pair.ptr.1 = bitcast %Pair.t* %pair.ptr to %pair*
 	%left.ptr = getelementptr %pair* %pair.ptr.1, i32 0, i32 0 ;%tyvar**
 	%left = load %tyvar** %left.ptr
 	ret %tyvar* %left
 }
 
-define %int @Pair.getLeft(%int %pair){
+define %int @Pair.getLeft(%int %pair) nounwind noinline{
 	%pair.unmask = call %int @unmask(%int %pair)
 	%pair.type = call %int @unmasktype(%int %pair)
 	%pair.check = icmp eq %int %pair.type, 5
@@ -110,24 +114,43 @@ define %int @Pair.getLeft(%int %pair){
 	unreachable
 }
 
-define private %int @main(){
+define private %int @main() nounwind noinline{
 	
 
-	%argptr = call i8* @malloc(%int 100)
+	%argptr = call i8* @malloc(%int 16)
 	%argptr1 = bitcast i8* %argptr to %tyvar*
-	%arg1 = insertvalue %tyvar undef, %int 1, 0
-	%arg2 = insertvalue %tyvar %arg1, %int 0, 1
+	%arg1.1 = insertvalue %tyvar undef, %int 1, 0
+	%arg1.2 = insertvalue %tyvar %arg1.1, %int 1, 1
 	
-	store %tyvar %arg2, %tyvar* %argptr1
-	call %Pair.t* @Pair.createPair_internal(%tyvar* %argptr1, %tyvar* %argptr1)
+	store %tyvar %arg1.2, %tyvar* %argptr1
+	%pair.ptr = call %Pair.t* @Pair.createPair_internal(%tyvar* %argptr1, %tyvar* %argptr1)
+	%pair.ptr.int = ptrtoint %Pair.t* %pair.ptr to %int
+
+	%arg2ptr = call i8* @malloc(%int 16)
+	%argptr2 = bitcast i8* %arg2ptr to %tyvar*
+	%arg2.1 = insertvalue %tyvar undef, %int %pair.ptr.int, 0
+	%arg2.2 = insertvalue %tyvar %arg2.1, %int 5, 1
+	store %tyvar %arg2.2, %tyvar* %argptr2
+
+	
+	call i1 @tyvarcheck(%tyvar* %argptr1, %tyvar* %argptr1)	
+		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), i1 1)
+	call i1 @tyvarcheck(%tyvar* %argptr2, %tyvar* %argptr2)
+		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), i1 1)
+	;call i1 @tyvarcheck(%tyvar* %argptr1, %tyvar* %argptr2)
+		call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), i1 1)
+
+
+	;call %Pair.t* @Pair.createPair_internal()
 
 	call void @free(i8* %argptr)
+
 	ret i64 0
 }
 
-@.ImplTable = private constant [6 x %int] [%int 0, %int 1, %int 2, %int 3, %int 4, %int 2]
+@.ImplTable = private constant [6 x %int] [%int 0, %int 1, %int 2, %int 3, %int 4, %int 3]
 
-define private i1 @tyvarcheck(%tyvar* %v1, %tyvar* %v2){
+define private i1 @tyvarcheck(%tyvar* %v1, %tyvar* %v2) nounwind noinline{
 	Start:
 	%v1.1 = load %tyvar* %v1
 	%v2.1 = load %tyvar* %v2
@@ -201,12 +224,12 @@ define private i1 @tyvarcheck(%tyvar* %v1, %tyvar* %v2){
 ;Initial table pointer
 @vtable = private global %masktype* null
 
-define %int @mask(%int %val, %int %type){
+define %int @mask(%int %val, %int %type) nounwind noinline{
 	%ret = call %int @mask_rec(%int %val, %int %type, %masktype** @vtable, %int 0)
 	ret %int %ret
 }
 
-define private %int @mask_rec(%int %val, %int %type, %masktype** %cptr, %int %index){
+define private %int @mask_rec(%int %val, %int %type, %masktype** %cptr, %int %index) nounwind noinline{
 	;Load the current pointer to %masktype* & check if its null. If it is, add a new record to the linked list.
 	%current = load %masktype** %cptr
 	%check = icmp eq %masktype* %current, null
@@ -257,12 +280,12 @@ define private %int @mask_rec(%int %val, %int %type, %masktype** %cptr, %int %in
 		ret %int %index
 }
 
-define %int @unmask(%int %index){
+define %int @unmask(%int %index) nounwind noinline{
 	%ret = call %int @unmask_rec(%int %index, %masktype** @vtable)
 	ret %int %ret
 }
 
-define private %int @unmask_rec(%int %cindex, %masktype** %cpointer){
+define private %int @unmask_rec(%int %cindex, %masktype** %cpointer) nounwind noinline{
 	%current = load %masktype** %cpointer ;Get pointer to current masktype.
 	%check = icmp eq %masktype* %current, null
 	br i1 %check, label %Error, label %ZeroTest
@@ -287,12 +310,12 @@ define private %int @unmask_rec(%int %cindex, %masktype** %cpointer){
 		ret %int %ret
 }
 
-define %int @unmasktype(%int %index){
+define %int @unmasktype(%int %index) nounwind noinline{
 	%ret = call %int @unmasktype_rec(%int %index, %masktype** @vtable)
 	ret %int %ret
 }
 
-define private %int @unmasktype_rec(%int %cindex, %masktype** %cpointer){
+define private %int @unmasktype_rec(%int %cindex, %masktype** %cpointer) nounwind noinline{
 	%current = load %masktype** %cpointer ;Get pointer to current masktype.
 	%check = icmp eq %masktype* %current, null
 	br i1 %check, label %Error, label %ZeroTest

@@ -112,20 +112,7 @@ define %int @Pair.getLeft(%int %pair){
 	unreachable
 }
 
-define private %int @main(){
-	%argptr = call i8* @malloc(%int 100)
-	%argptr1 = bitcast i8* %argptr to %tyvar*
-	%arg1 = insertvalue %tyvar undef, %int 1, 0
-	%arg2 = insertvalue %tyvar %arg1, %int 0, 1
-	
-	store %tyvar %arg2, %tyvar* %argptr1
-	call %Pair.t* @Pair.createPair_internal(%tyvar* %argptr1, %tyvar* %argptr1)
-
-	call void @free(i8* %argptr)
-	ret i64 0
-}
-
-@.ImplTable = private constant [6 x %int] [%int 0, %int 1, %int 2, %int 3, %int 4, %int 2]
+@.ImplTable = private constant [6 x %int] [%int 0, %int 1, %int 2, %int 3, %int 4, %int 3]
 
 define private i1 @tyvarcheck(%tyvar* %v1, %tyvar* %v2){
 	Start:
@@ -197,3 +184,15 @@ define private i1 @tyvarcheck(%tyvar* %v1, %tyvar* %v2){
   		unreachable
 }
 \end{lstlisting}
+%define private %int @main(){
+%	%argptr = call i8* @malloc(%int 100)
+%	%argptr1 = bitcast i8* %argptr to %tyvar*
+%	%arg1 = insertvalue %tyvar undef, %int 1, 0
+%	%arg2 = insertvalue %tyvar %arg1, %int 0, 1
+%	
+%	store %tyvar %arg2, %tyvar* %argptr1
+%	call %Pair.t* @Pair.createPair_internal(%tyvar* %argptr1, %tyvar* %argptr1)
+%
+%	call void @free(i8* %argptr)
+%	ret i64 0
+%}

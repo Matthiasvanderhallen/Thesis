@@ -221,7 +221,7 @@ Instinctively, the relations corresponds to the idea that a type variable $\alph
 
 \begin{description}
 \item[Type-scheme specialization:]
-The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_{2}$ is more specialised than $\sigma_{1}$. This means that the following rule\footnote{A rule uses the notation \cmath{\frac{premise}{conclusion}} where \cmath{premise} is the set of conditions for that must be hold before the conclusion holds.} determines the specialization relation.
+The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_{2}$ is more specialized than $\sigma_{1}$. This means that the following rule\footnote{A rule uses the notation \cmath{\frac{premise}{conclusion}} where \cmath{premise} is the set of conditions for that must be hold before the conclusion holds.} determines the specialization relation.
 % $\sigma_{2}$ can be expressed as $\forall \beta_{i}...\beta_{m}.\sigma_{2}'$ and $\sigma_{1}$ as $\forall \alpha_{1}...\forall \alpha_{n}.\sigma_{1}'$, $\sigma_{2}$ is more specialised than $\sigma_{1}$ iff $\sigma_{2}'=[\alpha_{i} \mapsto \sigma_{i}]\sigma_{1}'$ and $\beta_{i} \in free(\sigma_{1})$. In other words, 
 %
 
@@ -238,7 +238,7 @@ However, no type variable that was free in the more general type-scheme can beco
 The first condition gives one the possibility to specify the type of a type variable. This second condition forbids one to \emph{rescope} a type variable in the process.
 
 \item[Type-scheme generalization:]
-Type-scheme generalization is the opposite process of type-scheme specialization. However, whereas specialization can be expressed independent of the context, whether or not one is allowed to generalize, is dependent on the context. Generalisation allows one to quantify an unquantified variable, as long as it does not appear unquantified in any type assumption already made in the current context.
+Type-scheme generalization is the opposite process of type-scheme specialization. However, whereas specialization can be expressed independent of the context, whether or not one is allowed to generalize, is dependent on the context. Generalization allows one to quantify an unquantified variable, as long as it does not appear unquantified in any type assumption already made in the current context.
 \end{description}
 
 \[
@@ -478,7 +478,7 @@ The translation of an expression poses no additional security concerns and is co
 Since \myref{sec}{sec:DefinitionOfCompilation} states the module expressions making up the \emph{SPM} are compiled in a separate file, before the context, nothing in these expressions can depend on things defined in insecure code.
 This is not a fundamental restriction, it is possible to have these expressions depend on outside code by either:
 \begin{itemize}
-\item Allowing dependencies on the context to be hardcoded, which would correspond to the high-level \MiniML\ interpretation that the contex split up in two parts.
+\item Allowing dependencies on the context to be hardcoded, which would correspond to the high-level \MiniML\ interpretation that the context split up in two parts.
 The first part is compiled before the file containing the secure module expressions, the second part after the secure module expressions.
 
 The resulting security issues could by resolved by introducing a returnback entry point into the \emph{SPM}, as described by Agten et al.\cite{Agten:2012:SCM:2354412.2355247}.

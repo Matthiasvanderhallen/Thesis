@@ -31,7 +31,7 @@ structure Dictionary =
 
 As it stands, the dictionary type is a type synonym for lists of string pairs, and any such list could be used where a dictionary is expected.
 However, the concept of a dictionary does not require users to know that the dictionary type is implemented as a list of string pairs.
-According to the principle of data abstraction, it is favourable to hide this information from the user of the dictionary module.
+According to the principle of data abstraction, it is favorable to hide this information from the user of the dictionary module.
 
 Here the idea of a signature comes into play.
 A signature groups a set of types, values and functions without providing an implementation.
@@ -55,7 +55,7 @@ This last functionality of a signature is a way to perform \emph{information hid
 %This will, at first, only feature modules.
 %Later on, It will be extended with more advanced concepts of ML, such as functors.
 
-The \mbox{MiniML} fragment discussed here was chosen to encorporate the idea of modules, more complex language features will be added later.
+The \mbox{MiniML} fragment discussed here was chosen to incorporate only the idea of structures, more complex language features will be added later.
 
 \section{A Cipher In \MiniML}
 \label{sec:MLExample}
@@ -174,7 +174,7 @@ iN & Arbitrary width integer.
 The width is specified by N \\
 Void & The void type. Like the void type in Java, this represents no value. The void value has no size.\\
 \cmath{type\ast} & The pointer type. It specifies a specific memory location. The memory location must contain a value with the correct type, as specified by \cmath{type}. It is considered by the \emph{LLVM Language Reference} to be a basic type.\\
-label & The label type. This specfies a pointer to a label. This is equivalent to i8*.\\
+label & The label type. This specifies a pointer to a label. This is equivalent to i8*.\\
 \multicolumn{2}{|c|}{\gray LLVM Derived Types}\\
 \cmath{[}N x \cmath{type}\cmath{]} & The Array type. This represents \#N elements of type \cmath{type} ordered sequentially in memory.\\
 \{\cmath{type list}\} & The structure type. This represents a sequence of values in memory of type \cmath{type}. The elements are in the order of the list. The list is comma separated.\\
@@ -190,7 +190,7 @@ This results in many more variables in use than available registers.
 In a later compilation stage this consequence is remedied using the technique of \emph{spilling}.
 Variable spilling occurs by mapping the variables in use to the smaller set of available registers, saving all variables that could not be assigned to a register in RAM memory in the stack.
 
-\item[SSA] For optimization purposes, the LLVM IR adheres to the \emph{static single assigment} paradigm, or \emph{SSA}.
+\item[SSA] For optimization purposes, the LLVM IR adheres to the \emph{static single assignment} paradigm, or \emph{SSA}.
 This implies that every register can be assigned a value only once.
 
 For example, the code in \myref{lst}{lst:reassign} reassigns the value saved in register x from 3 to  4. In SSA, this would be represented by \myref{lst}{lst:ssa}.
@@ -252,7 +252,7 @@ This section presents these different mappings.
 \begin{description}
 \item[File]
 A file with ML structures and signatures inside it is a separate unit of compilation.
-Its signatures and structures are typechecked and compiled together. 
+Its signatures and structures are type checked and compiled together. 
 When a file is compiled, there can only be dependencies on values that were defined in an earlier unit of compilation, since the compilation of \MiniML\ expects a directed acyclic graph, as explained in \myref{sec}{sec:DefinitionOfCompilation}.
 
 LLVM already provides the concept of a module as a separate unit of compilation.
@@ -260,7 +260,7 @@ This means each LLVM module is compiled to a single different object file.
 Firstly, an LLVM module declares which external functions will be provided by other code, and then continues by defining and implementing its own code and data.
 These definitions and external references are compiled into a single object file.
 LLVM poses no restrictions on the access of data and functions within a single module.
-This is poses no problem for files containing multiple secure structures. Since they are first typechecked together before being compiled toghether, a secure structure will never access a hidden component of another secure structure.
+This is poses no problem for files containing multiple secure structures. Since they are first type checked together before being compiled together, a secure structure will never access a hidden component of another secure structure.
 
 The access of data and functions from within other modules \emph{is} restricted by LLVM: the object file to which a module is compiled is accompanied by a link table.
 This link table specifies which methods are defined and made externally visible, which is used to match the declaration of external functions with their implementation in other object files.
@@ -302,7 +302,7 @@ When a structure is opaquely ascribed, or \emph{sealed} by a signature, we must 
 The translations of a field is a getter function without arguments.
 This is necessary because \begin{itemize}
  \item The value might not be defined as a constant, but as the result of a call to a pure function.
- This does not violate the constraint that a field must represent an unmutable value, because the result of a pure function call will always result in the same result. 
+ This does not violate the constraint that a field must represent an immutable value, because the result of a pure function call will always result in the same result. 
 When translated, this function must be executed however and the result must be passed.
 \item These values are readable by any code.
 As shown later, when it is read by the insecure context, certain precautions must be taken.
@@ -333,7 +333,7 @@ As long as no structure is used before it is defined, differently ordered \MiniM
 The order of field definitions within a structure has no result on the behavior of the program either.
 
 The ordering of structure or field definitions in \LLVMIR\ might be leaked however, when examining the pointers to different fields.
-If contextually equivalent but differently ordered \MiniML\ programs would be translated to diffently ordered \LLVMIR\ programs, the results would not be contextually equivalent.
+If contextually equivalent but differently ordered \MiniML\ programs would be translated to differently ordered \LLVMIR\ programs, the results would not be contextually equivalent.
 
 To guarantee \emph{full abstraction}, it is thus necessary to ensure that all contextually equivalent but differently ordered \MiniML\ programs result in the same ordering of definitions in \LLVMIR.
 This can be accomplished by alphabetically ordering structures, and the fields within their structures, when outputting the \LLVMIR\ program.
@@ -391,7 +391,7 @@ structure Dictionary =
 
 Even more so, one would expect the two programs/modules to be contextually equivalent! However, clearly, if no checking is performed on functions expecting something of type dictionary, a low level attacker could discriminate between the two using the following tactic: call a function expecting a dictionary argument with a self-created list of string pairs. If it gives the expected results, the dictionary implementation being used is the one given in \myref{lst}{code:DictionaryStructureExample}. If not, it is the module described in \myref{lst}{code:DictionaryStructureExample2}, expecting a pair of string lists. This breaks contextual equivalence.
 
-The code must assure that any object, passing as an argument of type dictionary, was in fact created by the module code itself (using the emptydictionary method). If not, it should raise an error (even if the object has the correct type according to the synonyms) in order to prevent an attack on centextual equivalence in the same spirit as the one described above.
+The code must assure that any object, passing as an argument of type dictionary, was in fact created by the module code itself (using the emptydictionary method). If not, it should raise an error (even if the object has the correct type according to the synonyms) in order to prevent an attack on contextual equivalence in the same spirit as the one described above.
 
 This restriction can be enforced by a technique called masking, introduced by M. Patrignani et al~\cite{Patrignani}. 
 This works by ensuring that the code creating a dictionary never returns a pointer to this dictionary itself, instead saving this dictionary in an internal list in protected memory.
@@ -496,32 +496,32 @@ This code, that implicitly is part of a module, consists of a list of \emph{glob
 Every value, be it a global function or a global variable, has a \emph{linkage} type associated with it.
 Linkage types control the accessibility of of variables and functions. The two linkage types in use are \lsttext{private}, which makes a value only accessible by objects inside the same module, and the default linkage type, \lsttext{external}.
 
-The code in \myref{lst}{llvm:Example} specifies 9 different global values, corresponding to the 5 definitions in the \lsttext{Caesar} structure and their 4 public stubs. It also defines one type, corresponding to the cred type.
+The code in \myref{lst}{llvm:Example} specifies 9 different global values, corresponding to the 5 definitions in the \lsttext{Caesar} structure and their 4 public stubs. It also defines one type, corresponding to the \lsttext{cred} type.
 As mentioned earlier, the ordering of these functions is alphabetically.
 \begin{description}
-\item[cred type] To start the translation, a type definition for the cred type is given on line 2.
-It is represented as a structure, where first the effective structure is represented, and then an \%int is reserved to keep track of the type.
-Here, the number 4 is chosen to correspond with the cred type.
+\item[cred type] To start the translation, a type definition for the \lsttext{cred} type is given on line 2.
+It is represented as a structure, where first the effective structure is represented, and then an \lsttext{\%int} is reserved to keep track of the type.
+Here, the number 4 is chosen to correspond with the \lsttext{cred} type.
 
 \item[encrypt \& decrypt] The first translated functions are the \lsttext{encrypt} en \lsttext{decrypt} functions. The translation starts with the definition of \lsttext{@Caesar.decrypt_internal} on line 24 in the code of \myref{lst}{llvm:Example}, and that of \lsttext{@Caesar.encrypt_internal} on line 48.
 Both definitions use linkage type private.
 Since these functions are available in ML for untrusted code, stubs are provided as entry points where security precautions can be made. These can be found on lines 8-22 and 32-46.
 
-The definitions of these stubs take only \%int values as arguments.
-Since no linkage type is explictly specified, linkage type `external'  is used.
+The definitions of these stubs take only \lsttext{\%int} values as arguments.
+Since no linkage type is explicitly specified, linkage type `external'  is used.
 
-The stubs know that the second argument to the internal function must be of type \%Caesar.cred*, so they use the @unmask function to get the corresponding \%Caesar.cred* value, and type check it.
+The stubs know that the second argument to the internal function must be of type \lsttext{\%Caesar.cred*}, so they use the \lsttext{@unmask} function to get the corresponding \lsttext{\%Caesar.cred*} value, and type check it.
 
-The definitions of the internal functions take one \%int and one \%Caesar.cred* as argument.
-They can read the integer value that this cred represents by accessing the representation in the using the getelementptr function in combination with the pointer \%Caesar.cred*.
+The definitions of the internal functions take one \lsttext{\%int} and one \lsttext{\%Caesar.cred*} as argument.
+They can read the integer value that this \lsttext{cred} represents by accessing the representation in the using the \lsttext{getelementptr} function in combination with the pointer \lsttext{\%Caesar.cred*}.
 
 The body of the internal function uses the effective values in two calls to arithmetical assembly functions and returns the result.
 
 \item[newcredentials] Next is the \lsttext{newcredentials} function.
-On lines 56-61 in the code of \myref{lst}{llvm:Example}, a stub for the function is defined and its return type is declared to be \%int, since it returns an index in the masking list.
+On lines 56-61 in the code of \myref{lst}{llvm:Example}, a stub for the function is defined and its return type is declared to be \lsttext{\%int}, since it returns an index in the masking list.
 
-On line 57, the stub calls the internal function, receiving a pointer value of type \%Caesar.cred*.
-It casts this pointer to an \%int, and saves the \%int as well as type information in the masking list using a call to \lsttext{@mask}.
+On line 57, the stub calls the internal function, receiving a pointer value of type \lsttext{\%Caesar.cred*}.
+It casts this pointer to an \lsttext{\%int}, and saves the \lsttext{\%int} as well as type information in the masking list using a call to \lsttext{@mask}.
 This returns an index which can be returned to the context.
 
 %This proxy acts as a wrapper around the real translation of \lsttext{newcredentials} that can be seen on lines 6-9. This proxy is the entry point to the function that is made available to the untrusted code. This proxy can perform the security precautions that have to be taken when taking values from or returning values to the untrusted code.

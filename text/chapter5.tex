@@ -14,7 +14,7 @@ It expresses that \emph{contextual equivalence} for source-level objects is pres
 Proving full abstraction requires a proof for soundness  and completeness.
 \begin{description}
 \item[Soundness]
-Soundess expresses that the compilation of two source-level objects does not `introduce' contextual equivalence in the target language.
+Soundness expresses that the compilation of two source-level objects does not `introduce' contextual equivalence in the target language.
 Instead, for the target-level objects to be contextually equivalent, the source-level objects have to contextually equivalent already.
 \[
     \compiled{O_{1}} \simeq \compiled{O_{2}} \implies O_{1} \simeq O_{2}
@@ -26,13 +26,13 @@ Indeed, formulating the logically equivalent contrapositive of the soundness pro
 \]
 
 This expresses that two contextually \emph{un}equivalent source-level objects result in contextually \emph{un}equivalent translations.
-If a compilation scheme would \emph{not} be sound, there would exist two contextualy \emph{un}equivalent sourcle-level objects, whose translations would be contextually equivalent.
+If a compilation scheme would \emph{not} be sound, there would exist two contextually \emph{un}equivalent source-level objects, whose translations would be contextually equivalent.
 
 Clearly, this compiler does not function `correctly', as there is a context in which the source-level objects behave differently, but the translations do not.
 One of these translations does not accurately behave like the source-object it is derived from.
 \item[Completeness]
 Completeness says that all contextually equivalent source-level objects are translated to contextually equivalent target-level objects.
-It expressess that the contextual equivalence of source-level objects, which provids certain security guarantuees, are preserved when compiling.
+It expresses that the contextual equivalence of source-level objects, which provides certain security guarantees, are preserved when compiling.
 \[
     O_{1} \simeq O_{2} \implies \compiled{O_{1}} \simeq \compiled{O_{2}}
 \]
@@ -71,7 +71,7 @@ Secondly, the leaking of information about memory locations is prevented.
 This is partly achieved by the use of  masking\cite{Patrignani}, and for the other part by making fields available using the generic structure value entry point and a (masked) reference to a frame.
 
 Information leakage about the order of definitions, whether it be value definitions of structure definitions, is prevented by imposing an alphabetical ordering on the definitions.
-An alphabetic reordering at compilation makes sure that the order of fields within a frame, or frames within the f-list is insensitive to reorderings of the source-level code.
+An alphabetic reordering at compilation makes sure that the order of fields within a frame, or frames within the f-list is insensitive to a reordering of the source-level code.
 The addition of functors requires additional care to ensure that there is no way of telling whether a structure was created by a static binding or using functor application.
 \\[1em]
 The next step would be showing that any pair of low level traces $T_1$ and $T_2$ that differentiate two compiled objects $\compiled{O_1}$ and $\compiled{O_2}$ makes it possible to construct a high level context $O_c$ that could differentiate between $O_1$ and $O_2$.

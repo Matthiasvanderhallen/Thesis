@@ -308,9 +308,8 @@ The typing rules are divided in rules concerning the core language in \myref{fig
 %\rbrace
 ), T \\
 %&| \; (F_{i} \mapsto \lbrace \Sigma, \overline{\Sigma_{n}}, \overline{d} \rbrace), T \\
-%&| \; (\mathit{SigId} \mapsto \Sigma), T\\
-\\
-\text{Evaluation } ::= & T \vdash P \rightarrow T \vdash P' \\
+%&| \; (\mathit{SigId} \mapsto \Sigma), T
+\text{Evaluation } ::=\;& T \vdash P \rightarrow T \vdash P'
 \end{align*}
 \caption[Operational Semantic Entities]{Relations and entities of the operational semantics.\label{fig:MiniMLOperationalSemanticEntitiesAndRelations}}
 \end{figure}
@@ -414,7 +413,7 @@ The compiler formalized here aims to be
 a secure compiler, it takes a set of module expressions and translates them to \LLVMIR\
 %in a fully abstract~\cite{Abadi,Agten:2012:SCM:2354412.2355247} manner.
 to allow for fully abstract~\cite{Abadi,Agten:2012:SCM:2354412.2355247} binary protected modules or \emph{SPM}s.
-As explained in \myref{sec}{sec:},\todo{refer to introduction, to be written} fully abstract compilation uses the notion of \emph{contextual equivalence}~($\simeq$)~\cite{Agten:2012:SCM:2354412.2355247}.
+As explained in \myref{sec}{sec:fullabstraction}, fully abstract compilation uses the notion of \emph{contextual equivalence}~($\simeq$)~\cite{Agten:2012:SCM:2354412.2355247} to describe the requirements of a secure compiler.
 
 These requirements of the compiler are interpreted as follows: The program \cmath{P} given to the compiler is a set of module expressions \cmath{me} that represent the secure code.
 This set of module expressions \cmath{me} is compiled separately from any other, insecure code to an \LLVMIR\ program \cmath{\compiled{P}} which can be processed to a fully abstract \emph{SPM}.

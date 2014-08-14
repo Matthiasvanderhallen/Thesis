@@ -374,14 +374,19 @@ In \myref{fig}{fig:LLVMSyntax}, their reduced syntax of LLVM IR is given, with s
 \text{Label } \mathit{l} ::= & \mathit{id}\kw{:}\\
 %\phi\ \text{nodes} \mathit{\phi} ::= &\mathit{id\ =\ } \text{phi} typ [val_{j} , l_{j} ] \\
 \text{Tmns } \mathit{tmn} ::= &\kw{br}\mathit{\ val\ l_{1}\ l_{2} \ |\ }\kw{br}\mathit{\ l \ |\ }\kw{ret}\mathit{\ typ\ val\ |\ }\kw{ret}\mathit{\ void\ |\ }\kw{unreachable} \\
-\text{Commands } \mathit{c} ::= &\mathit{id\ =\ bop(int\ sz)\ val_{1}\ val_{2}\ |\ id\ =\ fbop\ fp\ val_{1}\ val_{2}}\\
-&\mathit{|\ id\ =\ load(typ*)\ val_{1}\ align\ |\ store\ typ\ val_{1}\ val_{2}\ align}\\
-&\mathit{|\ id\ =\ malloc\ typ\ val\ align\ |\ free(typ * )\ val}\\
-&\mathit{|\ id\ =\ alloca\ typ\ val\ align\ |\ id\ =\ trop\ typ_{1}\ val\ to\ typ_{2}}\\
-&\mathit{|\ id\ =\ eop\ typ_{1}\ val\ to\ typ_{2}\ |\ id\ =\ cop\ typ_{1}\ val\ to\ typ_{2}}\\
-&\mathit{|\ id\ =\ icmp\ cond\ typ\ val_{1}\ val_{2}\ |\ id\ =\ select\ val0\ typ\ val_{1}\ val_{2}\ }\\
-&\mathit{|\ id\ =\ fcmp\ fcond\ fp\ val_{1}\ val_{2}\ |\ option\ id\ =\ call\ typ_{0}\ val_{0}\ \overline{param}}\\
-&\mathit{|\ id\ =\ getelementptr(typ*)\ val\ \overline{val_{j}}^{j}}
+\text{Commands } \mathit{c} ::= &\mathit{id\ =\ bop(int\ sz)\ val_{1}\ val_{2}\ |\ }
+%id\ =\ fbop\ fp\ val_{1}\ val_{2}}\\
+\mathit{|\ id\ =\ }\kw{load}\mathit{(typ*)\ val_{1}\ align}\\
+&\mathit{|\ }\kw{store}\mathit{\ typ\ val_{1}\ val_{2}\ align\ |\ id\ =\ }\kw{malloc}
+\mathit{\ typ\ val\ align}\\
+&\mathit{|\ }\kw{free}\mathit{(typ * )\ val\ |\ id\ =\ }\kw{alloca}\mathit{\ typ\ val\ align}\\
+&\mathit{|\ id\ =\ trop\ typ_{1}\ val\ }\kw{to}\mathit{\ typ_{2}\ |\ id\ =\ eop\ typ_{1}\ val\ }\kw{to}\mathit{\ typ_{2}}\\
+&\mathit{|\ id\ =\ cop\ typ_{1}\ val\ }\kw{to}\mathit{\ typ_{2}}
+\mathit{\ |\ id\ =\ } \kw{icmp}\mathit{\ cond\ typ\ val_{1}\ val_{2}}\\
+&|\ \mathit{id\ =\ }\kw{select}\mathit{\ val0\ typ\ val_{1}\ val_{2}\ }
+%&\mathit{|\ id\ =\ fcmp\ fcond\ fp\ val_{1}\ val_{2}\ }
+\mathit{|\ \langle id\rangle\ =\ }\kw{call}\mathit{\ typ_{0}\ val_{0}\ \overline{param}}\\
+&\mathit{|\ id\ =\ }\kw{getelementptr}\mathit{(typ*)\ val\ \overline{val_{j}}^{j}}
 %\text{} \mathit{} ::= &\mathit{} \\
 %\text{} \mathit{} ::= &\mathit{} \\
 %\text{} \mathit{} ::= &\mathit{} \\

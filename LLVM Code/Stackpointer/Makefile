@@ -3,7 +3,7 @@ EXECUTABLE=sp
 all: sp.ll
 	llvm-as sp.ll
 	llc sp.bc
-	clang -o0 $(EXECUTABLE) sp.s
+	clang -o $(EXECUTABLE) sp.s
 	./$(EXECUTABLE)
 
 clean:

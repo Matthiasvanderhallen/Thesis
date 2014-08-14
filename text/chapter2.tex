@@ -354,24 +354,26 @@ In \myref{fig}{fig:LLVMSyntax}, their reduced syntax of LLVM IR is given, with s
 \text{Values } \mathit{val} ::= &\mathit{ id\ |\ cnst} \\
 \text{Binops } \mathit{bop} ::= &\kw{add} \ |\ \kw{sub}\ |\ \kw{mul}\ |\ \kw{udiv}\ |\ \kw{sdiv}\ |\ \kw{urem}\ |\ \kw{srem}\ |\ \kw{shl}\ |\ \kw{lshr}\ |\ \kw{and}\\
 &|\ \kw{or}\ |\ \kw{xor} \\
-\text{Float Ops } \mathit{fbop} ::= &\mathit{fadd \ |\ fsub \ |\ fmul \ |\ fdiv \ |\ frem} \\
-\text{Extension } \mathit{eop} ::= &\mathit{zext \ |\ sext \ |\ fpext} \\
-\text{Cast op } \mathit{cop} ::= &\mathit{fptoui \ |\ ptrtoint \ |\ inttoptr \ |\ bitcast} \\
-\text{Trunc op } \mathit{trop} ::= &\mathit{trunc_{int} \ |\ trunc_{fp}} \\
-%
-%
-\text{Constants } \mathit{cnst} ::= &\mathit{isz\ Int\ |\ fp\ Float\ |\ typ\ *\ id\ |\ (typ*)\ null\ |\ typ\ zeroinitializer} \\
-&\mathit{|\ typ\overline{[cnst_{j}]}^{j}\ |\ \overline{\lbrace cnst_{j} \rbrace}^{j}\ |\ typ\ undef\ |\ bop\ cnst_{1}\ cnst_{2}} \\
-&\mathit{|\ fbop\ cnst_{1}\ cnst_{2}\ |\ trop\ cnst\ to\ typ\ |\ eop\ cnst\ to\ typ}\\
-&\mathit{|\ cop\ cnst\ to\ typ\ |\ getelementptr\ cnst\ \overline{cst_{j}}^{j}}\\
-&\mathit{|\ select\ cnst_{0}\ cnst_{1}\ cnst_{2}\ |\ icmp\ cond\ cnst_{1}\ cnst_{2}}\\
-&\mathit{|\ fcmp\ fcond\ cnst_{1}\ cnst_{2}}\\
+%\text{Float Ops } \mathit{fbop} ::= &\kw{fadd} \ |\ \kw{fsub} \ |\ \kw{fmul} \ |\ \kw{fdiv} \ |\ \kw{frem} \\
+\text{Extension } \mathit{eop} ::= &\kw{zext} \ |\ \kw{sext} \ |\ \kw{fpext} \\
+\text{Cast op } \mathit{cop} ::= &%\kw{fptoui} \ |\ 
+\kw{ptrtoint} \ |\ \kw{inttoptr} \ |\ \kw{bitcast} \\
+\text{Trunc op } \mathit{trop} ::= &\kw{trunc}_{int} \ |\ \kw{trunc}_{fp} \\
+\text{Constants } \mathit{cnst} ::= &\kw{i}\mathit{sz\ Int\ |\ }
+%fp\ Float\ |\ 
+\mathit{typ\ *\ id\ |\ (typ*)\ } \kw{null}\mathit{\ |\ typ\ } \kw{zeroinitializer} \\
+&\mathit{|\ typ\overline{[cnst_{j}]}^{j}\ |\ \overline{\lbrace cnst_{j} \rbrace}^{j}\ |\ typ\ }\kw{undef}\mathit{\ |\ bop\ cnst_{1}\ cnst_{2}} \\
+&\mathit{|\ fbop\ cnst_{1}\ cnst_{2}\ |\ trop\ cnst\ }\kw{to}\mathit{\ typ\ |\ eop\ cnst\ }\kw{to}\mathit{\ typ}\\
+&\mathit{|\ cop\ cnst\ }\kw{to}\mathit{\ typ\ |\ }\kw{getelementptr}\mathit{\ cnst\ \overline{cst_{j}}^{j}}\\
+&\mathit{|\ }\kw{select}\mathit{\ cnst_{0}\ cnst_{1}\ cnst_{2}\ |\ }\kw{icmp}\mathit{\ cond\ cnst_{1}\ cnst_{2}}\\
+&\mathit{|\ }\kw{fcmp}\mathit{\ fcond\ cnst_{1}\ cnst_{2}}\\
 %
 %
 \text{Blocks } \mathit{b} ::= &\mathit{l\ \overline{\phi}\ \overline{c}\ tmn} \\
-\phi\ \text{nodes } \phi ::= &\mathit{id} \text{ = phi } \mathit{typ \overline{[val_{j} , l_{j} ]}^{j}}\\
+\phi\ \text{nodes } \phi ::= &\mathit{id} = \kw{phi}\ \mathit{typ \overline{[val_{j} , l_{j} ]}^{j}}\\
+\text{Label } \mathit{l} ::= & \mathit{id}\kw{:}\\
 %\phi\ \text{nodes} \mathit{\phi} ::= &\mathit{id\ =\ } \text{phi} typ [val_{j} , l_{j} ] \\
-\text{Tmns } \mathit{tmn} ::= &\mathit{br\ val\ l_{1}\ l_{2} \ |\ br\ l \ |\ ret\ typ\ val\ |\ ret\ void\ |\ unreachable} \\
+\text{Tmns } \mathit{tmn} ::= &\kw{br}\mathit{\ val\ l_{1}\ l_{2} \ |\ }\kw{br}\mathit{\ l \ |\ }\kw{ret}\mathit{\ typ\ val\ |\ }\kw{ret}\mathit{\ void\ |\ }\kw{unreachable} \\
 \text{Commands } \mathit{c} ::= &\mathit{id\ =\ bop(int\ sz)\ val_{1}\ val_{2}\ |\ id\ =\ fbop\ fp\ val_{1}\ val_{2}}\\
 &\mathit{|\ id\ =\ load(typ*)\ val_{1}\ align\ |\ store\ typ\ val_{1}\ val_{2}\ align}\\
 &\mathit{|\ id\ =\ malloc\ typ\ val\ align\ |\ free(typ * )\ val}\\

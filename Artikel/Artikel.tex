@@ -1,0 +1,78 @@
+\documentclass[11pt]{article}
+\title{Secure Compilation and The ML Module Language}
+\author{Matthias van der Hallen}
+\date{}
+\newcommand{\com}[1]{#1^\downarrow}
+\newcommand{\myref}[2]{\ref{#1}}
+\usepackage{listings}
+\begin{document}
+\maketitle
+\abstract{
+The development of software is a daunting task, even more so when high security becomes an issue. 
+Meanwhile, in todays technology driven world, computer security is not so much a luxury as it is a necessity. 
+Nearly all development happens in a high-level programming language, mainly because it allows for easier reasoning about the program being written.
+This simplification of the thought process is a direct consequence of the abstract computing model that high-level languages usually offer to the programmer.
+
+The computing model offered by real architectures differs on many accounts from the one high-level languages offer.
+It is during the compilation process that many bugs are introduced to seemingly correct software, because the abstract properties of the high-level language are lost.
+These bugs can even pop up in software whose workings were formally verified using tools such as verifast~\cite{Verifast:paper}.
+The goal of secure compilation is strengthening the compilation process such that any security guarantees derived from the abstract computing model are preserved when compiling.
+
+This work aims to bring secure compilation to a language with an ML style module system, which uses signature matching and functors to provide modularization, encapsulation and information hiding.
+}
+
+\section{Introduction}
+The amount of software in todays world is growing at rapid rates.
+As software programs take on a larger and larger role in our lives, and security sensitive applications run side by side with software of the garden-variety, it is important that these applications behave as expected.
+
+Most computer software is written using a high-level language, for example Java or ML.
+This high-level language offers a computing model that abstracts away many subtleties of real architectures.
+These subtleties of the computing model however are reintroduced when the software is compiled from those high-level language to a low-level language.
+Some of the subtleties that are abstracted away are:
+\begin{itemize}
+\item The existence of registers and memory.
+\item The fact that the software code and the values or objects it create must all be stored in this same memory space.
+\item How the flow of control, i.e. the next command to be executed, is managed.
+\item Objects created by software must provide an implementation, they no longer are \emph{algebraic data types} described only by their functionality.
+\end{itemize}
+
+Many of the abstractions allow the programmer to make certain assumptions about the security of their software.
+The confidentiality of certain values and their integrity, for example.
+Another abstraction is the atomicity of a function.
+A software programmer never assumes that a function could be executed only partially, taking no real note of the possible harm that could be done if an attacker would be able to bypass the part of a function where permissions are checked.
+
+The reintroduction of these subtleties in the low level can cause these security assumptions to become void.
+Many attacks exist that abuse the way compilation reintroduces these subtleties, breaking the security guarantees assumed by the programmer or any formal verification software.
+For example, Y. Erlinsson et al~\cite{OVSPaper} list a number of ways that low-level attacks might manipulate control flow or values whose integrity was guaranteed in on source level.
+
+Because the severe problems that these bugs can introduce, breaking into security sensitive parts of an application exploiting its bindings with less secure parts of the application, a strengthening of the compilation process is needed.
+The goal of \emph{secure compilation} is to provide compilation that preserves all high-level security guarantees in the low-level.
+
+\section{Problem Setting}
+Informally, the goal of secure compilation was formulated as compilation that preserves all high-level security guarantees in the low-level.
+Contextual equivalence allows us to formalize what exactly are the security guarantees offered by the high-level language.
+
+Contextual equivalence~\cite{Agten:2012:SCM:2354412.2355247} does this by introducing a homomorphic equivalence relation $\simeq$ on programs or their components.
+Two objects or components $O1$ and $O2$ are contextually equivalent if no third object $O_C$, called the \emph{context}, is able to distinguish between the two components when it is run together with one of the objects as a programming.
+The two objects are thus perfectly substitutable, as their outward behaviour is the same: they function as one and the same blackbox.
+
+\[
+ \forall O_C : O_C[O_1] \rightarrow^* c \iff O_C[O_2] \rightarrow^* c
+\]
+
+Contextual equivalence captures security guarantees such as the public/private access modifier or the atomicity of function executions. For example, if two components $O_1$ and $O_2$, containing functions \myref{lst}{lst:SimpleReturn} and \myref{lst}{lst:UnreachableCode} are contextually equivalent, then the atomicity of function execution of \lstinline{f} is guaranteed. Being able to break function atomicity would result in the normally unreachable \lstinline{return} in \myref{lst}{lst:UnreachableCode} becoming reachable, which would be observable from some context object $O_C$.
+
+Now that contextual equivalences ability to express the security guarantees of a language is established, secure compilation can be formalized by the notion of \emph{full abstraction}~\cite{Abadi}, or the preservation of contextual equivalence during the compilation process.
+If $O_1$ is a high-level component and $\com{O_1}$ its low-level result from compilation, full abstraction becomes:
+\[
+ \forall O_1, O_2 : O_1 \simeq O_2 \iff \com{O_1} \simeq \com{O_2}
+\]
+\section{Contributions}
+
+\section{Related Work}
+
+\section{Conclusion}
+
+\bibliographystyle{ieeetr}
+\bibliography{bibliography}
+\end{document}

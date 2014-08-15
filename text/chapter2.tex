@@ -262,7 +262,13 @@ For a \emph{candidate} signature to match its \emph{target}, any value or type s
 \begin{enumerate}
 \item For types, this means that for each type in the \emph{target}, there is a type in the \emph{candidate} with the same name.
 If \emph{target} carries a definition for the type, \emph{candidate} must provide an equivalent definition.
-\item For values, this means that for each value in the \emph{target}, there exists a value with the same name in the \emph{candidate} whose type is at least as general as the corresponding type in the \emph{target}.
+\item For values, this means that for each value in the \emph{target}, there exists a value with the same name in the \emph{candidate} whose type 
+%is at least as accepting as the corresponding type in the \emph{target}. 
+%I.e. argument types can generalize, and the return type can
+is a subtype
+\footnote{Liskov substitution principle is used to determine subtypes i.e. arguments are allowed to generalize, return types can be specialized.}
+of the corresponding type in the \emph{target}.
+\todo{changed: https://www.cs.cmu.edu/~rwh/introsml/modules/sigstruct.htm uses general. Pierce adv. page 300 uses subtype. What is meant of course is Liskov substitution principle: Arguments can generalize, return types can specify. "At least as accepting"/"At least as broad"}
 \end{enumerate}
 
 These signature matching constraints allow the expression of a structure to have a principal signature that is more broad than its ascribed signature.

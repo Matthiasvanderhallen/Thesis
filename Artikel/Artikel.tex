@@ -1,10 +1,29 @@
-\documentclass[11pt]{article}
-\title{Secure Compilation and The ML Module Language}
+\documentclass[10pt]{article}
+\title{Secure Compilation and The ML Language}
 \author{Matthias van der Hallen}
 \date{}
-\newcommand{\com}[1]{#1^\downarrow}
-\newcommand{\myref}[2]{\ref{#1}}
 \usepackage{listings}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{todonotes}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xcolor,colortbl}
+%\usepackage{longtable}
+\usepackage{ltablex}
+\usepackage{appendix}
+\usepackage{amsthm}
+\newcommand{\com}[1]{#1^\downarrow}
+\input{./tex/cmds}
+
+\lstset{language={Java}, basicstyle=\footnotesize\ttfamily, columns=flexible}
 \begin{document}
 \maketitle
 \abstract{
@@ -60,14 +79,49 @@ The two objects are thus perfectly substitutable, as their outward behaviour is 
  \forall O_C : O_C[O_1] \rightarrow^* c \iff O_C[O_2] \rightarrow^* c
 \]
 
-Contextual equivalence captures security guarantees such as the public/private access modifier or the atomicity of function executions. For example, if two components $O_1$ and $O_2$, containing functions \myref{lst}{lst:SimpleReturn} and \myref{lst}{lst:UnreachableCode} are contextually equivalent, then the atomicity of function execution of \lstinline{f} is guaranteed. Being able to break function atomicity would result in the normally unreachable \lstinline{return} in \myref{lst}{lst:UnreachableCode} becoming reachable, which would be observable from some context object $O_C$.
+Contextual equivalence captures security guarantees such as the public/private access modifier or the atomicity of function executions. For example, if two components $O_1$ and $O_2$, containing functions \myref{lst}{lst:SimpleReturn} and \myref{lst}{lst:UnreachableCode} respectively, are contextually equivalent then the atomicity of function execution of \lstinline{f} is guaranteed. Being able to break function atomicity would result in the normally unreachable \lstinline{return} in \myref{lst}{lst:UnreachableCode} becoming reachable, which means substituting $O_1$ by $O_2$ would be observable from some context object $O_C$.
+
+\begin{minipage}{0.40\textwidth}
+\begin{lstlisting}[label={lst:SimpleReturn}, caption={Simple return}]
+public void f(){
+    return 0;
+    
+}
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{0.40\textwidth}
+\begin{lstlisting}[label={lst:UnreachableCode}, caption={Unreachable code}]
+public void f(){
+    return 0; 
+    return 1; //Unreachable
+}
+\end{lstlisting}
+\end{minipage}
 
 Now that contextual equivalences ability to express the security guarantees of a language is established, secure compilation can be formalized by the notion of \emph{full abstraction}~\cite{Abadi}, or the preservation of contextual equivalence during the compilation process.
 If $O_1$ is a high-level component and $\com{O_1}$ its low-level result from compilation, full abstraction becomes:
 \[
  \forall O_1, O_2 : O_1 \simeq O_2 \iff \com{O_1} \simeq \com{O_2}
 \]
+
+This definition formulates that for any two programs that are contextually equivalent for any high-level context, their compiled representation should be contextually equivalent for any low-level context as well. 
+This means compilation must preserve contextual equivalence, i.e. all security guarantees provided in the high-level language.
+
+It also says that contextual equivalence should be reflected.
+This property is called soundness, and is closely linked to what is expected of a `correct' compiler.
+Indeed, if the results of compilation are contextually equivalent but the high-level objects are not, there exists a high-level context $O_C$ that can distinguish between $O_1$ and $O_2$, but without a low-level translation.
+
 \section{Contributions}
+This works introduces a secure compilation scheme for a language with an ML style module language.
+The ML language is a functional language that provides modularization of programs through its \emph{module} language~\cite{Milner:1997:DSM:549659}.
+
+One of the primary concepts that the module language offers is that of a \emph{structure}. A structure is simply a set of type and value definitions.
+Structures allow a programmer to divide a large program in sets of smaller units containing closely related type and value definitions.
+These units dependencies and connections are well-defined and explicit.
+
+Another concept of the module language is a signature.
+A signature declares the interface of a structure.
+
 
 \section{Related Work}
 

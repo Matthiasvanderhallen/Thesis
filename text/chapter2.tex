@@ -484,7 +484,7 @@ The translation of an expression poses no additional security concerns and is co
 Since \myref{sec}{sec:DefinitionOfCompilation} states the module expressions making up the \emph{SPM} are compiled in a separate file, before the context, nothing in these expressions can depend on things defined in insecure code.
 This is not a fundamental restriction, it is possible to have these expressions depend on outside code by either:
 \begin{itemize}
-\item Allowing dependencies on the context to be hardcoded, which would correspond to the high-level \MiniML\ interpretation that the context split up in two parts.
+\item Allowing dependencies on the context to be hardcoded, which would correspond to the high-level \MiniML\ interpretation that the context is split up in two parts.
 The first part is compiled before the file containing the secure module expressions, the second part after the secure module expressions.
 
 The resulting security issues could by resolved by introducing a returnback entry point into the \emph{SPM}, as described by Agten et al.\cite{Agten:2012:SCM:2354412.2355247}.

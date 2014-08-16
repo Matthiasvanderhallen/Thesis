@@ -55,7 +55,7 @@ These subtleties of the computing model however are reintroduced when the softwa
 Some of the subtleties that are abstracted away are:
 \begin{itemize}
 \item The existence of registers and memory.
-\item The fact that the software code and the values or objects it create must all be stored in this same memory space.
+\item The fact that the software code and the values or objects it creates must all be stored in this same memory space.
 \item How the flow of control, i.e. the next command to be executed, is managed.
 \item Objects created by software must provide an implementation, they no longer are \emph{algebraic data types} described only by their functionality.
 \end{itemize}
@@ -69,7 +69,10 @@ The reintroduction of these subtleties in the low level can cause these security
 Many attacks exist that abuse the way compilation reintroduces these subtleties, breaking the security guarantees assumed by the programmer or any formal verification software.
 For example, Y. Erlinsson et al.~\cite{OVSPaper} list a number of ways that low-level attacks might manipulate control flow or values whose integrity was guaranteed in on source level.
 
-Because the severe problems that these bugs can introduce, breaking into security sensitive parts of an application exploiting its bindings with less secure parts of the application, a strengthening of the compilation process is needed.
+%Because the severe problems that these bugs can introduce, breaking into security sensitive parts of an application exploiting its bindings with less secure parts of the application, a strengthening of the compilation process is needed.
+Because these bugs can introduce sever problems, such as breaking into security sensitive parts of an application by exploiting its bindings with less secure parts %,
+of the application,
+a strengthening of the compilation process is needed.
 The goal of \emph{secure compilation} is to provide compilation that preserves all high-level security guarantees in the low-level.
 
 \section{Problem Setting}
@@ -121,7 +124,7 @@ Indeed, if the results of compilation are contextually equivalent but the high-l
 This works introduces a secure compilation scheme for a language with an ML style module language.
 The ML language is a functional language that provides modularization of programs through its \emph{module} language~\cite{Milner:1997:DSM:549659}.
 
-\subsection{structures}
+\subsection{Structures}
 One of the primary concepts that the module language offers is that of a \emph{structure}. A structure is simply a set of type and value definitions.
 Structures allow a programmer to divide a large program in sets of smaller units containing closely related type and value definitions.
 These units dependencies and connections are well-defined and explicit.
@@ -137,7 +140,7 @@ structure Dictionary =
 \end{lstlisting}
 
 \subsection{Signatures}
-Another concept of the module language is a signature.
+Another concept of the module language is a \emph{signature}.
 A signature is a set of type declarations and value declarations. It can provide type declarations without giving a specific implementation.
 An example of such a signature is shown in \myref{lst}{lst:DictionarySignatureExample}.
 
@@ -167,7 +170,7 @@ Whether or not their \emph{definition} is propagated depends on whether ascripti
 \end{itemize}
 
 \subsection{Functors}
-The last concept of the module language is a functor.
+The last concept of the module language is a \emph{functor}.
 Functors behave as a function mapping an argument structure \cmath{StrIn} to output structures \cmath{StrOut} and are used to create \emph{parametric} dependencies of one structure on another.
 An example of such a functor is shown in \myref{lst}{lst:DictionaryFunctorExample}.
 
@@ -190,7 +193,7 @@ structure StringDict = DictionaryFn(StringEqual); (*@ \label{ln:Application} @*)
 
 Functor definitions specify an identifier for an argument structure (\lstinline{KeyStruct}) and define an output structure that can use values defined by the argument structure. 
 
-To limit the set of structures allowed as an argument, a functor also specifies a signature(\lstinline{EQUAL)} with which the argument structure should match.
+To limit the set of structures allowed as an argument, a functor also specifies a signature (\lstinline{EQUAL)} with which the argument structure should match.
 This signature ensures the functor that the output structure it defines can trust the values it uses from the argument structure are really defined by the argument structure.
 
 As functors themselves define an output structure as well, this output structure can be ascribed with a signature, in example \myref{lst}{lst:DictionaryFunctorExample} this is would be the signature \lstinline{DICTIONARY}.
@@ -237,7 +240,7 @@ This protects the `atomicity' of function execution.
 
 The compilation scheme has to be modified to allow for an ML style module language.
 \begin{description}
-\item[Masking] The first modification consists of adding the technique of masking, as introduced by Patrignani~\cite{Patrignani}.
+\item[Masking] The first modification consists of adding the technique of masking, as introduced by Patrignani et al.~\cite{Patrignani}.
 This means that values created in the secure code do not leave the secure memory, as this might provide details over their implementation, and neither do direct memory pointers.
 ML allows for opaque types, meaning two structures that provide the same type but with a different implementation are contextually equivalent. 
 As a result these implementation must be hidden from the insecure context.
@@ -281,7 +284,7 @@ This means that all value calls must include a frame as an argument.
 
 This frame can only be the frame that represents the structure containing the value itself.
 Frames that represent the output structure of functor application must contain a reference to the frame that represents the argument of the functor application, so that the generic code representing the functor still gets a reference to the argument frame.
-\\[1em]
+\\[2em]
 As a result, all frames now look like this, with an empty trimming map and pointer if the frame represents a statically defined structure.
 
 \begin{tabular}{|c c c|}
@@ -311,7 +314,7 @@ All values now share the same entry point.
 Specifying which value is called can be done by providing an index in the \emph{f-list}, uniquely defining a structure, and the offset for the value within the list of values stored in the frame.
 \end{description}
 
-Implementing these checks and security precautions results in a secure compilation scheme for a language implementing an ML-style modules system.
+Implementing these checks and security precautions results in a secure compilation scheme for a language implementing an ML style module system.
 
 \section{Related Work}
 Lots of work trying to preserve the security of a source languages when compiling exists.

@@ -27,3 +27,9 @@ Thesis.run.xml
 /text/.texpadtmp/
 
 /Code/.idea/workspace.xml
+
+/Compiler/.idea
+
+/Compiler/Compiler.iml
+
+/Compiler/out

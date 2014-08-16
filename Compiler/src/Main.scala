@@ -11,7 +11,7 @@ case class Literal(value: String) extends MLToken //String Literal
 
 case class Program(val signatures:List[Signature], val structures:List[Structure])
 
-case class Translation(var types:String, var entryPoints:String, var values:String, var opaqueTypes:Int, var mapping:List[(Int,Int)])
+case class Translation(var types:String, var entryPoints:String, var values:String, var opaqueTypes:Int, var opaqueTypeMapping:Map[String,Int], var implMapping:List[(Int,Int)])
 
 sealed trait Type{
   def intRepresentation:Int
@@ -50,15 +50,15 @@ case class Structure(ident:Ident, signature:Ident, value: List[Definition])
 
 sealed trait Definition
 case class ValDefinition(ident:Ident, ascription: Type, expression: Expr) extends Definition
-case class FunDefinition(ident:Ident, variables: List[Ident], ascription: FuncType, expression: Expr) extends Definition
-case class TypeDefinition (ident:Ident, definition: Type) extends Definition
+case class FunDefinition(ident:Ident, variables:List[Ident], ascription: FuncType, expression: Expr) extends Definition
+case class TypeDefinition (ident:Ident, tyvars:Int, definition: Type) extends Definition
 
 case class Signature(ident:Ident, value: List[Declaration])
 sealed trait Declaration
 case class ValDeclaration(ident:Ident, ascription: Type) extends Declaration
 sealed trait TypeDeclaration extends Declaration
-case class OpaqueTypeDeclaration(ident:Ident) extends TypeDeclaration
-case class TransparentTypeDeclaration(ident:Ident, definition: Type) extends TypeDeclaration
+case class OpaqueTypeDeclaration(ident:Ident, tyvars:Int) extends TypeDeclaration
+case class TransparentTypeDeclaration(ident:Ident, tyvars:Int, definition: Type) extends TypeDeclaration
 
 
 
@@ -91,7 +91,7 @@ object Main extends App{
 
   val symmetriccipher = new Signature(new Ident("SYMMETRICCIPHER"),
                                  List(
-                                      new OpaqueTypeDeclaration(new Ident("cred")),
+                                      new OpaqueTypeDeclaration(new Ident("cred"), 0),
                                       new ValDeclaration(new Ident("newcredentials"), new StructType(new Ident("cred"))),
                                       new ValDeclaration(new Ident("encrypt"), new FuncType(List(Integer, new StructType(new Ident("cred"))), Integer)),
                                       new ValDeclaration(new Ident("decrypt"), new FuncType(List(Integer, new StructType(new Ident("cred"))), Integer))
@@ -100,7 +100,8 @@ object Main extends App{
 
   val caesar = new  Structure(new Ident("Caesar"), new Ident("SYMMETRICCIPHER"),
                       List(
-                        new TypeDefinition(new Ident("cred"), Integer),
+                        new TypeDefinition(new Ident("cred"), 0, Integer),
+                        new TypeDefinition(new Ident("Pair"), 1, PairType(new VarType(new Ident("a")), new VarType(new Ident("a")))),
                         new ValDefinition(new Ident("newcredentials"), new StructType(new Ident("cred")), ConstExpr(3)),
                         new FunDefinition(new Ident("encrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"))), Integer), ConstExpr(3)),
                         new FunDefinition(new Ident("decrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"))), Integer), ConstExpr(3)),
@@ -118,7 +119,7 @@ object Main extends App{
   var entrypoints:String = ""
 
   def translate(program:Program):Translation={
-    var translation = new Translation("", "", "", 4, List());
+    var translation = new Translation("", "", "", 4, Map(), List());
 
     val structures = program.structures.sortBy(struct => struct.ident.value)
 
@@ -134,13 +135,17 @@ object Main extends App{
 
     var translation = trans;
 
-    val types = structure.value.filter{case TypeDefinition(_,_) => true; case _ => false}
+    val types = structure.value.filter{case TypeDefinition(_,_,_) => true; case _ => false}
     val values = structure.value
-                 .filter{case TypeDefinition(_,_) => false; case _ => true}
-                 .sortBy{case TypeDefinition(ident,_) => ident.value; case ValDefinition(ident,_,_) => ident.value; case FunDefinition(ident,_,_,_) => ident.value}
+                 .filter{case TypeDefinition(_,_,_) => false; case _ => true}
+                 .sortBy{case TypeDefinition(ident,_,_) => ident.value; case ValDefinition(ident,_,_) => ident.value; case FunDefinition(ident,_,_,_) => ident.value}
 
     for(typedef <- types){
-      translation = translateTypes(translation, typedef, structure, signature)
+      translation = translateDefinition(translation, typedef, structure, signature)
+    }
+
+    for(valdef <- values){
+      translation = translateDefinition(translation, valdef, structure, signature)
     }
 
     println(types)
@@ -149,18 +154,18 @@ object Main extends App{
     return translation;
   }
 
-  def translateTypes(trans:Translation, definition:Definition, structure:Structure, signature:Signature):Translation = {
-    var translation = trans;
-
-    if(true){} //TODO: check if opaque type
-
-    val typedef = definition match{
-      case x:TypeDefinition => x
-      case _ => {
-        throw new RuntimeException("Typedefinition expected, but other definition received");
-      }
+  def translateDefinition(trans:Translation, definition:Definition, structure:Structure, signature:Signature):Translation = {
+    val translation = definition match{
+      case x:TypeDefinition => translateType(trans, x, structure, signature)
+      case x:ValDefinition => translateValue(trans, x, structure, signature)
+      case x:FunDefinition => translateFun(trans, x, structure, signature)
     }
 
+    return translation
+  }
+
+  def translateType(trans:Translation, typedef:TypeDefinition, structure:Structure, signature:Signature):Translation = {
+    var translation = trans;
 //    val implementation = typedef.definition match{
 //      case Integer => "%int"
 //      case PairType(_,_) => "%pair"
@@ -168,22 +173,98 @@ object Main extends App{
 //      case _ => ""
 //    }
 
-    translation.opaqueTypes = translation.opaqueTypes + 1;
-    translation.types = translation.types.concat("%" + structure.ident + "." + typedef.ident + " = type {" + typedef.definition + "}; " + translation.opaqueTypes + "\n")
-    translation.mapping = (translation.opaqueTypes, typedef.definition.intRepresentation) :: translation.mapping;
-
+    val declaration = signature.value.find{case OpaqueTypeDeclaration(typedef.ident,_)=>true; case _ => false}
+    println("declarations:" + declaration)
+    if(declaration.isEmpty){
+      //Transparant type
+      translation.types = translation.types.concat("%" + structure.ident + "." + typedef.ident + " = type {" + typedef.definition + "}; " + typedef.definition.intRepresentation + "\n")
+    }else{
+      //Opaque type
+      translation.opaqueTypes = translation.opaqueTypes + 1;
+      translation.types = translation.types.concat("%" + structure.ident + "." + typedef.ident + " = type {" + typedef.definition + "}; " + translation.opaqueTypes + "\n")
+      translation.opaqueTypeMapping = translation.opaqueTypeMapping + ((structure.ident.value + "." + typedef.ident.value) -> translation.opaqueTypes)
+      translation.implMapping = (translation.opaqueTypes, typedef.definition.intRepresentation) :: translation.implMapping;
+    }
 
     return translation;
   }
 
-  //def translateTypes
-//    trans match{
-//      case Program(signatures, structures)=>
-//          list.fold()
-//      case Structure() => return "2"
-//      case Expr => return "3"
-//    }
+  def translateFun(trans:Translation, fundef:FunDefinition, structure:Structure, signature:Signature):Translation = {
+    var translation = trans
 
+    val declaration = signature.value.exists{case ValDeclaration(fundef.ident,_)=>true; case _ =>false}
+
+    val ident = structure.ident.value + "." + fundef.ident.value;
+    val returnInt = fundef.ascription.right == Integer;
+    val returntypeId = fundef.ascription.right match{
+      case StructType(ident) => "%" + (if(ident.value.contains(".")) ident.value else structure.ident.value + "." + ident.value + "*")
+      case Integer => Integer.toString()
+      case FuncType(_,_) => {throw new Error("Functions are not allowed as a return type.")}
+      case _ => fundef.ascription.right.toString() +"*"
+    }
+    val returntypeint = fundef.ascription.right match{
+      case StructType(ident) => trans.opaqueTypeMapping.get((if(ident.value.contains(".")) (ident.value) else (structure.ident.value + "." + ident.value))).get;
+      case Integer => Integer.intRepresentation
+      case FuncType(_,_) => {throw new Error("Functions are not allowed as a return type.")}
+      case _ => fundef.ascription.right.intRepresentation
+    }
+
+    //Internal function output
+    var value = s"define private $returntypeId @$ident"+s"_internal(){\n"
+    //value += translateBody(valdef, structure, signature)
+    value +="}\n\n"
+
+    translation.values = translation.values.concat(value)
+
+    return translation
+  }
+
+  def translateValue(trans:Translation, valdef:ValDefinition, structure:Structure, signature:Signature):Translation = {
+    var translation = trans
+
+    val declaration = signature.value.find{case ValDeclaration(valdef.ident,_)=>true; case _ => false}
+
+    val ident = structure.ident.value + "." + valdef.ident.value;
+    val returnInt = valdef.ascription == Integer;
+    val typeId = valdef.ascription match{
+      case StructType(ident) => "%" + (if(ident.value.contains(".")) ident.value else structure.ident.value + "." + ident.value + "*")
+      case Integer => Integer.toString()
+      case FuncType(_,_) => {throw new Error("val expression with function type is not allowed.")}
+      case _ => valdef.ascription.toString() +"*"
+    }
+    val typeInt = valdef.ascription match{
+      case StructType(ident) => trans.opaqueTypeMapping.get((if(ident.value.contains(".")) (ident.value) else (structure.ident.value + "." + ident.value))).get;
+      case Integer => Integer.intRepresentation
+      case FuncType(_,_) => {throw new Error("val expression with function type is not allowed.")}
+      case _ => valdef.ascription.intRepresentation
+    }
+
+    //Internal function output
+    var value = s"define private $typeId @$ident"+s"_internal(){\n"
+    //value += translateBody(valdef, structure, signature)
+    value +="}\n\n"
+
+    //External function output
+    if(declaration.isDefined){
+      value += s"define %int @$ident(){\n"
+      value += s"\t;Switch stack, move parameters, add entry point in spm\n"
+      if(!returnInt){
+        value += s"\t%ret.ptr = call $typeId @$ident"+s"_internal()\n"
+        value += s"\t%ret.int = ptrtoint $typeId %ret.ptr to %int\n"
+        value += s"\t%ret.mask = call %int @mask(%int %ret.int, %int $typeInt)\n"
+        value += s"\t;Switch stack, clear registers and flags\n"
+        value += s"\tret %int %ret.mask\n"
+      }else{
+        value += s"\t%ret = call $typeId @$ident"+s"_internal()\n"
+        value += s"\tret %int %ret\n"
+      }
+      value += s"}\n"
+    }
+
+    translation.values = translation.values.concat(value)
+
+    return translation
+  }
 }
 
 

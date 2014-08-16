@@ -39,6 +39,8 @@ A formalization of this MiniML source language and the LLVM IR target language i
 \usepackage{ltablex}
 \usepackage{appendix}
 \usepackage{amsthm}
+\usepackage{pdfpages}
+
 %\usepackage{tabu}
 %\usepackage{longtabu}
 %\usepackage[sorting=none, style=authoryear, backend=bibtex]{biblatex}
@@ -52,13 +54,15 @@ A formalization of this MiniML source language and the LLVM IR target language i
 
 
 \lstset{basicstyle=\ttfamily,breaklines=true, keepspaces=true, columns=flexible, numberstyle=\small,escapeinside={±}{±}}
-%\lstset{language=ML}
+
 \lstset{
  morekeywords={where}
 }
+
 \renewcommand{\lstlistlistingname}{List of Listings}
+
+%Import supervisors command file
 \input{./tex/cmds}
-%\bibliography{bibliography}
 
 \begin{document}
 %\newcommand{\emphref}[1]{\emph{}}
@@ -100,7 +104,8 @@ I would like to thank everyone who helped me to produce this master thesis.
 First, I would like to thank my promoter,
 prof. dr. ir. Frank Piessens, for providing me with this opportunity.
 Next, many thanks go out to my supervisors, M. Patrignani and R. Strackx for supporting me throughout the year.
-Furthermore, I would like to thank my friends and classmates with whom many moments of joy or frustration could be shared.
+
+Furthermore, I would like to thank my friends, classmates, and especially my girlfriend Elke Sekeris, with whom many moments of joy or frustration could be shared.
 Finally, I would like to thank my family for the encouragement and moral support I was lucky to receive.
 \end{preface}
 
@@ -130,7 +135,6 @@ A formalization of this MiniML source language and the LLVM IR target language i
 %\begin{abstract*}
 %\end{abstract*}
 
-
 \mainmatter
 \include{Introduction}
 \include{chapter1}
@@ -143,6 +147,7 @@ A formalization of this MiniML source language and the LLVM IR target language i
 
 \begin{appendices}
 \input{AppendixLLVMCode}
+\input{Paper}
 \end{appendices}
 
 

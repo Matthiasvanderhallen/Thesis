@@ -410,7 +410,7 @@ The translation to LLVM intermediate representation is given in code in \myref{l
 \begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption={[LLVM Translation Caesar Cipher Example]LLVM IR for the example.},
 label=llvm:Example]
 %int = type i64
-%Caesar.cred = type {%int, %int}
+%Caesar.cred = type {%int}
 
 declare i8* @malloc(%int)
 declare void @free(i8*)

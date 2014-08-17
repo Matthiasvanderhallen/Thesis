@@ -15,7 +15,7 @@ case class Literal(value: String) extends MLToken //String Literal
 
 case class Program(val signatures:List[Signature], val structures:List[Structure])
 
-case class Translation(var types:String, var entryPoints:String, var values:String, var opaqueTypes:Int, var opaqueTypeMapping:Map[String,Int], var implMapping:List[(Int,Int)], var tyvarMapping:Map[Int,Type]) {
+case class Translation(var types:String, var entryPoints:String, var values:String, var firstPass:Boolean, var opaqueTypes:Int, var opaqueTypeMapping:Map[String,Int], var implMapping:List[(Int,Int)], var tyvarMapping:Map[Int,Type]) {
   override def toString() = types + "\n" + values;
 
   def getImplTypeInt(search:Int):Int = {
@@ -122,8 +122,15 @@ case class TransparentTypeDeclaration(ident:Ident, tyvars:Int, definition: Type)
 sealed trait Expr
 case class ValExpr(ident:Ident) extends Expr
 case class ConstExpr(value: Int) extends Expr
-case class CallExpr(name:Ident, args: List[Expr])
-case class BinOpExpr(op:BinOp, left:Expr, right:Expr)
+case class CallExpr(name:Ident, args: List[Expr]) extends Expr
+case class BinOpExpr(op:BinOp, left:Expr, right:Expr) extends Expr
+case class LetExpr(ident:Ident, bind:Expr, in:Expr) extends Expr
+case class PairExpr(left:Expr, right:Expr) extends Expr
+case class LeftExpr(pair:Expr) extends Expr
+case class RightExpr(pair:Expr) extends Expr
+sealed trait ListExpr extends Expr
+case object Empty extends Expr
+case class consExpr(tail:Expr) extends Expr
 
 sealed trait BinOp
 case object Add extends BinOp
@@ -184,9 +191,16 @@ object Main extends App{
   var entrypoints:String = ""
 
   def translate(program:Program):Translation={
-    var translation = new Translation("", "", "", 5, Map(), List(), Map());
+    var translation = new Translation("", "", "",true, 5, Map(), List(), Map());
 
     val structures = program.structures.sortBy(struct => struct.ident.value)
+
+    for (structure <- program.structures){
+      val sig = program.signatures.find(sig => sig.ident == structure.signature).get
+      translation = translateStructure(translation, structure, sig);
+    }
+
+    translation.firstPass = false;
 
     for (structure <- program.structures){
       val sig = program.signatures.find(sig => sig.ident == structure.signature).get
@@ -204,13 +218,14 @@ object Main extends App{
     val values = structure.value
                  .filter{case TypeDefinition(_,_,_) => false; case _ => true}
                  .sortBy{case TypeDefinition(ident,_,_) => ident.value; case ValDefinition(ident,_,_) => ident.value; case FunDefinition(ident,_,_,_) => ident.value}
-
-    for(typedef <- types){
-      translation = translateDefinition(translation, typedef, structure, signature)
-    }
-
-    for(valdef <- values){
-      translation = translateDefinition(translation, valdef, structure, signature)
+    if(translation.firstPass){
+      for(typedef <- types){
+        translation = translateDefinition(translation, typedef, structure, signature)
+      }
+    } else {
+      for(valdef <- values){
+        translation = translateDefinition(translation, valdef, structure, signature)
+      }
     }
 
     return translation;
@@ -228,12 +243,6 @@ object Main extends App{
 
   def translateType(trans:Translation, typedef:TypeDefinition, structure:Structure, signature:Signature):Translation = {
     var translation = trans;
-//    val implementation = typedef.definition match{
-//      case Integer => "%int"
-//      case PairType(_,_) => "%pair"
-//      case ListType(_) => "%array"
-//      case _ => ""
-//    }
 
     val declaration = signature.value.find{case OpaqueTypeDeclaration(typedef.ident,_)=>true; case _ => false}
 
@@ -243,7 +252,7 @@ object Main extends App{
     }else{
       //Opaque type
       translation.opaqueTypes = translation.opaqueTypes + 1;
-      translation.types = translation.types.concat("%" + structure.ident + "." + typedef.ident + " = type {" + typedef.definition + "}; " + translation.opaqueTypes + "\n")
+      translation.types = translation.types.concat("%" + structure.ident + "." + typedef.ident + " = type {" + typedef.definition + "}; " + translation.opaqueTypes + "\n") //Todo wat met typedef dependencies
       translation.opaqueTypeMapping = translation.opaqueTypeMapping + ((structure.ident.value + "." + typedef.ident.value) -> translation.opaqueTypes)
       translation.implMapping = (translation.opaqueTypes, typedef.definition.intRepresentation) :: translation.implMapping;
       translation.tyvarMapping = translation.tyvarMapping + (translation.opaqueTypes -> typedef.definition);
@@ -294,7 +303,7 @@ object Main extends App{
 
     //Internal function output
     var value = s"define private $retTypeId @$ident"+s"_internal($argForInternal){\n"
-    //value += translateBody(valdef, structure, signature)
+//    value += translateBody(valdef, structure, signature)
     value +="}\n\n"
 
     //External function output
@@ -342,7 +351,7 @@ object Main extends App{
 
       value += argProcessingCode.mkString("")+ "\tProcess"+ (fundef.variables.length+1)+":\n"
 
-      value += createTyvarChecks(fundef.ascription.left, fundef.variables, structure, signature, trans); //Arguments and their names
+      value += accessTyvars(fundef.ascription.left, fundef.variables,trans,structure,"")
 
       if(!retInt){
         value += s"\t%ret.ptr = call $retTypeId @$ident"+s"_internal($argForInternal)\n"
@@ -375,45 +384,6 @@ object Main extends App{
     return translation
   }
 
-
-  def createTyvarChecks(arguments: List[Type], variables:List[Ident], structure:Structure, signature:Signature, trans:Translation):String = {
-    /*var identMap = Map[Ident, List[List[Int]]]() //This mapping contains ident vars from the argument types, and maps them to locations
-    var instantiationsMap = List[(List[Int], Type)]() // This map contains instantiated tyvars of the parametric type.
-
-    for ((argType, loc) <- arguments.zip(0 to arguments.length-1)) {
-      argType match {
-        case VarType(ident) => {
-          identMap = identMap.updated(ident, List(loc) :: identMap.getOrElse(ident, List()))
-        }
-        case x: StructType => {
-          val pair = getVarTypeInformation(List(loc), x, identMap)
-          identMap = pair._1;
-          instantiationsMap.:+((List(loc), x)).++(pair._2);
-        }
-        case _ => {}
-      }
-    }
-
-    if(identMap.nonEmpty)
-      println(identMap + "\n " + instantiationsMap)
-
-    */
-    return accessTyvars(arguments, variables,trans,structure,"") + "\n"
-    /*
-    var checks = ""
-    var tyvarIndex = 0;
-    for (ident<-identMap.keys)
-    {
-      val occurences = identMap.getOrElse(ident,List())
-      if(occurences.length > 1)
-      {
-        val reprLoc = identMap.get(ident).get.head
-        getTyvarRepresentingLoc(arguments, variables, reprLoc, tyvarIndex);
-      }
-
-    }*/
-  }
-
   def accessTyvars(arguments:List[Type], variables:List[Ident], trans:Translation, structure:Structure, prefix:String):String = {
     var access = ""
     var representatives = Map[Ident, String]();
@@ -437,12 +407,6 @@ object Main extends App{
         }
         case StructType(_,0,_) => {} //reeds gechecked
         case s@StructType(ident,amount,types) => {
-//          if(prefix != "")
-//          {
-//            //check if type correct
-//          }
-//          //if(prefix == ""){
-//            //type reeds gechecked.
             val argName = variables(loc).value
 
             val structTypeString = s.internalize(structure)
@@ -555,23 +519,7 @@ object Main extends App{
       }
     }
 
-    return access
-  }
-
-  def getTyvarRepresentingLoc(arguments: List[Type], variables:List[Ident], loc:List[Int], ind:Int):String = {
-    var code = ""
-    println(variables)
-    if(loc.length == 1){
-      val name = variables(loc.head).value
-      code += s"\t%ML.tyvar$ind = bitcast i8* %$name.tyvar.addr to %tyvar*"
-    }else{
-
-      code += s"\t"
-    }
-
-    println(code);
-
-    return code
+    return s"$access\n"
   }
 
   def translateValue(trans:Translation, valdef:ValDefinition, structure:Structure, signature:Signature):Translation = {
@@ -596,7 +544,7 @@ object Main extends App{
 
     //Internal function output
     var value = s"define private $typeId @$ident"+s"_internal(){\n"
-    //value += translateBody(valdef, structure, signature)
+//    value += translateBody(trans, valdef, structure, signature)
     value +="}\n\n"
 
     //External function output
@@ -639,6 +587,10 @@ object Main extends App{
 
     return (identMap, instantiationsMap)
   }
+
+//  def translateBody(){
+//
+//  }
 }
 
 

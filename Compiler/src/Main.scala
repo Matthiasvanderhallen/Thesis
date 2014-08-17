@@ -4,6 +4,9 @@ import scala.util.parsing.combinator.RegexParsers
 sealed trait MLToken
 case class Ident(value: String) extends MLToken {
   override def toString() = value;
+  def ord():Int = {
+    return value.charAt(0).toInt-97;
+  }
 }
 case class Number(value: Int) extends MLToken
 case object Delimiter extends MLToken
@@ -395,7 +398,7 @@ object Main extends App{
       println(identMap + "\n " + instantiationsMap)
 
     */
-    return accessTyvars(arguments, variables,trans,structure,signature,"",Map[Ident, String]())._1 + "\n"
+    return accessTyvars(arguments, variables,trans,structure,"") + "\n"
     /*
     var checks = ""
     var tyvarIndex = 0;
@@ -411,9 +414,9 @@ object Main extends App{
     }*/
   }
 
-  def accessTyvars(arguments:List[Type], variables:List[Ident], trans:Translation, structure:Structure, signature:Signature, prefix:String, rep:Map[Ident, String]):(String,Map[Ident, String]) = {
+  def accessTyvars(arguments:List[Type], variables:List[Ident], trans:Translation, structure:Structure, prefix:String):String = {
     var access = ""
-    var representatives = rep;
+    var representatives = Map[Ident, String]();
     for((t,loc) <- arguments.zip(0 to arguments.length-1))
     {
       t match{
@@ -432,14 +435,14 @@ object Main extends App{
             representatives = representatives.updated(ident, tyvarName)
           }
         }
-        case StructType(_,0,_) => {}
+        case StructType(_,0,_) => {} //reeds gechecked
         case s@StructType(ident,amount,types) => {
-          if(prefix != "")
-          {
-            //check if type correct
-          }
-          //if(prefix == ""){
-            //type reeds gechecked.
+//          if(prefix != "")
+//          {
+//            //check if type correct
+//          }
+//          //if(prefix == ""){
+//            //type reeds gechecked.
             val argName = variables(loc).value
 
             val structTypeString = s.internalize(structure)
@@ -447,56 +450,112 @@ object Main extends App{
             val implTypInt = trans.getImplTypeInt(structTypeInt)
             val implType = trans.getImplType(structTypeInt)//;.getVarTypeStr(trans);
 
-            implType match{
-              case PairType(left, right) => {
-                access += s"\t%ML.typecheck.$prefix$loc.pair = inttoptr %int $argName.addr to %pair*\n"
-                access += s"\t%ML.typecheck.$prefix$loc.0.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 0 ; tyvar*\n"
-                access += s"\t%ML.typecheck.$prefix$loc.1.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 1 ; tyvar*\n"
+            var packed = implType;
+            var tyvars = types;
+            var prefixrec = s"$prefix$loc";
 
-                /*var typesL = List[Type]()
-                for(i<-left.getVarTypes(trans)){
-                  //typesL = typesL :+ types(i)
-                }*/
-                //Klopt nog niet: left en right moeten iets anders zijn.
-                val rec = accessTyvars(List(left,right),List[Ident](), trans, structure, signature, s"$prefix$loc.", representatives)
-                access +=rec._1;
-                representatives = rec._2;
+            access += s"\t%ML.typecheck.$prefixrec.addr = add %int 0, $argName.addr\n" //Bootstrapping
 
-                /*var typesR = List[Type]()
-                for(i<-right.getVarTypes(trans)){
-                  typesR = typesR :+ types(i)
-                }*/
-                //val recR = accessTyvars(List(right),List[Ident](), trans, structure, signature, s"$prefix$loc.", representatives)
-                //access +=recR._1;
-                //representatives = recR._2;
+            def recFunc():Int = //Loopt door een effectieve structuur heen en matcht tyvars en implementaties.
+            {
+              packed match{
+                case VarType(ident) => {
+                  val tyvarName = s"%ML.typecheck.$prefixrec"
+
+                  access += s"\t$tyvarName = bitcast i8* %ML.typecheck.$prefixrec.addr to %tyvar*\n"
+
+                  val assumedType = tyvars(ident.ord())
+
+                  assumedType match{
+                    case VarType(ident) => {
+                      if(representatives.keySet.contains(ident)){//incorrect code
+                      val representative = representatives.get(ident).get
+                        access += s"\tcall i1 @tyvarcheck(%tyvar* $representative, %tyvar* $tyvarName)\n"
+                      }else{
+                        representatives = representatives.updated(ident, tyvarName)
+                      }
+                    }
+                    case Integer => {
+                      //check whether this is an Integer indeed!
+                      access += s"\t$tyvarName.tyvar = load %tyvar* $tyvarName\n"
+                      access += s"\t$tyvarName.tyvar.type = extractvalue %tyvar $tyvarName.tyvar, i32 1\n"
+                      access += s"\t$tyvarName.tyvar.check = icmp eq %int ${Integer.intRepresentation}, $tyvarName.tyvar.type\n"
+                      access += s"\tbr i1 $tyvarName.tyvar.check, label %Continue${prefixrec}int, label %Error \n"
+                      access += "\n"
+                      access += s"\t%Continue${prefixrec}int:\n"
+                    }
+                    case s2@StructType(ident2, amount2, types2) =>
+                    {
+                      //TODO! Nakijken of struct klopt -> Done
+                      access += s"\t$tyvarName.tyvar = load %tyvar* $tyvarName\n"
+                      access += s"\t$tyvarName.tyvar.addr = extractvalue %tyvar $tyvarName.tyvar, i32 0\n"
+                      access += s"\t$tyvarName.tyvar.type = extractvalue %tyvar $tyvarName.tyvar, i32 1\n"
+                      access += s"\t$tyvarName.tyvar.check = icmp eq %int ${trans.getOpaqueType(s2.internalize(structure))}, $tyvarName.tyvar.type\n"
+                      access += s"\tbr i1 $tyvarName.tyvar.check, label %Continue${prefixrec}int, label %Error \n"
+                      access += "\n"
+                      access += s"\t%Continue${prefixrec}int:\n"
 
 
+
+                      // Daarna recFunc() aanroepen met overschrijven van packed, prefixrec én van types
+                      tyvars = types2;//adjust types
+                      packed = trans.getImplType(trans.getOpaqueType(s2.internalize(structure)))//New packed structure
+                      prefixrec = s"${prefixrec}.${ident2.value}" // New prefix
+
+                      access += s"\t%ML.typecheck.$prefixrec.addr = add %int 0, $tyvarName.tyvar.addr ;Bootstrapping \n" //TODO: REBOOTSTRAPPING -> Done
+                      recFunc()
+                    }
+                    case _ => {throw new UnsupportedOperationException("Argument type not Integer/Struct/Var")}
+                    //Als dit geen vartype of int is maar een structtype
+                  }
+                }
+                //case StructType()
+                case PairType(left, right) => {
+                  access += s"\t%ML.typecheck.$prefixrec.pair = inttoptr %int %ML.typecheck.$prefixrec.addr to %pair*\n"
+                  access += s"\t%ML.typecheck.$prefixrec.0.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 0 ; tyvar*\n"
+                  access += s"\t%ML.typecheck.$prefixrec.1.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 1 ; tyvar*\n"
+
+                  val prefixL = s"${prefixrec}.0"
+                  val prefixR = s"${prefixrec}.1"
+
+
+                  prefixrec = prefixL
+                  packed = left
+                  recFunc()
+
+                  prefixrec = prefixR
+                  packed = right
+                  recFunc()
+                }
+                case ListType(inner) => {
+                    access += s"\t%ML.typecheck.$prefixrec.array.ptr = inttoptr %int %ML.typecheck.$prefixrec.addr to %array*\n"
+                    access += s"\t%ML.typecheck.$prefixrec.array = load %array* %ML.typecheck.$prefixrec.array.ptr\n"
+                    access += s"\t%ML.typecheck.$prefixrec.array.length = extractvalue %array %ML.typecheck.$prefixrec.array, 0\n"
+                    access += s"\t%ML.typecheck.$prefixrec.check = icmp eq %int 0, %ML.typecheck.$prefixrec.array.length\n"
+                    access += s"\tbr i1 %ML.typecheck.$prefixrec.check, label %Skip$prefixrec, label %Continue$prefixrec\n\n"
+
+                    access += s"\tContinue$prefixrec:\n"
+                    access += s"\t%ML.typecheck.$prefixrec.0.addr = getelementptr %array %ML.typecheck.$prefixrec.array.ptr, i32 0, %int 1;First Element\n"
+
+                    prefixrec = s"${prefixrec}.0"
+                    packed = inner
+                    recFunc()
+
+                    access += s"br label %Skip$prefixrec\n\n"
+                    access += s"Skip$prefixrec:\n"
+                }
+                case _ => {throw new UnsupportedOperationException("Argument type not Integer/Struct/Var")} //throw new UnsupportedOperationException()
               }
-              case ListType(inner) => {
-                  access += s"\t%ML.typecheck.$prefix$loc.array.ptr = inttoptr %int $argName.addr to %array*\n"
-                  access += s"\t%ML.typecheck.$prefix$loc.array = load %array* %ML.typecheck.$prefix$loc.array.ptr\n"
-                  access += s"\t%ML.typecheck.$prefix$loc.array.length = extractvalue %array %ML.typecheck.$prefix$loc.array, 0\n"
-                  access += s"\t%ML.typecheck.$prefix$loc.check = icmp eq %int 0, %ML.typecheck.$prefix$loc.array.length\n"
-                  access += s"\tbr %ML.typecheck.$prefix$loc.check, label %Skip$prefix$loc, label %Continue$prefix$loc\n\n"
-
-                  access += s"\tContinue$prefix$loc:\n"
-                  access += s"\t%ML.typecheck.$prefix$loc.0.addr = getelementptr %array %ML.typecheck.$prefix$loc.array.ptr, i32 0, %int 1"
-                  val rec = accessTyvars(List(inner),List[Ident](), trans, structure, signature, s"$prefix$loc.", representatives)
-                  access +=rec._1;
-                  representatives = rec._2;
-                  access += s"br label %Skip$prefix$loc\n\n"
-                  access += s"Skip$prefix$loc:\n"
-
-                  //access += s"\t%ML.typecheck.$prefix$loc.0.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 0 ; tyvar*\n"
-              }
-              case _ => {throw new UnsupportedOperationException()}
+              return 0
             }
+
+            recFunc()
         }
-        case _ => {}
+        case _ => {} //Only Integers, because no pairs or arrays can be argument types! :) So no work needed!
       }
     }
-    println(access)
-    return (access,representatives)
+
+    return access
   }
 
   def getTyvarRepresentingLoc(arguments: List[Type], variables:List[Ident], loc:List[Int], ind:Int):String = {

@@ -628,7 +628,11 @@ object Main extends App{
 
     def translateExp(exp:Expr):String = {
       exp match{
-        case ConstExpr(value) => { return "" }
+        case ConstExpr(value) => {
+          body += s"\t%t$temp = add %int 0, value\n"
+          temp = temp + 1
+          s"%t${temp-1}"
+        }
         case CallExpr(name, args) => {
          val funcName = name.internalize(structure);
          val local = funcName.split("""\.""")(0)
@@ -652,23 +656,40 @@ object Main extends App{
          val argCallString = argTypesCall.zip(argIds).map{case (a,b) => s"$a $b"}.mkString(", ")
 
          body += s"\t%t$temp = call ${localize(funcType.right)} @$funcName(${argCallString})\n"
-         return s"%t$temp"
+         temp = temp+1
+         return s"%t${temp-1}"
         }
         case BinOpExpr(op, left, right) => {
-          
+          val leftbind = translateExp(left)
+          val rightbind = translateExp(right)
+          op match{
+            case Add => body += s"\t%t$temp = add %int $leftbind, $rightbind\n"
+            case Sub => body += s"\t%t$temp = sub %int $leftbind, $rightbind\n"
+            case Mul => body += s"\t%t$temp = mul %int $leftbind, $rightbind\n"
+            case Rem => body += s"\t%t$temp = srem %int $leftbind, $rightbind\n"
+          }
+
+          temp = temp+1
+
+          return s"%t${temp-1}"
         }
         case _ => {return ""}
       }
     }
 
-    exp match {
-      case ConstExpr(value) => body += s"\treturn %int $value\n"
-      case call @ CallExpr(name, args) =>{
-        val retval = translateExp(call);
-        body += s"\t return $retType $retval\n"
-      }
+
+    val retval = translateExp(exp)
+    body += s"\t return $retType $retval\n"
+
+    /*exp match {
+   case ConstExpr(value) =>
+     body += s"\treturn %int $value\n"
+   case call @ CallExpr(name, args) =>{
+     val retval = translateExp(call);*/
+
+      /*}
       case _ => {}
-    }
+    }*/
 
     return body
   }

@@ -11,7 +11,9 @@ case class Literal(value: String) extends MLToken //String Literal
 
 case class Program(val signatures:List[Signature], val structures:List[Structure])
 
-case class Translation(var types:String, var entryPoints:String, var values:String, var opaqueTypes:Int, var opaqueTypeMapping:Map[String,Int], var implMapping:List[(Int,Int)])
+case class Translation(var types:String, var entryPoints:String, var values:String, var opaqueTypes:Int, var opaqueTypeMapping:Map[String,Int], var implMapping:List[(Int,Int)]) {
+  override def toString() = types + "\n" + values;
+}
 
 sealed trait Type{
   def intRepresentation:Int
@@ -92,19 +94,22 @@ object Main extends App{
   val symmetriccipher = new Signature(new Ident("SYMMETRICCIPHER"),
                                  List(
                                       new OpaqueTypeDeclaration(new Ident("cred"), 0),
+                                      new OpaqueTypeDeclaration(new Ident("pair"), 1),
                                       new ValDeclaration(new Ident("newcredentials"), new StructType(new Ident("cred"))),
                                       new ValDeclaration(new Ident("encrypt"), new FuncType(List(Integer, new StructType(new Ident("cred"))), Integer)),
-                                      new ValDeclaration(new Ident("decrypt"), new FuncType(List(Integer, new StructType(new Ident("cred"))), Integer))
+                                      new ValDeclaration(new Ident("decrypt"), new FuncType(List(Integer, new StructType(new Ident("cred"))), Integer)),
+                                      new ValDeclaration(new Ident("createPair"), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"))))
                                  )
                                  )
 
   val caesar = new  Structure(new Ident("Caesar"), new Ident("SYMMETRICCIPHER"),
                       List(
                         new TypeDefinition(new Ident("cred"), 0, Integer),
-                        new TypeDefinition(new Ident("Pair"), 1, PairType(new VarType(new Ident("a")), new VarType(new Ident("a")))),
+                        new TypeDefinition(new Ident("pair"), 1, PairType(new VarType(new Ident("a")), new VarType(new Ident("a")))),
                         new ValDefinition(new Ident("newcredentials"), new StructType(new Ident("cred")), ConstExpr(3)),
                         new FunDefinition(new Ident("encrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"))), Integer), ConstExpr(3)),
                         new FunDefinition(new Ident("decrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"))), Integer), ConstExpr(3)),
+                        new FunDefinition(new Ident("createPair"), List(new Ident("left"), new Ident("right")), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"))), ConstExpr(3)),
                         new ValDefinition(new Ident("seed"), Integer, ConstExpr(3)),
                         new ValDefinition(new Ident("rand"), Integer, ConstExpr(3))
                       )
@@ -148,9 +153,6 @@ object Main extends App{
       translation = translateDefinition(translation, valdef, structure, signature)
     }
 
-    println(types)
-    println(values)
-
     return translation;
   }
 
@@ -174,7 +176,7 @@ object Main extends App{
 //    }
 
     val declaration = signature.value.find{case OpaqueTypeDeclaration(typedef.ident,_)=>true; case _ => false}
-    println("declarations:" + declaration)
+
     if(declaration.isEmpty){
       //Transparant type
       translation.types = translation.types.concat("%" + structure.ident + "." + typedef.ident + " = type {" + typedef.definition + "}; " + typedef.definition.intRepresentation + "\n")
@@ -194,25 +196,116 @@ object Main extends App{
 
     val declaration = signature.value.exists{case ValDeclaration(fundef.ident,_)=>true; case _ =>false}
 
-    val ident = structure.ident.value + "." + fundef.ident.value;
-    val returnInt = fundef.ascription.right == Integer;
-    val returntypeId = fundef.ascription.right match{
+    val ident = structure.ident.value + "." + fundef.ident.value
+    val retInt = fundef.ascription.right == Integer;
+    val retTyvar = fundef.ascription.right.isInstanceOf[VarType]
+
+    val retTypeId = fundef.ascription.right match{
       case StructType(ident) => "%" + (if(ident.value.contains(".")) ident.value else structure.ident.value + "." + ident.value + "*")
       case Integer => Integer.toString()
       case FuncType(_,_) => {throw new Error("Functions are not allowed as a return type.")}
       case _ => fundef.ascription.right.toString() +"*"
     }
-    val returntypeint = fundef.ascription.right match{
+    val retTypeInt = fundef.ascription.right match{
       case StructType(ident) => trans.opaqueTypeMapping.get((if(ident.value.contains(".")) (ident.value) else (structure.ident.value + "." + ident.value))).get;
       case Integer => Integer.intRepresentation
       case FuncType(_,_) => {throw new Error("Functions are not allowed as a return type.")}
       case _ => fundef.ascription.right.intRepresentation
     }
 
+    val argInt = fundef.ascription.left.map(x => x == Integer)
+    val argTyvar = fundef.ascription.left.map(x => x.isInstanceOf[VarType])
+    val argTypeId = fundef.ascription.left.map{
+      case StructType(ident) => "%" + (if(ident.value.contains(".")) ident.value else structure.ident.value + "." + ident.value + "*")
+      case Integer => Integer.toString()
+      case FuncType(_,_) => {throw new Error("Functions not allowed as argument type.")}
+      case x@_ => x.toString()+"*"
+    }
+
+    val argTypeInt = fundef.ascription.left.map{
+      case StructType(ident) => trans.opaqueTypeMapping.get((if(ident.value.contains(".")) (ident.value) else (structure.ident.value + "." + ident.value))).get;
+      case Integer => Integer.intRepresentation
+      case FuncType(_,_) => {throw new Error("Functions are not allowed as a return type.")}
+      case _ => fundef.ascription.right.intRepresentation
+    }
+
+    val argNames = fundef.variables.map{x=>"%"+x.value}
+    val arguments = argTypeId.zip(argNames).map{x => x._1 + " "+x._2}.mkString(", ")
+
     //Internal function output
-    var value = s"define private $returntypeId @$ident"+s"_internal(){\n"
+    var value = s"define private $retTypeId @$ident"+s"_internal($arguments){\n"
     //value += translateBody(valdef, structure, signature)
     value +="}\n\n"
+
+    //External function output
+    if(declaration){
+      val argumentsAsInt = argTyvar.zip(argNames).map{x => "%int "+x._2+".in" + (if(x._1){", i2 " + x._2 + ".isMask"}else{""})}.mkString(", ")
+
+      value += s"define %int @$ident($argumentsAsInt){\n"
+      value += s"\t;Switch stack, move parameters, add entry point in spm\n"
+
+      val argInformation = (fundef.variables, 1 to fundef.variables.length,(argTyvar,argTypeId,argTypeInt).zipped.toList).zipped.toList
+      val argProcessingCode = argInformation.map{
+        case (name,nr,(false,typeId,1)) => s"\tProcess$nr:\n" +
+                                           s"\t\t%$name = add %int %$name.in, 0 ; Renaming trick \n" +
+                                           s"\t\tbr label Process${nr+1}\n\n"
+        case (name,nr,(false,typeId,typeInt)) => s"\tProcess$nr:\n" +
+                                                 s"\t\t%$name.addr = call %int @unmask(%int $name.in)\n" +
+                                                 s"\t\t%$name.type = call %int @unmasktype(%int $name.mask)\n" +
+                                                 s"\t\t%$name = inttoptr %int %$name.addr to $typeId\n" +
+                                                 s"\t\t%$name.check = icmp ne %int %$name.type $typeInt\n" +
+                                                 s"\t\tbr i1 %$name.check, label %Error, label Process${nr+1}\n\n"
+        case (name,nr,(true,typeId, typeInt)) => s"\tProcess$nr:\n" +
+                                                 s"\t\t%$name.tyvar.addr = call i8* @malloc(%int 16)\n" +
+                                                 s"\t\t%$name = bitcast i8* %$name.tyvar.addr to %tyvar*\n" +
+                                                 s"\t\tswitch i2 %$name.isMask, label %Unmask$nr [i2 0, label %External$nr\n" +
+                                                 s"\t\t                                           i2 1, label %Int$nr]\n\n" +
+                                                 s"\tUnmask$nr:\n" +
+                                                 s"\t\t%$name.addr = call %int @unmask(%int %$name.in)\n" +
+                                                 s"\t\t%$name.type = call %int @unmasktype(%int %$name.mask)\n" +
+                                                 s"\t\t%$name.unmask.1 = insertvalue %tyvar undef, %int %$name.addr, 0\n" +
+                                                 s"\t\t%$name.unmask.2 = insertvalue %tyvar %$name.unmask.1, %int %$name.type, 1\n" +
+                                                 s"\t\tbr label %Create$nr\n\n" +
+                                                 s"\tExternal$nr:\n" +
+                                                 s"\t\t%$name.ext.1 = insertvalue %tyvar undef, %int %$name.in, 0\n" +
+                                                 s"\t\t%$name.ext.2 = insertvalue %tyvar undef, %int 0, 1\n" +
+                                                 s"\t\tbr label %Create$nr\n\n" +
+                                                 s"\t\tInt$nr:\n" +
+                                                 s"\t\t%$name.int.1 = insertvalue %tyvar undef, %int %$name.in, 0\n" +
+                                                 s"\t\t%$name.int.2 = insertvalue %tyvar undef, %int 1, 1\n" +
+                                                 s"\t\tbr label %Create$nr\n\n" +
+                                                 s"\tCreate$nr:\n" +
+                                                 s"\t\t%$name.tyvar = phi %tyvar [%$name.unmask.2, %Unmask$nr], [%$name.ext.2, %External$nr], [%$name.int.2, %Int$nr]\n" +
+                                                 s"\t\tstore %tyvar %$name.tyvar, %tyvar* %$name\n"+
+                                                 s"\t\tbr label %Process${nr+1}\n\n"
+      }
+      value += argProcessingCode.mkString("")+ "\tProcess"+ (fundef.variables.length+1)+":\n"
+
+      if(!retInt){
+        value += s"\t%ret.ptr = call $retTypeId @$ident"+s"_internal($arguments)\n"
+        if(retTyvar){
+          value += s"\t%ret.tyvar = load %tyvar* %ret.ptr\n"
+          value += s"\t%ret.addr = extractvalue %tyvar %ret.tyvar, 0\n"
+          value += s"\t%ret.type = extractvalue %tyvar %ret.tyvar, 1\n"
+          value += s"\t%ret.mask = call %int @mask(%int %ret.addr, %int %ret.type)\n"
+        }else{
+          value += s"\t%ret.int = ptrtoint $retTypeId %ret.ptr to %int\n"
+          value += s"\t%ret.mask = call %int @mask(%int %ret.int, %int $retTypeInt)\n"
+        }
+        value += s"\t;Switch stack, clear registers and flags\n"
+        value += s"\tret %int %ret.mask\n\n"
+      }else{
+        value += s"\t%ret = call $retTypeId @$ident"+s"_internal($arguments)\n"
+        value += s"\t;Switch stack, clear registers and flags\n"
+        value += s"\tret %int %ret\n\n"
+      }
+
+      value += "\tError:\n" +
+               "\t\tcall void @exit(i32 -1)\n" +
+               "\t\tunreachable\n"
+
+      value += s"}\n\n"
+    }
 
     translation.values = translation.values.concat(value)
 
@@ -256,9 +349,10 @@ object Main extends App{
         value += s"\tret %int %ret.mask\n"
       }else{
         value += s"\t%ret = call $typeId @$ident"+s"_internal()\n"
+        value += s"\t;Switch stack, clear registers and flags\n"
         value += s"\tret %int %ret\n"
       }
-      value += s"}\n"
+      value += s"}\n\n"
     }
 
     translation.values = translation.values.concat(value)

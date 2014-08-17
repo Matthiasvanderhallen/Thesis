@@ -6,6 +6,7 @@ declare void @free(i8*)
 declare void @exit(i32)
 
 define %int @Caesar.decrypt(%int %arg0, %int %arg1) {
+   %argtest = add %int %arg0, 0
    %arg1int = call %int @unmask(%int %arg1)
    %arg1type = call %int @unmasktype(%int %arg1)
    %check1 = icmp eq %int %arg1type, 4

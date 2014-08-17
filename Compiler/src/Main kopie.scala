@@ -434,12 +434,12 @@ object Main extends App{
         }
         case StructType(_,0,_) => {}
         case s@StructType(ident,amount,types) => {
-          if(prefix != "")
-          {
-            //check if type correct
-          }
-          //if(prefix == ""){
-            //type reeds gechecked.
+//          if(prefix != "")
+//          {
+//            //check if type correct
+//          }
+//          //if(prefix == ""){
+//            //type reeds gechecked.
             val argName = variables(loc).value
 
             val structTypeString = s.internalize(structure)
@@ -447,52 +447,68 @@ object Main extends App{
             val implTypInt = trans.getImplTypeInt(structTypeInt)
             val implType = trans.getImplType(structTypeInt)//;.getVarTypeStr(trans);
 
-            implType match{
-              case PairType(left, right) => {
-                access += s"\t%ML.typecheck.$prefix$loc.pair = inttoptr %int $argName.addr to %pair*\n"
-                access += s"\t%ML.typecheck.$prefix$loc.0.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 0 ; tyvar*\n"
-                access += s"\t%ML.typecheck.$prefix$loc.1.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 1 ; tyvar*\n"
+            var packed = implType;
+            var prefixrec = prefix;
+            var locrec = loc;
 
-                /*var typesL = List[Type]()
-                for(i<-left.getVarTypes(trans)){
-                  //typesL = typesL :+ types(i)
-                }*/
-                //Klopt nog niet: left en right moeten iets anders zijn.
-                val rec = accessTyvars(List(left,right),List[Ident](), trans, structure, signature, s"$prefix$loc.", representatives)
-                access +=rec._1;
-                representatives = rec._2;
+            recFunc = {
+              packed match{
+                case VarType(ident) => {
+                  val tyvarName = s"%ML.typecheck.$prefix$loc"
 
-                /*var typesR = List[Type]()
-                for(i<-right.getVarTypes(trans)){
-                  typesR = typesR :+ types(i)
-                }*/
-                //val recR = accessTyvars(List(right),List[Ident](), trans, structure, signature, s"$prefix$loc.", representatives)
-                //access +=recR._1;
-                //representatives = recR._2;
+                  access += s"\t$tyvarName = bitcast i8* %$argName.tyvar.addr to %tyvar*\n"
+                }
+                //case StructType()
+                case PairType(left, right) => {
+                  access += s"\t%ML.typecheck.$prefixrec$locrec.pair = inttoptr %int $argName.addr to %pair*\n"
+                  access += s"\t%ML.typecheck.$prefixrec$locrec.0.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 0 ; tyvar*\n"
+                  access += s"\t%ML.typecheck.$prefixrec$locrec.1.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 1 ; tyvar*\n"
+
+                  recFunc
+                  /*var typesL = List[Type]()
+                  for(i<-left.getVarTypes(trans)){
+                    //typesL = typesL :+ types(i)
+                  }*/
 
 
+
+                  //Klopt nog niet: left en right moeten iets anders zijn.
+                  //val rec = accessTyvars(List(left,right),List[Ident](), trans, structure, signature, s"$prefix$loc.", representatives)
+                  //access +=rec._1;
+                  //representatives = rec._2;
+
+                  /*var typesR = List[Type]()
+                  for(i<-right.getVarTypes(trans)){
+                    typesR = typesR :+ types(i)
+                  }*/
+                  //val recR = accessTyvars(List(right),List[Ident](), trans, structure, signature, s"$prefix$loc.", representatives)
+                  //access +=recR._1;
+                  //representatives = recR._2;
+
+
+                }
+                case ListType(inner) => {
+                    access += s"\t%ML.typecheck.$prefix$loc.array.ptr = inttoptr %int $argName.addr to %array*\n"
+                    access += s"\t%ML.typecheck.$prefix$loc.array = load %array* %ML.typecheck.$prefix$loc.array.ptr\n"
+                    access += s"\t%ML.typecheck.$prefix$loc.array.length = extractvalue %array %ML.typecheck.$prefix$loc.array, 0\n"
+                    access += s"\t%ML.typecheck.$prefix$loc.check = icmp eq %int 0, %ML.typecheck.$prefix$loc.array.length\n"
+                    access += s"\tbr %ML.typecheck.$prefix$loc.check, label %Skip$prefix$loc, label %Continue$prefix$loc\n\n"
+
+                    access += s"\tContinue$prefix$loc:\n"
+                    access += s"\t%ML.typecheck.$prefix$loc.0.addr = getelementptr %array %ML.typecheck.$prefix$loc.array.ptr, i32 0, %int 1"
+                    val rec = accessTyvars(List(inner),List[Ident](), trans, structure, signature, s"$prefix$loc.", representatives)
+                    access +=rec._1;
+                    representatives = rec._2;
+                    access += s"br label %Skip$prefix$loc\n\n"
+                    access += s"Skip$prefix$loc:\n"
+
+                    //access += s"\t%ML.typecheck.$prefix$loc.0.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 0 ; tyvar*\n"
+                }
+                case _ => {throw new UnsupportedOperationException()}
               }
-              case ListType(inner) => {
-                  access += s"\t%ML.typecheck.$prefix$loc.array.ptr = inttoptr %int $argName.addr to %array*\n"
-                  access += s"\t%ML.typecheck.$prefix$loc.array = load %array* %ML.typecheck.$prefix$loc.array.ptr\n"
-                  access += s"\t%ML.typecheck.$prefix$loc.array.length = extractvalue %array %ML.typecheck.$prefix$loc.array, 0\n"
-                  access += s"\t%ML.typecheck.$prefix$loc.check = icmp eq %int 0, %ML.typecheck.$prefix$loc.array.length\n"
-                  access += s"\tbr %ML.typecheck.$prefix$loc.check, label %Skip$prefix$loc, label %Continue$prefix$loc\n\n"
-
-                  access += s"\tContinue$prefix$loc:\n"
-                  access += s"\t%ML.typecheck.$prefix$loc.0.addr = getelementptr %array %ML.typecheck.$prefix$loc.array.ptr, i32 0, %int 1"
-                  val rec = accessTyvars(List(inner),List[Ident](), trans, structure, signature, s"$prefix$loc.", representatives)
-                  access +=rec._1;
-                  representatives = rec._2;
-                  access += s"br label %Skip$prefix$loc\n\n"
-                  access += s"Skip$prefix$loc:\n"
-
-                  //access += s"\t%ML.typecheck.$prefix$loc.0.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 0 ; tyvar*\n"
-              }
-              case _ => {throw new UnsupportedOperationException()}
             }
         }
-        case _ => {}
+        case _ => {} //Only Integers, because no pairs or arrays can be argument types! :)
       }
     }
     println(access)

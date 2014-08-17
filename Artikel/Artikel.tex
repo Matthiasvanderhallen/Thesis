@@ -70,9 +70,11 @@ Many attacks exist that abuse the way compilation reintroduces these subtleties,
 For example, Y. Erlinsson et al.~\cite{OVSPaper} list a number of ways that low-level attacks might manipulate control flow or values whose integrity was guaranteed in on source level.
 
 %Because the severe problems that these bugs can introduce, breaking into security sensitive parts of an application exploiting its bindings with less secure parts of the application, a strengthening of the compilation process is needed.
-Because these bugs can introduce sever problems, such as breaking into security sensitive parts of an application by exploiting its bindings with less secure parts %,
-of the application,
-a strengthening of the compilation process is needed.
+%Because these bugs can introduce sever problems, such as breaking into security sensitive parts of an application by exploiting its bindings with less secure parts %,
+%of the application,
+%a strengthening of the compilation process is needed.
+These bugs can introduce severe problems, such as breaking into security sensitive parts of an application by exploiting its bindings with less secure parts of the application.
+Hence, a strengthening of the compilation process is required.
 The goal of \emph{secure compilation} is to provide compilation that preserves all high-level security guarantees in the low-level.
 
 \section{Problem Setting}
@@ -326,11 +328,11 @@ The idea also raised scientific study, for example by Abadi and Plotkin~\cite{Ab
 
 Other techniques work by introducing security guarantees to memory access.
 For example, Agten et al.~\cite{Agten:2012:SCM:2354412.2355247} already provide a secure compilation scheme for an object based language, when access to memory is restricted based on the value of the program counter. This technique is called \emph{Program Counter Based Access Control}, or \emph{PCBAC}~\cite{PCBAC}.
-Later work by Patrignani et al.~\cite{Patrignani} introduced additional object oriented to the fully abstract compilation scheme.
+Later work by Patrignani et al.~\cite{Patrignani} introduced additional object oriented concepts to the fully abstract compilation scheme.
 
 The restricted access of memory can be implemented in hardware~\cite{Sancus,SGX} or using software~\cite{Fides,Salus}.
-This choice effects the size of the trusted computing base or \emph{TCB}.
-Even with fully abstract compilation, security issues in the TCB could lead to low-level attaques.
+This choice affects the size of the trusted computing base or \emph{TCB}.
+Even with fully abstract compilation, security issues in the TCB could lead to low-level attacks.
 A recent innovation in restricting access on a hardway level is Intel\textregistered Software Guard Extensions, or \emph{SGX}~\cite{SGX}.
 
 \section{Conclusion}

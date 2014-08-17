@@ -7,6 +7,13 @@ case class Ident(value: String) extends MLToken {
   def ord():Int = {
     return value.charAt(0).toInt-97;
   }
+
+  def internalize(structure:Structure):String = {
+    if(value.contains("."))
+      return value;
+    else
+      return s"${structure.ident.value}.${value}"
+  }
 }
 case class Number(value: Int) extends MLToken
 case object Delimiter extends MLToken
@@ -15,7 +22,7 @@ case class Literal(value: String) extends MLToken //String Literal
 
 case class Program(val signatures:List[Signature], val structures:List[Structure])
 
-case class Translation(var types:String, var entryPoints:String, var values:String, var firstPass:Boolean, var opaqueTypes:Int, var opaqueTypeMapping:Map[String,Int], var implMapping:List[(Int,Int)], var tyvarMapping:Map[Int,Type]) {
+case class Translation(program:Program, var types:String, var entryPoints:String, var values:String, var firstPass:Boolean, var opaqueTypes:Int, var opaqueTypeMapping:Map[String,Int], var implMapping:List[(Int,Int)], var tyvarMapping:Map[Int,Type]) {
   override def toString() = types + "\n" + values;
 
   def getImplTypeInt(search:Int):Int = {
@@ -32,6 +39,20 @@ case class Translation(var types:String, var entryPoints:String, var values:Stri
 
   def getImplType(search:Int):Type = {
     return tyvarMapping.get(search).get
+  }
+
+  def getFuncType(structure:Structure, search:Ident):FuncType = {
+    if(search.value.contains(".")){
+      val defStructIdent = new Ident(search.value.split("""\.""")(0))
+      val valueIdent = new Ident(search.value.split("""\.""")(1))
+
+      val defStruct = program.structures.find{case Structure(`defStructIdent`,_,_) => true ; case _ => false}.get
+      val sigId = defStruct.signature
+      val defSignature = program.signatures.find{case Signature(`sigId`,_) => true; case _ => false}.get
+      return defSignature.value.find{case ValDeclaration(`valueIdent`,_) => true; case _ => false}.get.asInstanceOf[ValDeclaration].ascription.asInstanceOf[FuncType]
+    }else{
+      return structure.value.find{case FunDefinition(`search`,_,_,_) => true ;case _ => false}.get.asInstanceOf[FunDefinition].ascription
+    }
   }
 }
 
@@ -82,6 +103,7 @@ case class StructType(typeId:Ident, nrTyvars:Int, tyvars:List[Type]) extends Typ
     return trans.getImplType(trans.getOpaqueType(typeId.value)).getVarTypes(trans)
   }
 
+  //override def toString() = typeId.value
 
 }
 
@@ -175,7 +197,7 @@ object Main extends App{
                         new FunDefinition(new Ident("encrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"), 0, List())), Integer), ConstExpr(3)),
                         new FunDefinition(new Ident("decrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"), 0, List())), Integer), ConstExpr(3)),
                         new FunDefinition(new Ident("createPair"), List(new Ident("left"), new Ident("right")), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), ConstExpr(3)),
-                        new FunDefinition(new Ident("getLeft"), List(new Ident("pair")), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))), ConstExpr(3)),
+                        new FunDefinition(new Ident("getLeft"), List(new Ident("pair")), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))), CallExpr(new Ident("createPair"),List(ConstExpr(3)))), // ConstExpr(3)),
                         new FunDefinition(new Ident("merge"), List(new Ident("left"), new Ident("right")), new FuncType(List(paira, paira), paira), ConstExpr(3)),
                         new ValDefinition(new Ident("seed"), Integer, ConstExpr(3)),
                         new ValDefinition(new Ident("rand"), Integer, ConstExpr(3))
@@ -191,7 +213,7 @@ object Main extends App{
   var entrypoints:String = ""
 
   def translate(program:Program):Translation={
-    var translation = new Translation("", "", "",true, 5, Map(), List(), Map());
+    var translation = new Translation(program,"", "", "",true, 5, Map(), List(), Map());
 
     val structures = program.structures.sortBy(struct => struct.ident.value)
 
@@ -303,7 +325,7 @@ object Main extends App{
 
     //Internal function output
     var value = s"define private $retTypeId @$ident"+s"_internal($argForInternal){\n"
-//    value += translateBody(valdef, structure, signature)
+    value += translateBody(trans, fundef, structure, signature, argTypeId.zip(argNames), retTypeId)
     value +="}\n\n"
 
     //External function output
@@ -544,7 +566,7 @@ object Main extends App{
 
     //Internal function output
     var value = s"define private $typeId @$ident"+s"_internal(){\n"
-//    value += translateBody(trans, valdef, structure, signature)
+    value += translateBody(trans, valdef, structure, signature, List(), typeId)
     value +="}\n\n"
 
     //External function output
@@ -570,27 +592,105 @@ object Main extends App{
     return translation
   }
 
-  def getVarTypeInformation(prefix:List[Int], argType:StructType, idents:Map[Ident,List[List[Int]]]):(Map[Ident,List[List[Int]]],List[(List[Int], Type)]) = {
-    var identMap = idents;
-    var instantiationsMap = List[(List[Int], Type)]() // This map contains instantiated tyvars of the parametric type.
+//  def getVarTypeInformation(prefix:List[Int], argType:StructType, idents:Map[Ident,List[List[Int]]]):(Map[Ident,List[List[Int]]],List[(List[Int], Type)]) = {
+//    var identMap = idents;
+//    var instantiationsMap = List[(List[Int], Type)]() // This map contains instantiated tyvars of the parametric type.
+//
+//    for((argType, loc)<-argType.tyvars.zip(0 to argType.nrTyvars-1)){
+//      argType match{
+//        case VarType(ident) => {identMap = identMap.updated(ident, (prefix.:+(loc)) :: identMap.getOrElse(ident, List()))}
+//        case x:StructType => { val pair = getVarTypeInformation((prefix.:+(loc)),x,identMap)
+//          identMap = pair._1;
+//          instantiationsMap.+:((prefix.:+(loc), x)).++(pair._2);
+//        }
+//        case _ => {}
+//      }
+//    }
+//
+//    return (identMap, instantiationsMap)
+//  }
 
-    for((argType, loc)<-argType.tyvars.zip(0 to argType.nrTyvars-1)){
-      argType match{
-        case VarType(ident) => {identMap = identMap.updated(ident, (prefix.:+(loc)) :: identMap.getOrElse(ident, List()))}
-        case x:StructType => { val pair = getVarTypeInformation((prefix.:+(loc)),x,identMap)
-          identMap = pair._1;
-          instantiationsMap.+:((prefix.:+(loc), x)).++(pair._2);
+  def translateBody(trans:Translation, definition:Definition, structure:Structure, signature:Signature, argTypes:List[(String, String)], retType:String):String = {
+    var body = ""
+    for(arg <- argTypes)
+      if(arg._1 == "%int")
+        body += s"\t${arg._2}.val = add %int 0, ${arg._2} ; Integer reassign hack\n"
+      else
+        body += s"\t${arg._2}.val = load ${arg._1} ${arg._2}\n"
+
+    val exp = definition match{
+      case FunDefinition(_,args,_,expression) => expression
+      case ValDefinition(_,_,expression) => expression
+      case _ => {throw new UnsupportedOperationException()}
+    }
+
+    var temp = 0
+
+    def translateExp(exp:Expr):String = {
+      exp match{
+        case ConstExpr(value) => { return "" }
+        case CallExpr(name, args) => {
+         val funcName = name.internalize(structure);
+         val local = funcName.split("""\.""")(0)
+
+         val funcType = trans.getFuncType(structure, name);
+
+         def localize(typ:Type):String = typ match{
+           case StructType(id,_,_) => {
+             if(id.value.contains(".")){
+               s"%$id*"
+             }else{
+               s"%${local}.${id.value}*"
+             }
+           }
+           case Integer => Integer.toString()
+           case x@_ => s"${x.toString()}*"
+         }
+
+         val argTypesCall = funcType.left.map(x => localize(x))
+         val argIds = args.map(argExp => translateExp(argExp)) //Geeft hun bindings terug, bijv: //List("%t1", "%t2")
+         val argCallString = argTypesCall.zip(argIds).map{case (a,b) => s"$a $b"}.mkString(", ")
+
+         body += s"\t%t$temp = call ${localize(funcType.right)} @$funcName(${argCallString})\n"
+         return s"%t$temp"
         }
-        case _ => {}
+        case BinOpExpr(op, left, right) => {
+          
+        }
+        case _ => {return ""}
       }
     }
 
-    return (identMap, instantiationsMap)
+    exp match {
+      case ConstExpr(value) => body += s"\treturn %int $value\n"
+      case call @ CallExpr(name, args) =>{
+        val retval = translateExp(call);
+        body += s"\t return $retType $retval\n"
+      }
+      case _ => {}
+    }
+
+    return body
   }
 
-//  def translateBody(){
+//  sealed trait Expr
+//  case class ValExpr(ident:Ident) extends Expr
+//  case class ConstExpr(value: Int) extends Expr
+//  case class CallExpr(name:Ident, args: List[Expr]) extends Expr
+//  case class BinOpExpr(op:BinOp, left:Expr, right:Expr) extends Expr
+//  case class LetExpr(ident:Ident, bind:Expr, in:Expr) extends Expr
+//  case class PairExpr(left:Expr, right:Expr) extends Expr
+//  case class LeftExpr(pair:Expr) extends Expr
+//  case class RightExpr(pair:Expr) extends Expr
+//  sealed trait ListExpr extends Expr
+//  case object Empty extends Expr
+//  case class consExpr(tail:Expr) extends Expr
 //
-//  }
+//  sealed trait BinOp
+//  case object Add extends BinOp
+//  case object Sub extends BinOp
+//  case object Mul extends BinOp
+//  case object Rem extends BinOp
 }
 
 

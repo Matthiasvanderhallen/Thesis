@@ -93,7 +93,7 @@ The secure compilation of this encapsulated entity is called the self-protected 
 The secure code is provided and compiled to an \emph{SPM}, and is linked to an insecure target level context $\compiled{O_C}$
 
 \section{Protected Module Architecture}
-\label{sec:protectedmoduleplatform}
+\label{sec:protectedmodulearchitecture}
 As explained in \myref{sec}{sec:SecureCompilation}, a secure compilation scheme is a compilation scheme that preserves source level security guarantees in the target language.
 Such a preservation of security guarantees is only possible if some form of access controlled memory is available.
 
@@ -139,7 +139,7 @@ The LLVM Intermediate Representation is a language used in the LLVM compiler pro
 As a language it is only slightly more abstract than assembly, and it is specifically designed as an intermediate step in the compilation of different high-level source languages to assembly.
 
 This offers the benefit that compilation to the intermediate language can be performed, and afterwards transformations can be done on the intermediate language to optimize it for different architectures.
-Afterwards, the LLVM Intermediate representation can be compiled to assembly code for a specific architecture, for example an architecture providing the necessary access control sketched in \myref{sec}{sec:protectedmoduleplatform}.
+Afterwards, the LLVM Intermediate representation can be compiled to assembly code for a specific architecture, for example an architecture providing the necessary access control sketched in \myref{sec}{sec:protectedmodulearchitecture}.
 \\[1em]
 The following list gives a roadmap of how each chapter contributes to the thesis goal of showing how secure compilation of a language with an \emph{ML-style} module system is possible.
 

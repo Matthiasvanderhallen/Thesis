@@ -74,7 +74,7 @@ Information leakage about the order of definitions, whether it be value definiti
 An alphabetic reordering at compilation makes sure that the order of fields within a frame, or frames within the f-list is insensitive to a reordering of the source-level code.
 The addition of functors requires additional care to ensure that there is no way of telling whether a structure was created by a static binding or using functor application.
 \\[1em]
-The next step would be showing that any pair of low level traces $T_1$ and $T_2$ that differentiate two compiled objects $\compiled{O_1}$ and $\compiled{O_2}$ makes it possible to construct a high level context $O_c$ that could differentiate between $O_1$ and $O_2$.
+The next step would be showing that any pair of low-level traces $T_1$ and $T_2$ that differentiate two compiled objects $\compiled{O_1}$ and $\compiled{O_2}$ makes it possible to construct a high level context $O_c$ that could differentiate between $O_1$ and $O_2$.
 To ensure this, tampering with the control flow must be prevented.
 
 In the compilation scheme presented here, the control flow is secured by the memory access model, which limits the execution rights of the insecure context to the entry points specified.

@@ -477,8 +477,6 @@ define private %Caesar.cred* @Caesar.newcredentials_internal(){
    %ptr = bitcast i8* %ptr1 to %Caesar.cred*
    %locval = getelementptr inbounds %Caesar.cred* %ptr, i32 0, i32 0
    store %int %rand,%int* %locval
-   %loctype = getelementptr inbounds %Caesar.cred* %ptr, i32 0, i32 0
-   store %int 4, %int* %loctype
    ret %Caesar.cred* %ptr
 }
 

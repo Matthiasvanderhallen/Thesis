@@ -283,7 +283,7 @@ If \emph{target} carries a definition for the type, \emph{candidate} must provid
 is a subtype
 \footnote{Liskov substitution principle is used to determine subtypes i.e. arguments are allowed to generalize, return types can be specialized.}
 of the corresponding type in the \emph{target}.
-\todo{changed: https://www.cs.cmu.edu/~rwh/introsml/modules/sigstruct.htm uses general. Pierce adv. page 300 uses subtype. What is meant of course is Liskov substitution principle: Arguments can generalize, return types can specify. "At least as accepting"/"At least as broad"}
+%\todo{changed: https://www.cs.cmu.edu/~rwh/introsml/modules/sigstruct.htm uses general. Pierce adv. page 300 uses subtype. What is meant of course is Liskov substitution principle: Arguments can generalize, return types can specify. "At least as accepting"/"At least as broad"}
 \end{enumerate}
 
 With these signature matching constraints, a structure can have a principal signature that is broader than its ascribed signature.
@@ -299,7 +299,7 @@ The effective signature of a structure \cmath{StrId} with body \cmath{\overline{
 Type definitions and value declarations in a signature can contain type variables.
 However, all type variables are assumed be quantified universally.
 This means, for example, that a type definition written as $type\ \overline{\alpha}\ t = \tau$ contained in $\overline{d}$ results in a type definition $t\ \overline{\alpha} = \forall \alpha_{1}...\forall \alpha_{n}.\tau$ as an element of \cmath{ES(\overline{d})}.
-
+%Todo: Nalezen, is dit duidelijk genoeg?
 Whether or not a structure's principal signature matches with a signature \cmath{Sig}, depends only on the structural characteristics \cmath{Sig} requires, and not on whether the structure was ascribed with \cmath{Sig}.
 For this reason, signature matching is a form of \emph{structural typing}.
 %can still match with a signature \cmath{Sig}, even when its definition is not explicitly ascribed with \cmath{Sig}, as long as its 

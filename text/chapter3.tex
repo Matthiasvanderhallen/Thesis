@@ -137,7 +137,6 @@ After all, the source language does not allow the memory location of the paramet
 
 This problem is effectively mitigated by ensuring that upon \emph{application} of the closure every value is copied to the secure environment, conforming to a value-passing call semantic.
 
-%Todo: Evaluate the following paragraph, and add it.
 However, the \MiniML\ language as described in this work restricts the values that can pass the border between secure code and insecure context to values of either type int or an opaque  type.
 Int types are always passed using their effective value.
 Opaque types are not susceptible to the attack described above because they can only be manipulated using functions from the structure that declared the opaque type.

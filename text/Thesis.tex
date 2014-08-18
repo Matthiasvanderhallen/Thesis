@@ -116,19 +116,19 @@ Finally, I would like to thank my family for the encouragement and moral support
 \begin{abstract}
 Malware infects many new computers each day.
 Some estimates suggest that up to 30\% of all computers are in fact infected.
-This malware is transmitted by exploiting bugs in computer software.
-In many cases, these bugs abused by the exploit originate from the disparity between the computing model presented by high-level source language and the effective module used by the low-level target language.
+Malware can be transmitted by exploiting bugs in computer software.
+In many cases, these bugs abused by the exploit originate from the disparity between the computing model presented by high-level source language and the effective model used by the low-level target language.
 
-These bugs are not prevented by analysis of the source language, for example using formal software verification tools, because they are effectively `introduced' by the process of compilation from source language to target language.
+These bugs cannot be prevented by analyzing the source language, for example using formal software verification tools, because they are effectively `introduced' by the process of compilation from source language to target language.
 Instead, they must be prevented by strengthening the compilation process in a way that reduces the power of low-level attackers to that of high-level attackers.
 Compilers that achieve this provide `secure compilation'.
 
 This work uses the notions of full abstraction and contextual equivalence to formalize the requirements for a secure compilation scheme, and shows how secure compilation can be achieved for MiniML, a subset of the ML language.
 As a prerequisite however, the secure compilation scheme assumes that the result of compilation runs on an architecture that provides program counter based access control, called a protected module platform.
 
-The source language for this secure compilation scheme, MiniML, is not object oriented. 
-Instead it uses a module system with the powerful notion of a functor to provide modularization of code.
-It targets the LLVM Intermediate Representation as a target language.
+The source language for this secure compilation scheme, MiniML, uses a module system with the powerful notion of a functor to provide modularization of code.
+This contrasts with the object oriented approach used by many other languages.
+The compilation scheme targets the LLVM Intermediate Representation as a target language.
 A formalization of this MiniML source language and the LLVM IR target language is presented, enabling a formalization of the secure compilation scheme to be given as well.
 \end{abstract}
 

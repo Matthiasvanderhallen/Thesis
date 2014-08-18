@@ -1,21 +1,23 @@
 \chapter{Introduction}
 
-In todays technology-driven world, computer software is used by nearly everyone on a daily basis.
+In today's technology-driven world, computer software is used by nearly everyone on a daily basis.
 The near omnipresence of malware trying to infect computers makes \emph{safety} a continuous concern for anyone involved in the creation of this computer software.
 Partly, this can be done by verifying that no bugs exist in the source code of the software, for example using verification software~\cite{Verifast:paper,Verifast:tutorial}.
 
 However, a formal verification of the source code can only show that no source-level bugs exist.
-After a programs source code has been written, it is usually compiled to a target language such as assembly that can be executed.
+After a program's source code has been written, it is usually compiled to a target language such as assembly that can be executed.
 This target language most often is substantially different from the source language.
-For example, compilation introduces the fact that objects have to be represented using target-language concepts, saved in computer memory.
+These differences are a direct consequence of the simplified computing model that high-level languages usually offer to the programmer.
+For example, high-level languages often hide the fact that values have to be represented using target-language concepts, saved in computer memory.
+The compilation process reintroduces these problems.\todo{is problems hier het goeie woord?}
 
 In many instances, malware exploits target-level bugs introduced by this compilation process~\cite{OVSPaper,Younan:2012:RCC:2187671.2187679}.
-These bugs will not show up during formal verification of the source code, as they are only introduced when the abstract execution platform used on source-level is traded in for the concrete target-level execution model.
+These bugs do not show up during formal verification of the source code, as they are only introduced when the abstract computing model used on source-level is traded in for the concrete target-level computing model.
 
-To provide true security, the compilation process itself must be strengthened, so that it guarantees that any source-level security guarantees are preserved `over' the compilation step from source language to target language.
+To provide security, the compilation process itself must be strengthened, so that it guarantees that any source-level security guarantees are preserved throughout the compilation step from source language to target language.
 If this is achieved, then any software that is attack-free on the source-level is attack-free as well on the target-level.
-A compilation scheme able to provide these guarantees is rightly called `secure compilation'.
-Effectively, it reduces the capabilities of a target-level attack to those of a source-level attack.
+A compilation scheme able to provide these guarantees is rightly called secure.
+Effectively, such a compilation scheme reduces the capabilities of a target-level attack to those of a source-level attack.
 The aim of this thesis is to describe how secure compilation can be achieved for a \emph{functional} language that implements an \emph{ML-style} module system.
 
 %This is formalized using the \emph{full abstraction}\cite{Abadi} concept.

@@ -588,12 +588,12 @@ This would result in the ill-typed output structure \cmath{S_{o}}.
 
 Structure \cmath{S_{a}} can now access values created by \cmath{S_{o}} directly, because both are located in secure code.
 By choosing the unsound type assumptions that structure \cmath{S_{a}} makes carefully, this could leak information about the implementation of functor \cmath{Fn}.
-As a result, when compiling a secure functor the compiler must:
+
+Summarizing, when compiling a secure functor the compiler must: %Todo: Nalezen, is dit duidelijk genoeg?
 \begin{itemize}
-\item Add an entry point in the \emph{SPM}, pointing to a function that can create frames representing applications of the functor. 
-This corresponds
+\item Add an entry point in the \emph{SPM} pointing to a function that can create frames representing applications of the functor.
 \item Equip this function with the necessary checks to assure that when the argument structure is secure, the arguments signature also matches the expected signature specified by the functor definition.
-In other words, code must be added that reads type information about the argument structure and checks, using structural typing as specified in \myref{sec}{sec:StructuralTyping} to ensure that functor application on secure structures only succeeds if the secure structure signature matches with the target signature.
+In other words, code must be added that reads type information about the argument structure and checks, using \emph{structural typing} as specified in \myref{sec}{sec:StructuralTyping} to ensure that functor application on secure structures only succeeds if the secure structure signature matches with the target signature.
 \end{itemize}
 
 By preserving the order in which functors are applied when adding the frames dynamically, the compiler knows at compilation time the position of every frame in the \emph{SPM}'s \emph{f-list}.
@@ -726,7 +726,7 @@ Next, for all values definitions inside the \emph{target} signature, a matching 
 In this matching, only the values which correspond to a result of the \emph{trimming map} are considered.
 
 When a name match is found, its type is checked.
-When creating a meta-frame, any type used in the typing of values is substituted by its implementation up until the first opaque type is encountered.
+When creating a meta-frame, any type used in the typing of values is substituted by its implementation until the first opaque type is encountered.
 This ensures that checking whether the type of two values match can be done by checking that either the type stated in the candidate signature is exactly the same as the type in the target signature, or it is a type variable that substitutes \emph{consistently} for the type listed in the target signature.
 \end{description}
 
@@ -737,18 +737,18 @@ These \emph{meta-frame}s track all type definitions and value definitions presen
 
 The content of these \emph{meta-frame}s can mostly be determined at compile time. This surely is the case for structures, but it also is the case for functors that are not modified by a \lsttext{where} expression.
 This means that the function that creates a frame corresponding to a functor application can largely hardcode the content of the corresponding meta-frame.
-When creating a meta-frame, any type used in the typing of values is substituted by its implementation up until it contains only opaque types, counting \lsttext{int} as an opaque type.
+When creating a meta-frame, any type used in the typing of values is substituted by its implementation until it contains only opaque types, counting \lsttext{int} as an opaque type.
 
 \begin{description}
 \item[Handling where Expressions] 
 Only \lsttext{where} expressions of the template \lsttext{where type t = ArgStruct.t'} can not be processed at compile time.
-For these expressions, the compiler slightly modifies the matching algorithm so that it checks
+For these expressions, the compiler produces the structural typing checks so that they check:%Todo: Nalezen, is dit duidelijk genoeg?
 \begin{enumerate}
 \item That the implementation of type \lsttext{t} is in fact \lsttext{ArgStruct.t}.
 \item What the opaqueness and implementation of type \lsttext{ArgStruct.t} is, so that any reference to type \lsttext{t} or \lsttext{ArguStruct.t} can be substituted by its implementation.
 \end{enumerate}
 \end{description}
-\subsection{Calling Structure Values}
+\subsection{Calling Structure Fields}
 Access to any value of a source language structure is uniquely determined in the target language using the location (\cmath{loc_{frame}}) of the frame in memory and the index of the value (\cmath{index_{val}}) in its list of value pointers.
 
 In the source language, all values are either accessible across the security boundary or strictly accessible only within the same structure, so the same must hold for the target language.
@@ -763,11 +763,11 @@ This is solved by inserting all \cmath{loc_{frame}} into the \emph{SPM}'s list o
 Frames that were created in secure code are sorted alphabetically by the identifier they were bound to and put in the \emph{f-list} first.
 This alphabetical ordering is necessary because changing the order of structure bindings does not break contextual equivalence at the high-level \MiniML\ language.
 The frame locations of frames created in insecure code are appended in the order of their definitions.
-This means that the specific mapping of an identifier to value of its index is known statically.
+This means that the specific mapping of an identifier to the value of its index is known statically.
 
 %\to do{Sort those bound in secure memory alphabetically, and append those bound to an identifier in insecure context in the order of their definition! Otherwise, contextual equivalence is broken, isn't it?}
 %TO DO: Doesn't this break contextual equivalence? Solution: Sort alphabetically for those created in secure memory!
-Anywhere a secure structure is used in the source language, it is represented by the \cmath{loc_{frame}} pointer or its masking index in the \emph{f-list}.
+Anywhere a secure structure is used in the source language, it is represented in the target language by the \cmath{loc_{frame}} pointer or its masking index in the \emph{f-list}.
 
 To allow context code to access values from secure structures, a wrapper function is provided that is located inside the \emph{SPM}.
 This wrapper function corresponds to an \emph{entry point} to the \emph{SPM}.

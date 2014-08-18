@@ -22,7 +22,14 @@ The source language for this secure compilation scheme, MiniML, is not object or
 Instead it uses a module system with the powerful notion of a functor to provide modularization of code.
 It targets the LLVM Intermediate Representation as a target language.
 A formalization of this MiniML source language and the LLVM IR target language is presented, enabling a formalization of the secure compilation scheme to be given as well.}}
+
+%\setup{font=lm}
+
 %\usepackage[utf8]{inputenc}
+\usepackage{kulemtx}
+\headstyles{kulemtman}
+
+\usepackage{stmaryrd}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
@@ -87,7 +94,7 @@ A formalization of this MiniML source language and the LLVM IR target language i
 \newcommand{\annot}[1]{[#1]}
 \newcommand{\nl}{\\ & &}
 \newcommand{\makes}{& \ensuremath{\rightarrow} &}
-\newcommand{\compile}[1]{[[#1]]}
+\newcommand{\compile}[1]{\ensuremath{\llbracket}#1\ensuremath{\rrbracket}}
 \newcommand{\mypageref}[1]{Page~\pageref{#1}}
 
 %Describe an attack nicely.

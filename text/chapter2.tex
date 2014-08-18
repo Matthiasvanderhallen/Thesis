@@ -1,10 +1,18 @@
 \chapter{Formal Specification}
 \label{chap:formalspecification}
-In this chapter the source language, \MiniML, and the target language, LLVM IR, will be formally specified. 
+First, this chapter formally specifies the \MiniML\ source language (\myref{sec}{sec:MiniMLFormalSpecification}).
+This formal specification is broken down in three parts:
+a description of the \MiniML\ syntax (\myref{sec}{sec:ch2syntax}),
+the typing rules to which a correct program must conform (\myref{sec}{sec:MLTypeSystem}),
+and the operational semantics that specify how a program executes (\myref{sec}{sec:MLOperationalSemantics}).
 
-First the syntax of \MiniML\ within which a program can be defined will be introduced.
-Next, the typing rules that a correct program must adhere to is shown.
-Lastly, the operational semantics determine what a correct program must do once it runs.
+In the same way, \myref{sec}{sec:llvmformalization} formalizes the syntax of the LLVM Intermediate Representation.
+This chapter then concludes by formalizing a secure compilation scheme for the \MiniML\ source language (\myref{sec}{sec:formalizedcompiler}).
+%In this chapter the source language, \MiniML, and the target language, LLVM IR, will be formally specified. 
+
+%First the syntax of \MiniML\ within which a program can be defined will be introduced.
+%Next, the typing rules that a correct program must adhere to is shown.
+%Lastly, the operational semantics determine what a correct program must do once it runs.
 
 \section{MiniML}
 \label{sec:MiniMLFormalSpecification}
@@ -33,7 +41,14 @@ The \emph{Module} language does this by introducing the concept of a \emph{struc
 A structure is defined using a \lsttext{struct} expression, and bound to an identifier \cmath{StrId} using the \lsttext{structure} expression.
 It consists of a body of definitions which is denoted in the syntax as $\overline{\mathit{\delta}}$, using the bar notation for lists\footnote{
 The bar notation uses $\emptyset$ as the empty set and the comma (,) as the prepend operator.
-For example: $\overline{\mathit{\delta}}$ could be the empty set $\emptyset$ or it could be $id = e:\tau, \overline{\delta}$.}.
+For example: \begin{align*}
+\begin{aligned}
+\overline{\delta} ::=\; &\emptyset \\ 
+&|\;e:\tau,\overline{\delta}
+\end{aligned}
+\end{align*}
+%$\overline{\mathit{\delta}}$ could be the empty set $\emptyset$ or it could be $id = e:\tau, \overline{\delta}$.}.
+}.
 In its body, a structure \cmath{StrId} can bind values \cmath{id} to a value expression \cmath{e}, or can define a new type \cmath{t}.
 
 Just as types in the \emph{Core} language limit the number of valid or \emph{sound} value expressions, signatures restrict the number of well-typed module expressions.
@@ -48,7 +63,7 @@ If a type \cmath{t} is declared abstract in \cmath{SigId}, its implementation is
 \end{description}
 
 In order to obtain a \emph{more simple} language to study, \MiniML\ signatures restrict their declarations to a subset \cmath{T} of the \emph{Core} types \cmath{\tau}. 
-The subset \cmath{T} contains only \emph{opaque} types defined by structures, the int and function types.
+The subset \cmath{T} contains only \emph{opaque} types defined by structures, the \lsttext{int} and function types.
 As a result, any value that is accessible from outside the structure itself can only get parameters and return values of type \lsttext{int}, of an opaque type or of a function combination of those types.
 
 This results in arrays \cmath{[\tau]} and pairs \cmath{\tau_{1} \times \tau_{2}} not being primitive types for module expressions.
@@ -63,7 +78,7 @@ Only within a structure can a value be treated as an array or pair, if the value
 \subsubsection{Program}
 A \MiniML\ program consists of a set of \emph{Module expressions}.
 %, denoted as \cmath{\overline{\mathit{me}}}. 
-It is then concluded by a single naked value expression \cmath{e}, functioning as the main entry point of the program.
+It is then concluded by a single naked value expression \cmath{e}, functioning as the main of the program.
 This description of a program allows us to first specify a set of signatures as well as a set of structures conforming to those signatures.
 The syntax of a Program is shown in \myref{fig}{fig:ProgramSyntax}
 
@@ -109,8 +124,8 @@ Instead, parts of the program processed earlier by the type checker can have an 
 This dependence of an expression \cmath{e} on earlier expressions is formalized using the idea of a \emph{context} $\Gamma$~\cite{Pierce}. 
 
 This context keeps track of the type assumptions and type definitions as well as structure and signature definitions made earlier.
-It stores the facts that the type system has already established to be true.
-The structure of a context $Gamma$ is shown in \myref{fig}{fig:MiniMLContexts}.
+%It stores the facts that the type system has already established to be true.
+The structure of a context $\Gamma$ is shown in \myref{fig}{fig:MiniMLContexts}.
 
 To access the mappings from \cmath{StrId} or \cmath{SigId} to its signature, its definitions or its declarations, the context allows for projections. For example $\Gamma[\mathit{StrId}].\overline{d}$ will look up the mapping $(\mathit{StrId} \mapsto \lbrace \Sigma,\overline{d}\rbrace)$ in $\Gamma$ and project this to the $\overline{d}$ specified in the mapping. A lookup will \emph{fail} if the identifier has no mapping in the context.
 
@@ -221,7 +236,7 @@ Instinctively, the relations corresponds to the idea that a type variable $\alph
 
 \begin{description}
 \item[Type-scheme specialization:]
-The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_{2}$ is more specialized than $\sigma_{1}$. This means that the following rule\footnote{A rule uses the notation \cmath{\frac{premise}{conclusion}} where \cmath{premise} is the set of conditions for that must be hold before the conclusion holds.} determines the specialization relation.
+The specialization relation $\sigma_{1} \geq \sigma_{2}$ expresses that $\sigma_{2}$ is more specialized than $\sigma_{1}$. This means that the following rule\footnote{A rule uses the notation \cmath{\frac{premise}{conclusion}} where \cmath{premise} is the set of conditions for that must hold for the conclusion to hold.} determines the specialization relation.
 % $\sigma_{2}$ can be expressed as $\forall \beta_{i}...\beta_{m}.\sigma_{2}'$ and $\sigma_{1}$ as $\forall \alpha_{1}...\forall \alpha_{n}.\sigma_{1}'$, $\sigma_{2}$ is more specialised than $\sigma_{1}$ iff $\sigma_{2}'=[\alpha_{i} \mapsto \sigma_{i}]\sigma_{1}'$ and $\beta_{i} \in free(\sigma_{1})$. In other words, 
 %
 
@@ -248,13 +263,13 @@ Type-scheme generalization is the opposite process of type-scheme specialization
 
 \subsubsection{Signature Matching}
 \label{sec:StructuralTyping}
-Just like set of valid value expressions \cmath{e} is restricted by the type system using types, the set of valid structure expressions is restricted using \emph{signature ascription}. As mentioned earlier, these ascriptions happen either \emph{transparant} or \emph{opaque}.
+Just like set of valid value expressions \cmath{e} is restricted by the type system using types, the set of valid structure expressions is restricted using \emph{signature ascription}. As mentioned earlier, these ascriptions can be either \emph{transparant} or \emph{opaque}.
 This subsection explains how a structure expression is restricted by a signature using the \emph{signature matching} relation.
 
 Every structure expression has a corresponding \emph{principal signature}~\cite{Pierce:Adv}, symbolized by \cmath{PS(\overline{d})}, where \cmath{\overline{d}} is the body of the \lsttext{struct} expression.
 The principal signature of a structure expression consists of all type specifications and all values with their corresponding types.
 
-When a structure is ascribed a signature, its principal signature must \emph{match} with the ascribed signature.
+When a structure is ascribed with a signature, its principal signature must \emph{match} with the ascribed signature.
 In this matching, the principal signature is called the \emph{candidate}, while the ascribed signature is called the \emph{target}.
 The signature matching relation is formalized using $\mathit{\Sigma_{target}}\succeq\mathit{\Sigma_{candidate}}$.
 
@@ -271,19 +286,19 @@ of the corresponding type in the \emph{target}.
 \todo{changed: https://www.cs.cmu.edu/~rwh/introsml/modules/sigstruct.htm uses general. Pierce adv. page 300 uses subtype. What is meant of course is Liskov substitution principle: Arguments can generalize, return types can specify. "At least as accepting"/"At least as broad"}
 \end{enumerate}
 
-These signature matching constraints allow the expression of a structure to have a principal signature that is more broad than its ascribed signature.
-It can define more types or values, and provide existing values with more general types.
+With these signature matching constraints, a structure can have a principal signature that is broader than its ascribed signature.
+The structure can define more types or values, and provide existing values with subtypes.
 These types and values can be used locally within the structure, but not in non-local code.
 
 The effective signature of a structure \cmath{StrId} with body \cmath{\overline{d}} is denoted with \cmath{ES(\overline{d})}, which corresponds to
 \begin{itemize}
 \item all type definitions present in \cmath{\overline{d}}, and the value declarations present in \cmath{SigId} $\Leftrightarrow$ \cmath{StrId} was transparantly ascribed with signature \cmath{SigId}.
-\item The signature bound to \cmath{SigId} $\Leftrightarrow$ \cmath{StrId} was opaquely ascribed with signature \cmath{SigId}.
+\item The signature bound to \cmath{SigId} if and only if \cmath{StrId} was opaquely ascribed with signature \cmath{SigId}.
 \end{itemize}
 
 Type definitions and value declarations in a signature can contain type variables.
 However, all type variables are assumed be quantified universally.
-This means for example that a type definition written as $type\ \overline{\alpha}\ t = \tau$ contained in $\overline{d}$ results in a type definition $t\ \overline{\alpha} = \forall \alpha_{1}...\forall \alpha_{n}.\tau$ as an element of \cmath{ES(\overline{d})}.
+This means, for example, that a type definition written as $type\ \overline{\alpha}\ t = \tau$ contained in $\overline{d}$ results in a type definition $t\ \overline{\alpha} = \forall \alpha_{1}...\forall \alpha_{n}.\tau$ as an element of \cmath{ES(\overline{d})}.
 \\[1em]
 Note that signatures are in fact a set of type bindings and type definitions.
 Since a context can contain type bindings and type definitions as well, it is possible to take the union of a signature and a context $\Gamma$.
@@ -341,6 +356,7 @@ When a field inside a structure is referenced, the reference can be evaluated to
 
 \clearpage
 \section{LLVM Intermediate Representation}
+\label{sec:llvmformalization}
 The LLVM Intermediate Representation is a language very reminiscent of assembly.
 In contrast to assembly, it is strongly typed, and operates with a slightly higher level of abstraction.
 
@@ -350,7 +366,7 @@ It provides a language syntax as well as static and dynamic semantics.
 
 \newcommand{\kw}[1]{\text{\lsttext{#1}}}
 \subsection{Syntax}
-In \myref{fig}{fig:LLVMSyntax}, their reduced syntax of LLVM IR is given, with some small changes.\begin{figure}[!htb]
+In \myref{fig}{fig:LLVMSyntax}, the reduced syntax of LLVM IR is given, with some small changes.\begin{figure}[!htb]
 \begin{align*}
 \begin{aligned}
 \text{Modules }\mathit{mod} ::= &\overline{\mathit{prod}} \\
@@ -408,7 +424,7 @@ Later, all modules are put together in a stage called \emph{linking}.
 A module consists, among others, of definitions and declarations:
 \begin{description}
 \item[Definitions] are named values, whose name is unique within a module, defined within the module itself.
-They can be defined with linkage type `private', which means that the linkage phase will not allow other modules to address these values.
+They can be defined with linkage type \lsttext{private}, which means that the linkage phase will not allow other modules to address these values.
 \item[Declarations] represent dependencies on values defined externally.
 They can then be used within the module.
 Later, the linking phase will couple this declaration to an implementation provided by a different module.
@@ -419,7 +435,6 @@ Later, the linking phase will couple this declaration to an implementation provi
 This section formalizes the secure compilation process.
 The compilation process is a translation of a program \cmath{P} expressed in \MiniML\ to a program written in the \LLVMIR.
 It is symbolized as the translation function $\compile{\bullet}$.
-
 
 The compiler formalized here aims to be 
 %part of
@@ -434,22 +449,24 @@ This set of module expressions \cmath{me} is compiled separately from any other,
 This means that if this \cmath{\compiled{P}} is later compiled further to an object file and linked together with a context \cmath{C}, there exists no context \cmath{C} that can tell from \cmath{\compiled{P}} from the compilation \cmath{\compiled{P'}}, where \cmath{\compiled{P'}} is the compilation result of a source-level contextually equivalent \MiniML\ program \cmath{P'}.
 
 The result of the translation $\compile{\bullet}$ is expected to run as an \emph{SPM} on a low-level machine model as used in \cite{Agten:2012:SCM:2354412.2355247,Patrignani}.
-This model provides program counter based access control, or \emph{PCBAC}\footnote{https://distrinet.cs.kuleuven.be/software/pcbac/\#platforms}.
-The semantics of this program counter based access control are given in \myref{fig}{fig:PCBAC}.
+This model is a Protected Module Architecture or \emph{PMA}, with access control semantics as explained in \myref{sec}{sec:protectedmodulearchitecture}.
 
-\begin{figure}[htb]
-    \centering
-	\begin{tabular}{|c|c|c|c|c|}
-		\hline
-		From \textbackslash To & \multicolumn{3}{c|}{Protected} & Unprotected \\
-		& Entry Point & Code & Data & \\ \hline
-		Protected & r x & r x & r w & r w x \\ \hline
-		Unprotected & x & & & r w x \\ \hline
-	\end{tabular}
-    \caption[PCBAC Semantics]{Program counter based access control semantics as specified in Agten et al.\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:PCBAC}}
-\end{figure}
+%This model provides program counter based access control, or \emph{PCBAC}\footnote{https://distrinet.cs.kuleuven.be/software/pcbac/\#platforms}.
+%The semantics of this program counter based access control are given in \myref{fig}{fig:PCBAC}.
 
-The result of the translation will be loaded within the protected code, and its data section will correspond to the protected data section of the pcbac model.
+%\begin{figure}[htb]
+%    \centering
+%	\begin{tabular}{|c|c|c|c|c|}
+%		\hline
+%		From \textbackslash To & \multicolumn{3}{c|}{Protected} & Unprotected \\
+%		& Entry Point & Code & Data & \\ \hline
+%		Protected & r x & r x & r w & r w x \\ \hline
+%		Unprotected & x & & & r w x \\ \hline
+%	\end{tabular}
+%    \caption[PCBAC Semantics]{Program counter based access control semantics as specified in Agten et al.\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:PCBAC}}
+%\end{figure}
+%
+The result of the translation will be loaded within the protected code, and its data section will correspond to the protected data section of the \emph{PMA}.
 The formalization of the translation function \cmath{\compile{\bullet}} will provide clear annotations for additional actions that can not be specified within the \LLVMIR\ language.
 These are actions such as the specification of entry points in the \emph{SPM} layout or the clearing of low-level registers and flags.
 
@@ -492,10 +509,10 @@ The resulting security issues could by resolved by introducing a returnback entr
 \end{itemize}
 
 \section{Conclusion}
-This chapter formally specified a simple version of the \MiniML\ source-language and the \LLVMIR\ target-language.
+This chapter formally specified a simple version of the \MiniML\ source language and the \LLVMIR\ target-language.
 It then gave a formal representation of the secure compiler from \MiniML\ to \LLVMIR.
 
-The \MiniML\ language as sketched here does not yet contain the more advanced concepts found in MLs well-known module language.
+The \MiniML\ language as sketched here does not yet contain the more advanced concepts found in ML's well-known module language.
 The next chapter aims to rectify this by introducing both \emph{higher-order functions} and \emph{functors} to the \MiniML\ language.
 
 % some of the more advanced concepts within ML to \MiniML.

@@ -1,12 +1,14 @@
 \begin{tabularx}{\textwidth}{@{}l c X@{}}
-\compile{$\overline{me}$} \makes \compile{sort($\overline{me}$)}\\
+%\compile{$\overline{me}$} \makes \compile{sort($\overline{me}$)}\\
+
+\cmath{\compile{\overline{me}} = \compile{me_1,me_2,\ldots, me_n}} \makes \text{sort(}\cmath{\compile{me_1}, \compile{me_2},\ldots,\compile{me_n}}\text{)}\\
 
 \intertextt{
 Then, all module expressions can be translated individually.
 The signature \cmath{SigId} used in the ascription of \cmath{StrId} is saved:
 }
-
-\compile{\cmath{me, \overline{me}}} \makes \compile{sort($\overline{me}$)} \\
+\cmath{\compile{me}} \makes \cmath{\compile{StrId:SigId = \overline{d}}}\\
+%\compile{\cmath{me, \overline{me}}} \makes \compile{sort($\overline{me}$)} \\
 \compile{\cmath{StrId:SigId = \overline{d}}} \makes \compile{$\overline{d}$}\cmath{^{SigId}}\\
 
 \intertextt{
@@ -15,16 +17,20 @@ This is done for the same reason as the sorting of module expressions: two \Mini
 To prevent leakage of this ordering in the target-level, outputting the fields in the target language happens in a fixed ordering.
 }
 
-\compile{$\overline{d}$}\cmath{^{SigId}} \makes \compile{sort($\overline{d}$)}\cmath{^{SigId}} \\
+\cmath{\compile{\overline{d}}^{SigId} = \compile{d_1,\ldots,d_n}^{SigId}} \makes \text{sort(}\cmath{\compile{d_1}^{SigId},\ldots,\compile{d_n}^{SigId}}\text{)}\\
+%\cmath{\compile{\overline{d}}^{SigId}} = \compile{me_1,me_2,\ldots, me_n}^{SigId}} \makes \text{sort(} \cmath{\compile{me_1}, \compile{me_2},\ldots,\compile{me_n}}\text{)}\\
+
+%\compile{$\overline{d}$}\cmath{^{SigId}} \makes \compile{sort($\overline{d}$)}\cmath{^{SigId}} %\\
+%
+%\intertextt{
+%The compiler can now continue by translating the elements specified within the module expression.
+%Every definition is translated separately.
+%}
+%\compile{$\overline{d}$}$^{\mathit{SigId}}$ \makes \compile{$d$}$^{\mathit{SigId}}$;\compile{$%\overline{d}$}$^{\mathit{SigId}}$\\
 
 \intertextt{
-The compiler can now continue by translating the elements specified within the module expression.
-Every definition is translated separately.
-}
-\compile{$\overline{d}$}$^{\mathit{SigId}}$ \makes \compile{$d$}$^{\mathit{SigId}}$;\compile{$\overline{d}$}$^{\mathit{SigId}}$\\
-
-\intertextt{
-The translation of a definition depends on a number of things.
+Now, every definition is translated separately.
+The translation of a definition depends on a number of things:
 \begin{itemize}
 \item Whether the definition is that of a type or that of a field.
 %The definition of a type is not translated to llvm.

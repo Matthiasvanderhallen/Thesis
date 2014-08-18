@@ -45,6 +45,8 @@ case class Translation(program:Program, var types:String, var entryPoints:String
     if(search.value.contains(".")){
       val defStructIdent = new Ident(search.value.split("""\.""")(0))
       val valueIdent = new Ident(search.value.split("""\.""")(1))
+      if(defStructIdent == structure.ident)
+        return structure.value.find{case FunDefinition(`search`,_,_,_) => true ;case _ => false}.get.asInstanceOf[FunDefinition].ascription
 
       val defStruct = program.structures.find{case Structure(`defStructIdent`,_,_) => true ; case _ => false}.get
       val sigId = defStruct.signature
@@ -54,11 +56,28 @@ case class Translation(program:Program, var types:String, var entryPoints:String
       return structure.value.find{case FunDefinition(`search`,_,_,_) => true ;case _ => false}.get.asInstanceOf[FunDefinition].ascription
     }
   }
+
+  def getValType(struct:Structure, search:Ident) : Type = {
+    if(search.value.contains(".")){
+      val defStructIdent = new Ident(search.value.split("""\.""")(0))
+      val valueIdent = new Ident(search.value.split("""\.""")(1))
+      if(defStructIdent == struct.ident)
+        return struct.value.find{case ValDefinition(`search`,_,_) => true ; case _ => false}.get.asInstanceOf[ValDefinition].ascription
+
+      val defStruct = program.structures.find{case Structure(`defStructIdent`,_,_) => true; case _ => false}.get
+      val sigId = defStruct.signature
+      val defSignature = program.signatures.find{case Signature(`sigId`,_) => true; case _ => false}.get
+      return defSignature.value.find{case ValDeclaration(`valueIdent`,_) => true; case _ => false}.get.asInstanceOf[ValDeclaration].ascription
+    }else{
+      return struct.value.find{case ValDefinition(`search`,_,_) => true ; case _ => false}.get.asInstanceOf[ValDefinition].ascription
+    }
+  }
 }
 
 sealed trait Type{
   def intRepresentation:Int
   def getVarTypes(trans:Translation):List[Int]
+  def internalize(structure:Structure):String
 }
 
 case object Integer extends Type {
@@ -67,12 +86,18 @@ case object Integer extends Type {
   override def getVarTypes(trans:Translation):List[Int] = {
     return List()
   }
+  override def internalize(structure:Structure):String = {
+    return toString()
+  }
 }
 
 case class FuncType(left:List[Type], right:Type) extends Type{
   def intRepresentation = 5;
   override def getVarTypes(trans:Translation):List[Int] = {
     throw new UnsupportedOperationException();
+  }
+  def internalize(structure:Structure):String = {
+    throw new UnsupportedOperationException("Can't internalize a functype");
   }
 }
 
@@ -82,6 +107,10 @@ case class VarType(ident:Ident) extends Type {
 
   override def getVarTypes(trans:Translation):List[Int] = {
     return List(ident.value.charAt(0).toInt-97)
+  }
+
+  def internalize(structure:Structure):String = {
+    throw new UnsupportedOperationException("Can't internalize a VarType");
   }
 }
 
@@ -103,7 +132,7 @@ case class StructType(typeId:Ident, nrTyvars:Int, tyvars:List[Type]) extends Typ
     return trans.getImplType(trans.getOpaqueType(typeId.value)).getVarTypes(trans)
   }
 
-  //override def toString() = typeId.value
+  override def toString() = typeId.value
 
 }
 
@@ -113,6 +142,9 @@ case class PairType(left:Type, right:Type) extends Type {
   override def getVarTypes(trans:Translation):List[Int] = {
     return left.getVarTypes(trans)++right.getVarTypes(trans)
   }
+  def internalize(structure:Structure):String = {
+    return toString(); //Mogelijkerwijs + *
+  }
 }
 
 case class ListType(inner:Type) extends Type {
@@ -121,6 +153,10 @@ case class ListType(inner:Type) extends Type {
 
   override def getVarTypes(trans:Translation):List[Int] = {
     return inner.getVarTypes(trans)
+  }
+
+  def internalize(structure:Structure):String = {
+    return toString(); //Mogelijkerwijs + *
   }
 }
 
@@ -148,8 +184,8 @@ case class CallExpr(name:Ident, args: List[Expr]) extends Expr
 case class BinOpExpr(op:BinOp, left:Expr, right:Expr) extends Expr
 case class LetExpr(ident:Ident, bind:Expr, in:Expr) extends Expr
 case class PairExpr(left:Expr, right:Expr) extends Expr
-case class LeftExpr(pair:Expr) extends Expr
-case class RightExpr(pair:Expr) extends Expr
+case class LeftExpr(pair:Expr, annot:Type) extends Expr
+case class RightExpr(pair:Expr, annot:Type) extends Expr
 sealed trait ListExpr extends Expr
 case object Empty extends Expr
 case class consExpr(tail:Expr) extends Expr
@@ -192,15 +228,15 @@ object Main extends App{
   val caesar = new  Structure(new Ident("Caesar"), new Ident("SYMMETRICCIPHER"),
                       List(
                         new TypeDefinition(new Ident("cred"), 0, Integer),
-                        new TypeDefinition(new Ident("pair"), 1, PairType(new VarType(new Ident("a")), new VarType(new Ident("a")))),
-                        new ValDefinition(new Ident("newcredentials"), new StructType(new Ident("cred"), 0, List()), ConstExpr(3)),
-                        new FunDefinition(new Ident("encrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"), 0, List())), Integer), ConstExpr(3)),
-                        new FunDefinition(new Ident("decrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"), 0, List())), Integer), ConstExpr(3)),
-                        new FunDefinition(new Ident("createPair"), List(new Ident("left"), new Ident("right")), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), ConstExpr(3)),
-                        new FunDefinition(new Ident("getLeft"), List(new Ident("pair")), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))), CallExpr(new Ident("createPair"),List(ConstExpr(3)))), // ConstExpr(3)),
-                        new FunDefinition(new Ident("merge"), List(new Ident("left"), new Ident("right")), new FuncType(List(paira, paira), paira), ConstExpr(3)),
+                        //new TypeDefinition(new Ident("pair"), 1, PairType(new VarType(new Ident("a")), new VarType(new Ident("a")))),
+                        new ValDefinition(new Ident("newcredentials"), new StructType(new Ident("cred"), 0, List()), new ValExpr(new Ident("rand"))),
+                        new FunDefinition(new Ident("encrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"), 0, List())), Integer), new BinOpExpr(Rem, new BinOpExpr(Add, new ValExpr(new Ident("a")), new ValExpr(new Ident("cred"))), ConstExpr(26))),
+                        new FunDefinition(new Ident("decrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"), 0, List())), Integer), new BinOpExpr(Rem, new BinOpExpr(Sub, new ValExpr(new Ident("a")), new ValExpr(new Ident("cred"))), ConstExpr(26))),
+                        //new FunDefinition(new Ident("createPair"), List(new Ident("left"), new Ident("right")), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), PairExpr(ValExpr(new Ident("left")),ValExpr(new Ident("right")))),
+                        //new FunDefinition(new Ident("getLeft"), List(new Ident("pair")), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))), CallExpr(new Ident("createPair"),List(ConstExpr(3)))), // ConstExpr(3)),
+                        //new FunDefinition(new Ident("merge"), List(new Ident("left"), new Ident("right")), new FuncType(List(paira, paira), paira), ConstExpr(3)),
                         new ValDefinition(new Ident("seed"), Integer, ConstExpr(3)),
-                        new ValDefinition(new Ident("rand"), Integer, ConstExpr(3))
+                        new ValDefinition(new Ident("rand"), Integer, ValExpr(new Ident("seed")))
                       )
                     )
 
@@ -266,7 +302,9 @@ object Main extends App{
   def translateType(trans:Translation, typedef:TypeDefinition, structure:Structure, signature:Signature):Translation = {
     var translation = trans;
 
-    val declaration = signature.value.find{case OpaqueTypeDeclaration(typedef.ident,_)=>true; case _ => false}
+    val typdefident = typedef.ident
+
+    val declaration = signature.value.find{case OpaqueTypeDeclaration(`typdefident`,_)=>true; case _ => false}
 
     if(declaration.isEmpty){
       //Transparant type
@@ -325,7 +363,7 @@ object Main extends App{
 
     //Internal function output
     var value = s"define private $retTypeId @$ident"+s"_internal($argForInternal){\n"
-    value += translateBody(trans, fundef, structure, signature, argTypeId.zip(argNames), retTypeId)
+    value += translateBody(trans, fundef, structure, signature, fundef.ascription.left.zip(argNames), retTypeId)
     value +="}\n\n"
 
     //External function output
@@ -339,13 +377,13 @@ object Main extends App{
       val argProcessingCode = argInformation.map{
         case (name,nr,(false,typeId,1)) => s"\tProcess$nr:\n" +
                                            s"\t\t%$name = add %int %$name.in, 0 ; Renaming trick \n" +
-                                           s"\t\tbr label Process${nr+1}\n\n"
+                                           s"\t\tbr label %Process${nr+1}\n\n"
         case (name,nr,(false,typeId,typeInt)) => s"\tProcess$nr:\n" +
-                                                 s"\t\t%$name.addr = call %int @unmask(%int $name.in)\n" +
-                                                 s"\t\t%$name.type = call %int @unmasktype(%int $name.mask)\n" +
+                                                 s"\t\t%$name.addr = call %int @unmask(%int %$name.in)\n" +
+                                                 s"\t\t%$name.type = call %int @unmasktype(%int %$name.in)\n" +
                                                  s"\t\t%$name = inttoptr %int %$name.addr to $typeId\n" +
-                                                 s"\t\t%$name.check = icmp ne %int %$name.type $typeInt\n" +
-                                                 s"\t\tbr i1 %$name.check, label %Error, label Process${nr+1}\n\n"
+                                                 s"\t\t%$name.check = icmp ne %int %$name.type, $typeInt\n" +
+                                                 s"\t\tbr i1 %$name.check, label %Error, label %Process${nr+1}\n\n"
         case (name,nr,(true,typeId, typeInt)) => s"\tProcess$nr:\n" +
                                                  s"\t\t%$name.tyvar.addr = call i8* @malloc(%int 16)\n" +
                                                  s"\t\t%$name = bitcast i8* %$name.tyvar.addr to %tyvar*\n" +
@@ -353,7 +391,7 @@ object Main extends App{
                                                  s"\t\t                                           i2 1, label %Int$nr]\n\n" +
                                                  s"\tUnmask$nr:\n" +
                                                  s"\t\t%$name.addr = call %int @unmask(%int %$name.in)\n" +
-                                                 s"\t\t%$name.type = call %int @unmasktype(%int %$name.mask)\n" +
+                                                 s"\t\t%$name.type = call %int @unmasktype(%int %$name.in)\n" +
                                                  s"\t\t%$name.unmask.1 = insertvalue %tyvar undef, %int %$name.addr, 0\n" +
                                                  s"\t\t%$name.unmask.2 = insertvalue %tyvar %$name.unmask.1, %int %$name.type, 1\n" +
                                                  s"\t\tbr label %Create$nr\n\n" +
@@ -547,7 +585,9 @@ object Main extends App{
   def translateValue(trans:Translation, valdef:ValDefinition, structure:Structure, signature:Signature):Translation = {
     var translation = trans
 
-    val declaration = signature.value.find{case ValDeclaration(valdef.ident,_)=>true; case _ => false}
+    val valdefident = valdef.ident
+
+    val declaration = signature.value.find{case ValDeclaration(`valdefident`,_)=>true; case _ => false}
 
     val ident = structure.ident.value + "." + valdef.ident.value;
     val returnInt = valdef.ascription == Integer;
@@ -610,13 +650,32 @@ object Main extends App{
 //    return (identMap, instantiationsMap)
 //  }
 
-  def translateBody(trans:Translation, definition:Definition, structure:Structure, signature:Signature, argTypes:List[(String, String)], retType:String):String = {
+  def translateBody(trans:Translation, definition:Definition, structure:Structure, signature:Signature, argTypes:List[(Type, String)], retType:String):String = {
     var body = ""
+    var types = Map[String, Type]()
+    var lets = Map[Ident,String]()
+    var temp = 0
+
     for(arg <- argTypes)
-      if(arg._1 == "%int")
-        body += s"\t${arg._2}.val = add %int 0, ${arg._2} ; Integer reassign hack\n"
-      else
-        body += s"\t${arg._2}.val = load ${arg._1} ${arg._2}\n"
+      arg match{
+        case (argType, argName) => {
+
+          val argTypeStr = argType match {
+            case s@StructType(ident,_,_) => s.getPtrStr(structure)
+            case Integer => Integer.toString()
+            case FuncType(_,_) => {throw new Error("Functions not allowed as argument type.")}
+            case x@_ => x.toString()+"*"
+          }
+
+          if(argType == Integer){
+            body += s"\t${argName}.val = add %int 0, ${argName} ; Integer reassign hack\n"
+          }else{
+            body += s"\t${argName}.val = load ${argTypeStr} ${argName}\n"
+          }
+          types = types + (s"${argName}" -> argType)
+        }
+      }
+
 
     val exp = definition match{
       case FunDefinition(_,args,_,expression) => expression
@@ -624,44 +683,58 @@ object Main extends App{
       case _ => {throw new UnsupportedOperationException()}
     }
 
-    var temp = 0
+    def localize(origin: String, typ:Type):String = typ match{
+      case StructType(id,_,_) => {
+        if(id.value.contains(".")){
+          s"%$id*"
+        }else{
+          s"%${origin}.${id.value}*"
+        }
+      }
+      case Integer => Integer.toString()
+      case x@_ => s"${x.toString()}*"
+    }
 
     def translateExp(exp:Expr):String = {
       exp match{
         case ConstExpr(value) => {
-          body += s"\t%t$temp = add %int 0, value\n"
+          body += s"\t%t$temp = add %int 0, ${value}\n"
+          types = types + (s"%t$temp" -> Integer)
           temp = temp + 1
           s"%t${temp-1}"
         }
         case CallExpr(name, args) => {
          val funcName = name.internalize(structure);
-         val local = funcName.split("""\.""")(0)
+         val origin = funcName.split("""\.""")(0)
 
          val funcType = trans.getFuncType(structure, name);
 
-         def localize(typ:Type):String = typ match{
-           case StructType(id,_,_) => {
-             if(id.value.contains(".")){
-               s"%$id*"
-             }else{
-               s"%${local}.${id.value}*"
-             }
-           }
-           case Integer => Integer.toString()
-           case x@_ => s"${x.toString()}*"
-         }
-
-         val argTypesCall = funcType.left.map(x => localize(x))
+         val argTypesCall = funcType.left.map(x => localize(origin, x))
          val argIds = args.map(argExp => translateExp(argExp)) //Geeft hun bindings terug, bijv: //List("%t1", "%t2")
          val argCallString = argTypesCall.zip(argIds).map{case (a,b) => s"$a $b"}.mkString(", ")
 
-         body += s"\t%t$temp = call ${localize(funcType.right)} @$funcName(${argCallString})\n"
+         body += s"\t%t$temp = call ${localize(origin, funcType.right)} @${funcName}_internal(${argCallString})\n"
+
+         types = types + (s"%t$temp" -> funcType.right)
          temp = temp+1
          return s"%t${temp-1}"
         }
         case BinOpExpr(op, left, right) => {
-          val leftbind = translateExp(left)
-          val rightbind = translateExp(right)
+          var leftbind = translateExp(left)
+          var rightbind = translateExp(right)
+
+          if(types.get(leftbind).get != Integer){
+            //body += s"\t%t${temp}.left.int = bitcast %${types.get(leftbind).get.internalize(structure).replace("*", "")} $leftbind.val to %int ; Cast to int \n"
+            body += s"\t%t${temp}.left.int = extractvalue %${types.get(leftbind).get.internalize(structure).replace("*", "")} $leftbind.val, 0 ; Access \n"
+            leftbind = s"%t${temp}.left.int"
+          }
+
+          if(types.get(rightbind).get != Integer){
+            //body += s"\t%t${temp}.right.int = bitcast ${types.get(rightbind).get.internalize(structure).replace("*", "")} $rightbind.val to %int ; Cast to int \n"
+            body += s"\t%t${temp}.right.int = extractvalue %${types.get(rightbind).get.internalize(structure).replace("*", "")} $rightbind.val, 0 ; Access\n"
+            rightbind = s"%t${temp}.right.int"
+          }
+
           op match{
             case Add => body += s"\t%t$temp = add %int $leftbind, $rightbind\n"
             case Sub => body += s"\t%t$temp = sub %int $leftbind, $rightbind\n"
@@ -669,17 +742,165 @@ object Main extends App{
             case Rem => body += s"\t%t$temp = srem %int $leftbind, $rightbind\n"
           }
 
+          types = types + (s"%t$temp" -> Integer)
           temp = temp+1
-
           return s"%t${temp-1}"
         }
-        case _ => {return ""}
+        case LetExpr(ident, bind, in) => {
+          val bnd = translateExp(bind);
+          lets = lets + (ident->bnd)
+          return translateExp(in)
+        }
+        case ValExpr(ident) =>{
+
+          if(lets.contains(ident)){ //Bound by a local let expression
+            return lets.get(ident).get
+          }else if(argTypes.map{case (x,y)=>y; case _ => {}}.contains(s"%${ident.value}")){ //One of the arguments
+            //val name = s"%${ident.value}"
+            return s"%${ident.value}"//return argTypes.find{case (_,`name`) => true; case _ => false}.get._2
+          }else{ //Bound by this structure or another structure
+            val valName = ident.internalize(structure)
+            val origin = valName.split("""\.""")(0)
+
+            val valType = trans.getValType(structure, ident)
+            body += s"\t%t$temp = call ${localize(origin, valType)} @${valName}_internal()\n"
+
+            //load value
+            if(valType == Integer){
+              body +=s"\t%t$temp.val = add %int 0, %t$temp\n"
+            }else{
+              body +=s"\t%t$temp.val = load ${localize(origin, valType)} %t$temp\n"
+            }
+
+            types = types + (s"%t$temp" -> valType)
+            temp = temp + 1 //hoog temp op
+
+            return s"%t${temp-1}"
+          }
+        }
+        case PairExpr(left,right) => {
+          val leftbind = translateExp(left)
+          val rightbind = translateExp(right)
+
+          body += s"\t%t${temp}.addr = call i8* @malloc(%int 16)\n"
+          body += s"\t%t${temp} = bitcast i8* %t${temp}.addr to %pair*\n"
+
+          if(types.get(leftbind).get.isInstanceOf[VarType]){
+            body += s"\t%t${temp}.0 = insertvalue %pair undef, %tyvar* ${leftbind},0  ; insert left tyvar in pair\n"
+          }else{
+            body += s"\t%t${temp}.l.addr = call i8* @malloc(%int 16)\n"
+            body += s"\t%t${temp}.l = bitcast i8* %t${temp}.l.addr to %tyvar*\n"
+            if(types.get(leftbind).get != Integer){
+              //TODO: prefix juist zetten?
+              body += s"\t%t${temp}.l.int = ptrtoint %t${types.get(leftbind).get.internalize(structure)} ${leftbind} to %int; cast ptr to int\n"
+              body += s"\t%t${temp}.l.0 = insertvalue %tyvar undef, %int %t${temp}.l.int, 0 ; create tyvar step 1\n "
+            }else{
+              body += s"\t%t${temp}.l.0 = insertvalue %tyvar undef, %int %t${leftbind}, 0 ; create tyvar step 1\n "
+            }
+            body += s"\t%t${temp}.l.1 = insertvalue %tyvar %t${temp}.l.0, %int ${types.get(leftbind).get.intRepresentation}, 1 ; create tyvar step 2\n "
+            body += s"\tstore %tyvar %t${temp}.l.1, %tyvar* %t${temp}.l ; Store the tyvar \n" //save
+            body += s"\t%t${temp}.0 = insertvalue %pair undef, %tyvar* %t${temp}.l, 0 ; insert left tyvar in pair\n" //TODO
+          }
+
+          if(types.get(rightbind).get.isInstanceOf[VarType]){
+            body += s"\t%t${temp}.1 = insertvalue %pair %t${temp}.0, %tyvar* ${rightbind},1 ; insert right tyvar in pair\n"
+          }else{
+            body += s"\t%t${temp}.r.addr = call i8* @malloc(%int 16)\n"
+            body += s"\t%t${temp}.r = bitcast i8* %t${temp}.r.addr to %tyvar*\n"
+            if(types.get(rightbind).get != Integer){
+              //TODO: prefix juist zetten?
+              body += s"\t%t${temp}.r.int = ptrtoint %t${types.get(rightbind).get.internalize(structure)} ${rightbind} to %int; cast ptr to int\n"
+              body += s"\t%t${temp}.r.0 = insertvalue %tyvar undef, %int %t${temp}.r.int, 0 ; create tyvar step 1\n "
+            }else{
+              body += s"\t%t${temp}.r.0 = insertvalue %tyvar undef, %int %t${rightbind}, 0 ; create tyvar step 1\n "
+            }
+            body += s"\t%t${temp}.r.1 = insertvalue %tyvar %t${temp}.r.0, %int ${types.get(rightbind).get.intRepresentation}, 1 ; create tyvar step 2\n "
+            body += s"\tstore %tyvar %t${temp}.r.1, %tyvar* %t${temp}.r ; Store the tyvar \n" //save
+            body += s"\t%t${temp}.0 = insertvalue %pair %t${temp}.0, %tyvar* %t${temp}.r, 1 ; insert right tyvar in pair\n" //TODO
+          }
+
+          body += s"\tstore %pair %t${temp}.1, %pair* %t${temp} ; Store pair to pointer\n"
+          body += s"\t%t${temp}.val = load %pair* %t${temp}  ; Store pair to pointer\n"
+
+          types = types + (s"%t$temp" -> PairType(types.get(leftbind).get,types.get(rightbind).get))
+          temp = temp+1
+          return s"%t${temp-1}"
+        }
+        case LeftExpr(pair, annot) => {
+          val pairbnd = translateExp(pair)
+
+          //bitcast to pair* if type not pair*
+          if(! types.get(pairbnd).get.isInstanceOf[PairType]){
+            if(types.get(pairbnd).get.isInstanceOf[TypeVar]){
+              body +=s"\t%t${temp}.pair.addr = extractvalue %tyvar* $pairbnd, 0 ; extract address from tyvar\n"
+              body +=s"\t%t${temp}.pair = bitcast %int %t${temp}.pair.addr to %pair* ; cast address to pair*\n"
+            }else{
+              body +=s"\t%t${temp}.pair = bitcast ${types.get(pairbnd).get.internalize(structure)} $pairbnd to %pair*\n"
+            }
+            body += s"\t%t${temp}.pair.val = load %pair* %t${temp}.pair\n"
+          }else{
+            body += s"\t%t${temp}.pair.val = load %pair* %t${pairbnd}\n"
+          }
+
+          body += s"\t%t${temp}.tyvar.addr = extractvalue %pair %t${temp}.pair.val, 0\n"
+          body += s"\t%t${temp}.tyvar.ptr = bitcast %int %t${temp}.tyvar.addr to %tyvar*\n"
+          body += s"\t%t${temp}.tyvar.val = load %tyvar* %t${temp}.tyvar.ptr\n"
+          body += s"\t%t${temp} = extractvalue %pair %t${temp}.tyvar.val, 0\n"
+
+          types = types + (s"%t$temp" -> annot)
+          temp = temp+1;
+          return s"%t${temp-1}"
+        }
+        case RightExpr(pair,annot) => {
+          val pairbnd = translateExp(pair)
+
+          //bitcast to pair* if type not pair*
+          if(! types.get(pairbnd).get.isInstanceOf[PairType]){
+            if(types.get(pairbnd).get.isInstanceOf[TypeVar]){
+              body +=s"\t%t${temp}.pair.addr = extractvalue %tyvar* $pairbnd, 0 ; extract address from tyvar\n"
+              body +=s"\t%t${temp}.pair = bitcast %int %t${temp}.pair.addr to %pair* ; cast address to pair*\n"
+            }else{
+              body +=s"\t%t${temp}.pair = bitcast ${types.get(pairbnd).get.internalize(structure)} $pairbnd to %pair*\n"
+            }
+            body += s"\t%t${temp}.pair.val = load %pair* %t${temp}.pair\n"
+          }else{
+            body += s"\t%t${temp}.pair.val = load %pair* %t${pairbnd}\n"
+          }
+
+          body += s"\t%t${temp}.tyvar.addr = extractvalue %pair %t${temp}.pair.val, 1\n"
+          body += s"\t%t${temp}.tyvar.ptr = bitcast %int %t${temp}.tyvar.addr to %tyvar*\n"
+          body += s"\t%t${temp}.tyvar.val = load %tyvar* %t${temp}.tyvar.ptr\n"
+          body += s"\t%t${temp} = extractvalue %pair %t${temp}.tyvar.val, 0\n"
+
+          types = types + (s"%t$temp" -> annot)
+          temp = temp+1;
+          return s"%t${temp-1}"
+        }
+        case expr@_ => {throw new UnsupportedOperationException(s"Expression $expr could not be handled")}
       }
     }
 
 
-    val retval = translateExp(exp)
-    body += s"\t return $retType $retval\n"
+    var retval = translateExp(exp)
+    //TODO: Possibly bitcast.
+    if(types.get(retval).get.toString != retType){
+      if(types.get(retval).get == Integer){
+        body += s"\t%t$temp.addr = call i8* @malloc(%int 8)\n"
+        body += s"\t%t$temp = bitcast i8* %t$temp.addr to ${retType}\n"
+        body += s"\t%t$temp.val = insertvalue ${retType.replace("*","")} undef, %int $retval, 0\n"
+        body += s"\tstore ${retType.replace("*","")} %t$temp.val, ${retType} %t$temp\n"
+        retval = s"%t$temp"
+      }else{
+        if(retType == Integer.toString()){
+          body += s"\t%t$temp = bitcast ${types.get(retval).get.internalize(structure)} $retval.val to $retType\n" //TODO: Internalize?
+          retval = s"\t%t$temp"
+        }else{
+          body += s"\t%t$temp = bitcast ${types.get(retval).get.internalize(structure)}* $retval to $retType\n" //TODO: Internalize?
+          retval = s"\t%t$temp"
+        }
+      }
+    }
+    body += s"\tret $retType $retval\n"
 
     /*exp match {
    case ConstExpr(value) =>
@@ -695,23 +916,7 @@ object Main extends App{
   }
 
 //  sealed trait Expr
-//  case class ValExpr(ident:Ident) extends Expr
-//  case class ConstExpr(value: Int) extends Expr
-//  case class CallExpr(name:Ident, args: List[Expr]) extends Expr
-//  case class BinOpExpr(op:BinOp, left:Expr, right:Expr) extends Expr
-//  case class LetExpr(ident:Ident, bind:Expr, in:Expr) extends Expr
-//  case class PairExpr(left:Expr, right:Expr) extends Expr
-//  case class LeftExpr(pair:Expr) extends Expr
-//  case class RightExpr(pair:Expr) extends Expr
 //  sealed trait ListExpr extends Expr
 //  case object Empty extends Expr
 //  case class consExpr(tail:Expr) extends Expr
-//
-//  sealed trait BinOp
-//  case object Add extends BinOp
-//  case object Sub extends BinOp
-//  case object Mul extends BinOp
-//  case object Rem extends BinOp
 }
-
-

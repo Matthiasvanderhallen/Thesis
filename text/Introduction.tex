@@ -9,7 +9,7 @@ After a program's source code has been written, it is usually compiled to a targ
 This target language most often is substantially different from the source language.
 These differences are a direct consequence of the simplified computing model that high-level languages usually offer to the programmer.
 For example, high-level languages often hide the fact that values have to be represented using target-language concepts, saved in computer memory.
-The compilation process reintroduces these problems.\todo{is problems hier het goeie woord?}
+The compilation process reintroduces these concerns.\todo{is problems hier het goeie woord?}
 
 In many instances, malware exploits target-level bugs introduced by this compilation process~\cite{OVSPaper,Younan:2012:RCC:2187671.2187679}.
 These bugs do not show up during formal verification of the source code, as they are only introduced when the abstract computing model used on source-level is traded in for the concrete target-level computing model.
@@ -25,22 +25,22 @@ The aim of this thesis is to describe how secure compilation can be achieved for
 \section{Secure Compilation}
 \label{sec:SecureCompilation}
 Software programs or libraries are usually written in a source language, to be followed by compilation to a target language.
-Often, the main reason for this disparity is that it is easier to reason about the program in the source language than at the target language.
+Often, the main reason for this distinction is that it is easier to reason about the program in the source language than at the target language.
 This is because the source language works at a higher level of abstraction than the target language.
 
-For example, a high level source language such as Java abstracts away all concerns a programmer might have about how to handle computer memory.
+For example, a high-level source language such as Java abstracts away all concerns a programmer might have about how to handle computer memory.
 The representation of an object defined by the programmer in memory, as well as the location of this object is all hidden away.
-Effectively, the source language take the burden of handling these daunting tasks over from the programmer.
+Effectively, the source language takes the burden of handling these daunting tasks away from the programmer.
 
 This is a form of \emph{data abstraction}: objects are described by their properties and the functionality they offer, not by their implementations.
-Here data abstraction concerns hiding the implementation of basic types by bits in memory, but most high level languages offer the same software principle by allowing abstract data types. 
-An abstract data type is implemented using basic types offered by the source language, but whenever a value of this type is used only its described properties and abstract functionality are available.
+Here data abstraction concerns hiding the implementation of basic types by bits in memory, but most high-level languages offer the same software principle by allowing abstract data types. 
+An abstract data type is implemented using basic types offered by the source language, but whenever a value of this type is used, only its described properties and abstract functionality are available.
 
-Data abstraction is part of abstraction paradigm provided by the source language, called \emph{information hiding}.
+Data abstraction is part of an abstraction paradigm provided by a source language, called \emph{information hiding}.
 Information hiding happens any time that some value, function or datatype is implemented, but its use is restricted: it is hidden.
 
-Another abstraction paradigm that the source language provides is called \emph{encapsulation}.
-Encapsulation offers a way to group closely related functionality together. For example, in java this would correspond to a class or a group of classes, called a package.
+Another abstraction paradigm that the source language can provide is called \emph{modularization}.
+Modularization offers a way to group closely related functionality together. For example, in Java this would correspond to a class or a group of classes, called a package.
 
 Encapsulation and information hiding are closely related and affect each other to create a gradual hiding mechanism
 The information hiding mechanisms of Java for example, the \lstinline[language=Java]{private, public, protected} and \lstinline[language=Java]{default} access modifiers, differ from one another in how they handle the different encapsulation mechanisms: classes and packages.
@@ -48,13 +48,16 @@ Public functionality can be used everywhere, private functionality only within t
 \\[1em]
 These abstractions not only make it easier for the programmer to reason about the correctness of software, they also provide a way to describe security properties.
 When a value or function is marked with an access modifier, any programmer rightly assumes these access rights are indeed enforced.
-A value marked private can not be read of modified by untrusted code, so in security terms these access modifiers provide \emph{confidentiality} and \emph{integrity}.
+A value marked \lstinline[language=Java]{private} can only be read of modified by certain parts of the code.
+In security terms these access modifiers provide \emph{confidentiality} and \emph{integrity}.
 Even formal verification tools to keep the software free from bugs assume the enforcements of these access rights.
 
-The target language however does not always offer these same abstractions.
-When executing software, values must be saved in memory, with a certain representation.
-This memory might be readable everywhere
-Software code must be saved somewhere as well, and doing this might corrupt control flow~\cite{OVSPaper}, executing functionality that was supposed to be hidden.
+The target language, however, does not always offer these abstractions.
+For example, when executing software, the values created by this software must be saved in memory, using a certain representation.
+The platform on which the target language runs might not provide access control for this memory, which means values saved in memory might be readable by any code running on the platform.
+
+Software code must be saved somewhere as well, and doing this might corrupt control flow, for example by overwriting a return address~\cite{OVSPaper}.
+Such an attack might result executing functionality that was supposed to be hidden.
 
 \subsubsection{Full Abstraction}
 \label{sec:fullabstraction}
@@ -62,7 +65,7 @@ Secure compilation is a compilation process that does preserve these source-leve
 In this work, this property of a compiler is formalized as \emph{full abstraction}~\cite{Abadi}.
 Full abstraction uses the idea of \emph{contextual equivalence} to formalize security guarantees.
 
-Contextual equivalence is an homomorphic relation on programs.
+Contextual equivalence is an equivalence relation on programs.
 The contextual equivalence relation $O_{1} \simeq O_{2}$ expresses that two programs $O_1$ and $O_2$ are indistinguishable from each other, even when running them in combination with any other program $O_C$ called the context.
 Informally, this corresponds with there being no \emph{observable} differences between $O_1$ and $O_2$.
 Formally, $O_{1} \simeq O_{2}$ means:
@@ -70,30 +73,33 @@ Formally, $O_{1} \simeq O_{2}$ means:
 \[
     \forall O_C : O_C[O_{1}] \rightarrow c \iff O_C[O_{2}] \rightarrow c
 \]
+where $O_{C}[.]$ is a program where a certain component is missing. 
+$O_{C}[O_1]$ is the program that results from linking $O_C$ with $O_1$, where $O_1$ is used as the missing component.
 
 Note that contextual equivalence does indeed imply security guarantees are enforced.
 Suppose that two programs $O_1$ and $O_2$ differ only by a value that is supposedly confidential.
 If it were possible for any context to read or modify this value, then this context provides a counter example for the statement that two programs that use a different hidden value are contextually equivalent.
-Breaking a security guarantee means disproving contextual equivalence.
+%Breaking a security guarantee means disproving contextual equivalence.
 \\[1em]
-As contextual equivalence implies that the security guarantees are enforced, secure compilation can be formalized as providing \emph{full abstraction}, meaning contextual equivalence is preserved and reflected when compiling a program $O_1$ to target language program $\compiled{O_1}$
+As contextual equivalence implies that security guarantees are enforced, secure compilation can be formalized as providing \emph{full abstraction}, meaning contextual equivalence is preserved and reflected when compiling a program $O_1$ to its corresponding target language program $\compiled{O_1}$. 
+Formally:
 
 \[
     O_{1} \simeq O_{2} \iff \compiled{O_{1}} \simeq \compiled{O_{2}}
 \]
 
-In the remainder of this thesis text, the program $O_1$ or $O_2$ presents the secure code, an encapsulated entity for which some security guarantees hold.
+In the remainder of this text, the program $O_1$ or $O_2$ presents the secure code, an encapsulated entity for which some security guarantees hold.
 The secure compilation of this encapsulated entity is called the self-protected module or \emph{SPM}.
 The secure code is provided and compiled to an \emph{SPM}, and is linked to an insecure target level context $\compiled{O_C}$
 
-\section{Protected Module Platform}
+\section{Protected Module Architecture}
 \label{sec:protectedmoduleplatform}
-Secure or emph{fully abstract} compilation is defined in section \myref{sec}{sec:SecureCompilation} as a compilation that preserves source level security guarantees in the target language.
+As explained in \myref{sec}{sec:SecureCompilation}, a secure compilation scheme is a compilation scheme that preserves source level security guarantees in the target language.
 Such a preservation of security guarantees is only possible if some form of access controlled memory is available.
 
-Indeed, if no protection of any memory was possible, no confidentiality could ever be preserved, as values would always be readable directly from memory.
-For this reason, the securely compiled module is to an architecture that provides \emph{program counter based access control}~\cite{PCBAC} or \emph{PBAC}.
-Such an architecture is called a \emph{Protected Module Platform}. 
+Indeed, if no protection of any memory where possible, no confidentiality could ever be preserved, as values would always be readable directly from memory.
+For this reason, the securely compiled module is to an architecture that provides \emph{program counter based access control}~\cite{PCBAC} or \emph{PCBAC}.
+Such an architecture is called a \emph{Protected Module Architecture}. 
 The term \emph{program counter based access control} refers to the fact that the validity of a memory access depends on the current location of the program counter.
 
 The semantics of the access control imposed by the platform are given in \myref{fig}{fig:AccessControlSemantics}.
@@ -109,7 +115,7 @@ As shown by Patrignani et al.~\cite{Patrignani} the same access control model ca
 		Protected & r x & r x & r w & r w x \\ \hline
 		Unprotected & x & & & r w x \\ \hline
 	\end{tabular}
-    \caption[PCBAC Semantics]{Program counter based access control semantics as specified in Agten et al.\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:AccessControlSemantics}}
+    \caption[PCBAC Semantics]{Program counter based access control semantics as specified in Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:AccessControlSemantics}}
 \end{figure}
 
 The \emph{SPM} created by secure compilation is loaded in the \emph{protected} memory.
@@ -117,7 +123,7 @@ The code associated with an \emph{SPM} is located in the code section of the pro
 An \emph{SPM} must also provide a list of \emph{entry points}, which are specific positions within the protected code section.
 The insecure context is loaded in \emph{unprotected} memory.
 
-The access control mechanism imposes that the insecure context can only divert control flow to entry points or or other parts of the unprotected memory.
+The access control mechanism imposes that the insecure context can only divert control flow to entry points or other parts of the unprotected memory.
 Its read and write access is also limited to the unprotected memory.
 The \emph{SPM} has \emph{read} as well as \emph{execute} permissions for its entire code section, including its entry points.
 
@@ -130,7 +136,7 @@ For this, a source language, \emph{\MiniML}, is defined as a subset of the funct
 A target language to which \MiniML\ will be compiled has to be chosen as well.
 In this thesis, the \emph{LLVM Intermediate Representation} is used.
 The LLVM Intermediate Representation is a language used in the LLVM compiler project.
-As a language it is only slightly more abstract than assembly, and specifically designed as an intermediate step in the compilation of different high-level source languages to assembly.
+As a language it is only slightly more abstract than assembly, and it is specifically designed as an intermediate step in the compilation of different high-level source languages to assembly.
 
 This offers the benefit that compilation to the intermediate language can be performed, and afterwards transformations can be done on the intermediate language to optimize it for different architectures.
 Afterwards, the LLVM Intermediate representation can be compiled to assembly code for a specific architecture, for example an architecture providing the necessary access control sketched in \myref{sec}{sec:protectedmoduleplatform}.
@@ -139,7 +145,7 @@ The following list gives a roadmap of how each chapter contributes to the thesis
 
 \begin{itemize}
 \item 
-\myref{chap}{chap:ACompilationExample} describes a first version of the \MiniML\ language, mimicking some of the basic functionality provided by the ML language and its module system, using an example.
+\myref{chap}{chap:ACompilationExample} describes a first version of the \MiniML\ language, mimicking some of the basic functionality provided by the ML language and its module system, using an example: An implementations of a Caesar cipher.
 
 It also describes the target-language, \LLVMIR, and shows how compilation from \MiniML\ to LLVM might normally occur.
 
@@ -151,7 +157,7 @@ It then formally describes a secure compiler for this first version of \MiniML.
 
 \item
 \myref{chap}{chap:AdvancedConcepts} introduces some more advanced ML concepts to \MiniML.
-Specifically, introduces \emph{higher order functions} and \emph{functors}.
+Specifically, \emph{higher order functions} and \emph{functors}.
 
 \item
 \myref{chap}{chap:FormalizationOfAdvancedConcepts} extends the formalization of \MiniML\ given in \myref{chap}{chap:formalspecification} to include the advanced concepts that were introduced to \MiniML\ in \myref{chap}{chap:AdvancedConcepts}.
@@ -159,7 +165,8 @@ Specifically, introduces \emph{higher order functions} and \emph{functors}.
 It proceeds by extending the formalization of the secure compiler of \myref{chap}{chap:formalspecification}.
 
 \item
-\myref{chap}{chap:InformalProof} details how full abstraction of a compilation scheme can be proven, and gives an informal argument suggesting that the compilation scheme presented in \myref{chap}{chap:FormalizationOfAdvancedConcepts}
+\myref{chap}{chap:InformalProof} details how full abstraction of a compilation scheme can be proven.
+%, and gives an informal argument suggesting that the compilation scheme presented in \myref{chap}{chap:FormalizationOfAdvancedConcepts}
 
 \item
 \myref{chap}{chap:conclusion} gives an overview of possible improvements or extensions of the work presented here.

@@ -375,9 +375,12 @@ There is another field reserved in the data section as well, to keep track of th
 address in unprotected memory, and the location of the \emph{shadow stack pointer} is updated.
 \end{itemize}
 
-Because this is only necessary when publicly available functions are called from the unprotected code, every publicly available function is made available through a publicly available stub which will take care of these security measures.
-This publicly available stub will then forward execution to an internal function (i.e. not publicly available) which will strictly focus on the implementation of the function itself.
-It assumes the necessary security precautions are taken, and can be used directly within the secure code.
+Because this is only necessary when functions are called from the unprotected code, these security measures are taken care of by a low-level stub that wraps around the low-level translation the high-level publicly available function.
+%every publicly available function is made available through a publicly available stub which will take care of these security measures.
+This stub will then forward execution to an internal function (which is not publicly available) which will strictly focus on the low-level implementation of the high-level function itself.
+This internal function can thus assume that any necessary security precautions are taken.
+Within the secure code, calls to these internal functions can happen directly, without passing through the stub.
+%It assumes the necessary security precautions are taken, and can be used directly within the secure code.
 
 \subsubsection{Register Clearing}
 Any communication in \mbox{MiniML} normally only occurs through information passed along by returns and method calls.
@@ -413,18 +416,32 @@ structure Dictionary =
     end
 \end{lstlisting}
 
-Even more so, one would expect the two programs/modules to be contextually equivalent! However, clearly, if no checking is performed on functions expecting something of type dictionary, a low-level attacker could discriminate between the two using the following tactic: call a function expecting a dictionary argument with a self-created list of string pairs. If it gives the expected results, the dictionary implementation being used is the one given in \myref{lst}{code:DictionaryStructureExample}. If not, it is the module described in \myref{lst}{code:DictionaryStructureExample2}, expecting a pair of string lists. This breaks contextual equivalence.
+Even more so, one would expect the two programs/modules to be contextually equivalent! However, clearly, if no checking is performed within functions expecting something of type dictionary, a low-level attacker could discriminate between the two using the following tactic: call a function expecting a dictionary argument with a self-created list of string pairs. If it gives the expected results, the dictionary implementation being used is the one given in \myref{lst}{code:DictionaryStructureExample}. If not, it is the module described in \myref{lst}{code:DictionaryStructureExample2}, expecting a pair of string lists. This breaks contextual equivalence.
 
 The code must assure that any object, passing as an argument of type dictionary, was in fact created by the module code itself (using the \lsttext{emptydictionary} method). If not, it should raise an error (even if the object has the correct type according to the synonyms) in order to prevent an attack on contextual equivalence in the same spirit as the one described above.
 
 This restriction can be enforced by a technique called masking, introduced by Patrignani et al.~\cite{Patrignani}. 
-This works by ensuring that the code creating a dictionary never returns a pointer to this dictionary itself, instead saving this dictionary in an internal list in protected memory.
+Masking works by ensuring that the code creating a dictionary never returns a pointer to this dictionary itself, instead saving this dictionary pointer in an internal list located within protected memory.
 The index in this list can then be returned and used as a mask for the real object.
+Once again, this masking can be done within the stub function that wraps around the internal function that returns the value.
 
-All publicly available low-level functions (i.e. the stubs that represent public high-level functions) that expect a dictionary as their argument then no longer get a pointer to this dictionary object in memory. 
-Instead, they get the index of the desired dictionary in the internal list.
+When a stub represents a high level function that expects an argument of an opaque type, it will receive the index of the desired value in the internal masking list.
+It can use the internal masking list to retrieve the pointer associated with the index, and check whether it points to a value of the right type.
 
-When these publicly available functions receive the index, they get the pointer associated with the index from the internal list and check whether it points to the right type of object.
+\subsubsection{Entry points}
+Instructions in the insecure code can only jump to memory locations marked as an entry point by the \emph{SPM}'s metadata.
+This compilation scheme adds an entry point to the \emph{SPM} for every function available in the high-level language.
+Because the security checks are performed inside the stubs, it might seem logical to use the memory locations of their first instructions as the entry points for the \emph{SPM}.
+
+However, because the size of these functions can be derived from the distance between two successive entry points, and this size might leak information about the \emph{SPM}, the memory locations of these stubs are not listed as entry points.
+Instead, a small entry function that calls these stubs is created, in the low-level this corresponds to a simple tail call.
+These small entry functions can be grouped together in the secure code section, and take up a constant amount of space.
+The memory locations corresponding to these entry functions can then be listed in metadata as entry points for the \emph{SPM}.
+
+%All public available low-level functions (i.e. the stubs that represent public high-level functions) that expect a dictionary as their argument then no longer get a pointer to this dictionary object in memory. 
+%Instead, they get the index of the desired dictionary in the internal list.
+
+%When these publicly available functions receive the index, they get the pointer associated with the index from the internal list and check whether it points to the right type of object.
 %
 %
 %\todo{The explanation of why extra type information might prove necessary. However: The argument must be presented in a more careful manner. Furthermore, this also depends on whether a separate list is being used per type or not. If a separate list is being used anyway, instead of a central list of masked objects, then the extra type information proves unnecessary, or rather, it is already implicitly available.}
@@ -436,13 +453,28 @@ The translation to LLVM intermediate representation is given in code in \myref{l
 \begin{lstlisting}[frame=single,numbers=left, language={[x86masm]Assembler}, caption={[LLVM Translation Caesar Cipher Example]LLVM IR for the example.},
 label=llvm:Example]
 %int = type i64
-%Caesar.cred = type {%int}
+%Caesar.cred = type {%int} ±\label{ln:cred_type_def}±
 
 declare i8* @malloc(%int)
 declare void @free(i8*)
 declare void @exit(i32)
 
-define %int @Caesar.decrypt(%int %arg0, %int %arg1) {
+define %int @Caesar.decrypt(%int %arg0, %int %arg1) { ±\label{ln:decrypt_entry_start}±
+   %ret = tail call %int @Caesar.decrypt_stub(%int %arg0, %int %arg1)
+   ret %int %ret
+} ±\label{ln:decrypt_entry_end}±
+
+define %int @Caesar.encrypt(%int %arg0, %int %arg1) { ±\label{ln:encrypt_entry_start}±
+   %ret = tail call %int @Caesar.encrypt_stub(%int %arg0, %int %arg1)
+   ret %int %ret
+} ±\label{ln:encrypt_entry_end}±
+
+define private %int @Caesar.newcredentials() { ±\label{ln:newcredentials_entry_start}±
+   %ret = tail call %int @Caesar.newcredentials_stub()
+   ret %int %ret
+} ±\label{ln:newcredentials_entry_end}±
+
+define private %int @Caesar.decrypt_stub(%int %arg0, %int %arg1) noinline { ±\label{ln:decrypt_stub_start}±
    %arg1int = call %int @unmask(%int %arg1)
    %arg1type = call %int @unmasktype(%int %arg1)
    %check1 = icmp eq %int %arg1type, 4
@@ -456,17 +488,17 @@ define %int @Caesar.decrypt(%int %arg0, %int %arg1) {
    Error:
    call void @exit(i32 -1)
    unreachable
-}
+} ±\label{ln:decrypt_stub_end}±
 
-define private %int @Caesar.decrypt_internal(%int %a, %Caesar.cred* %credptr) {
+define private %int @Caesar.decrypt_internal(%int %a, %Caesar.cred* %credptr) { ±\label{ln:decrypt_internal_start}±
    %loccred = getelementptr inbounds %Caesar.cred* %credptr, i32 0, i32 0
    %cred = load %int* %loccred 
    %x = sub %int %a, %cred
    %y = urem %int 26, %x 
    ret %int %y
-}
+}±\label{ln:decrypt_internal_end}±
 
-define %int @Caesar.encrypt(%int %arg0, %int %arg1) {
+define private %int @Caesar.encrypt_stub(%int %arg0, %int %arg1) noinline { ±\label{ln:encrypt_stub_start}±
    %arg1int = call %int @unmask(%int %arg1)
    %arg1type = call %int @unmasktype(%int %arg1)
    %check1 = icmp eq %int %arg1type, 4
@@ -480,72 +512,78 @@ define %int @Caesar.encrypt(%int %arg0, %int %arg1) {
    Error:
    call void @exit(i32 -1)
    unreachable
-}
+}±\label{ln:encrypt_stub_end}±
 
-define private %int @Caesar.encrypt_internal(%int %a, %Caesar.cred* %credptr) {
+define private %int @Caesar.encrypt_internal(%int %a, %Caesar.cred* %credptr) {±\label{ln:encrypt_internal_start}±
    %loccred = getelementptr inbounds %Caesar.cred* %credptr, i32 0, i32 0
    %cred = load %int* %loccred
    %x = add %int %a, %cred
    %y = urem %int 26, %x
    ret %int %y
-}
+}±\label{ln:encrypt_internal_end}±
 
-define %int @Caesar.newcredentials(){
-   %credptr = call %Caesar.cred* @Caesar.newcredentials_internal()
+define private %int @Caesar.newcredentials_stub() noinline { ±\label{ln:newcredentials_stub_start}±
+   %credptr = call %Caesar.cred* @Caesar.newcredentials_internal() ±\label{ln:newcredentialscall}±
    %credint = ptrtoint %Caesar.cred* %credptr to %int
    %ret = call %int @mask(%int %credint,%int 4)
    ret %int %ret
-}
+}±\label{ln:newcredentials_stub_end}±
 
-define private %Caesar.cred* @Caesar.newcredentials_internal(){
+define private %Caesar.cred* @Caesar.newcredentials_internal(){±\label{ln:newcredentials_internal_start}±
    %rand = call %int @Caesar.rand()
    %ptr1 = call i8* @malloc(%int 16)
    %ptr = bitcast i8* %ptr1 to %Caesar.cred*
    %locval = getelementptr inbounds %Caesar.cred* %ptr, i32 0, i32 0
    store %int %rand,%int* %locval
    ret %Caesar.cred* %ptr
-}
+}±\label{ln:newcredentials_internal_end}±
 
-define private %int @Caesar.rand() {
+define private %int @Caesar.rand_internal() { ±\label{ln:rand_internal_start}±
    %t = call %int @Caesar.seed()
    ret %int %t
-}
+}±\label{ln:rand_internal_end}±
 
-define private %int @Caesar.seed() {
+define private %int @Caesar.seed_internal() { ±\label{ln:seed_internal_start}±
    ret %int 3
-}
+}±\label{ln:seed_internal_end}±
 \end{lstlisting}
 
 This code, that implicitly is part of a module, consists of a list of \emph{global values}, denoted by the @ sign.
 Every value, be it a global function or a global variable, has a \emph{linkage} type associated with it.
 Linkage types control the accessibility of of variables and functions. The two linkage types in use are \lsttext{private}, which makes a value only accessible by objects inside the same module, and the default linkage type, \lsttext{external}.
 
-The code in \myref{lst}{llvm:Example} specifies 9 different global values, corresponding to the 5 definitions in the \lsttext{Caesar} structure and their 4 public stubs. It also defines one type, corresponding to the \lsttext{cred} type.
+The code in \myref{lst}{llvm:Example} specifies 11 different global values, corresponding to the 5 definitions in the \lsttext{Caesar} structure, their three stubs and the three entry functions. It also defines one type, corresponding to the \lsttext{cred} type.
 As mentioned earlier, the ordering of these functions is alphabetical.
 \begin{description}
-\item[cred type] To start the translation, a type definition for the \lsttext{cred} type is given on line 2.
+\item[cred type] To start the translation, a type definition for the \lsttext{cred} type is given on line~\myref{ln}{ln:cred_type_def}.
 It is represented as a structure, where first the effective structure is represented, and then an \lsttext{\%int} is reserved to keep track of the type.
 Here, the number 4 is chosen to correspond with the \lsttext{cred} type.
 
-\item[encrypt \& decrypt] The first translated functions are the \lsttext{encrypt} en \lsttext{decrypt} functions. The translation starts with the definition of \lsttext{@Caesar.decrypt_internal} on line 24 in the code of \myref{lst}{llvm:Example}, and that of \lsttext{@Caesar.encrypt_internal} on line 48.
+\item[encrypt \& decrypt] The first translated functions are the \lsttext{encrypt} en \lsttext{decrypt} functions. The translation starts with the definition of \lsttext{@Caesar.decrypt_internal} on line~\myref{ln}{ln:decrypt_internal_start} in the code of \myref{lst}{llvm:Example}, and that of \lsttext{@Caesar.encrypt_internal} on line~\myref{ln}{ln:encrypt_internal_start}.
 Both definitions use linkage type private.
-Since these functions are available in ML for untrusted code, stubs are provided as entry points where security precautions can be made. These can be found on lines 8-22 and 32-46.
 
-The definitions of these stubs take only \lsttext{\%int} values as arguments.
-Since no linkage type is explicitly specified, linkage type \lstinline[language={[x86masm]Assembler}]{external}  is used.
+Since these functions are available in ML for untrusted code, stubs are provided where security precautions can be made. These can be found on lines~\myref{ln}{ln:decrypt_stub_start}-\myref{ln}{ln:decrypt_stub_end} and \myref{ln}{ln:encrypt_stub_start}-\myref{ln}{ln:encrypt_stub_end}.
+The definitions of these stubs take only \lsttext{\%int} values as arguments: these are either real integer values, or masked indices.
+
+The stubs are marked as private as well, and entry point functions are created that perform a tail call to these stubs. These can be seen on lines~\myref{ln}{ln:decrypt_entry_start}-\myref{ln}{ln:decrypt_entry_end} and \myref{ln}{ln:encrypt_entry_start}-\myref{ln}{ln:encrypt_entry_end}.
+These entry points specify no linkage type explicitly, which means linkage type \lstinline[language={[x86masm]Assembler}]{external}  is used.
+
+When calling these functions from insecure code, execution starts at the entry functions, as their memory locations are listed as entry points by the \emph{SPM}.
+These entry functions perform a tail call to the stubs.
 
 The stubs know that the second argument to the internal function must be of type \lsttext{\%Caesar.cred*}, so they use the \lsttext{@unmask} function to get the corresponding \lsttext{\%Caesar.cred*} value, and type check it.
 
 The definitions of the internal functions take one \lsttext{\%int} and one \lsttext{\%Caesar.cred*} as argument.
-They can read the integer value that this \lsttext{cred} represents by accessing the representation in the using the \lsttext{getelementptr} function in combination with the pointer \lsttext{\%Caesar.cred*}.
+They can read the integer value that this \lsttext{cred} represents by accessing the representation, using the \lsttext{getelementptr} function in combination with the pointer \lsttext{\%Caesar.cred*}.
 
 The body of the internal function uses the effective values in two calls to arithmetical assembly functions and returns the result.
 
 \item[newcredentials] Next is the \lsttext{newcredentials} function.
-On lines 56-61 in the code of \myref{lst}{llvm:Example}, a stub for the function is defined and its return type is declared to be \lsttext{\%int}, since it returns an index in the masking list.
+An entry function for this publicly available function is defined on lines~\myref{ln}{ln:newcredentials_entry_start}-\myref{ln}{ln:newcredentials_entry_end}, performing a single tail call to the stub.
+On lines~\myref{ln}{ln:newcredentials_stub_start}-\myref{ln}{ln:newcredentials_stub_end} in the code of \myref{lst}{llvm:Example}, a stub for the function is defined and its return type is declared to be \lsttext{\%int}, since it returns an index in the masking list.
 
-On line 57, the stub calls the internal function, receiving a pointer value of type \lsttext{\%Caesar.cred*}.
-It casts this pointer to an \lsttext{\%int}, and saves the \lsttext{\%int} as well as type information in the masking list using a call to \lsttext{@mask}.
+On line~\myref{ln}{ln:newcredentialscall}, the stub calls the internal function, which returns a pointer value of type \lsttext{\%Caesar.cred*}.
+The stub casts this pointer to an \lsttext{\%int}, and saves the \lsttext{\%int} as well as type information in the masking list using a call to \lsttext{@mask}.
 This returns an index which can be returned to the context.
 
 %This proxy acts as a wrapper around the real translation of \lsttext{newcredentials} that can be seen on lines 6-9. This proxy is the entry point to the function that is made available to the untrusted code. This proxy can perform the security precautions that have to be taken when taking values from or returning values to the untrusted code.
@@ -554,16 +592,17 @@ The body of the internal function \lsttext{@Caesar.newcredentials\_internal} imp
 \lsttext{@Caesar.newcredentials\_internal} performs a call to the rand function, saving the resulting return value and creating a pointer to it.
 This pointer is returned.
 
-\item[rand] The function \lsttext{rand} is defined starting line 74 and onwards in \myref{lst}{llvm:Example}.
-As the structure \lsttext{Caesar} is opaquely ascribed by the signature \lsttext{SYMMETRICCIPHER}, and the value \lsttext{rand} is not specified in this signature, it should be hidden from any outside components. 
-It also follows that no proxy is necessary for the \lsttext{seed} function.
+\item[rand] The function \lsttext{rand} is defined starting line~\myref{ln}{ln:rand_internal_start} and onwards in \myref{lst}{llvm:Example}.
+As the structure \lsttext{Caesar} is opaquely ascribed by the signature \lsttext{SYMMETRICCIPHER}, and the value \lsttext{rand} is not specified in this signature, it should be hidden from any outside components.
+This means the linkage type is set to \lsttext{private}
+It also follows that no stub nor entry function is necessary for the \lsttext{seed} function.
 
 In its body, it returns the value of the seed.
 
 \item[seed] The value \lsttext{seed} is translated to a getter function.
-For the same reasons as the variable \lsttext{rand}, its linkage type is set to private. 
+For the same reasons as the variable \lsttext{rand}, its linkage type is set to \lsttext{private}. 
 
-The definition of \lsttext{seed} can be seen on lines 79-81 in the code of listing~\myref{lst}{llvm:Example}.
+The definition of \lsttext{seed} can be seen on lines~\myref{ln}{ln:seed_internal_start}-\myref{ln}{ln:seed_internal_end} in the code of listing~\myref{lst}{llvm:Example}.
 \end{description}
 
 \section{Lessons learned}

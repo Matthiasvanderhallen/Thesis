@@ -6,6 +6,21 @@ declare void @free(i8*)
 declare void @exit(i32)
 
 define %int @Caesar.decrypt(%int %arg0, %int %arg1) {
+   %ret = tail call %int @Caesar.decrypt_stub(%int %arg0, %int %arg1)
+   ret %int %ret
+}
+
+define %int @Caesar.encrypt(%int %arg0, %int %arg1) {
+   %ret = tail call %int @Caesar.encrypt_stub(%int %arg0, %int %arg1)
+   ret %int %ret
+}
+
+define private %int @Caesar.newcredentials() {
+   %ret = tail call %int @Caesar.newcredentials_stub()
+   ret %int %ret
+}
+
+define private %int @Caesar.decrypt_stub(%int %arg0, %int %arg1) noinline {
    %argtest = add %int %arg0, 0
    %arg1int = call %int @unmask(%int %arg1)
    %arg1type = call %int @unmasktype(%int %arg1)
@@ -30,7 +45,7 @@ define private %int @Caesar.decrypt_internal(%int %a, %Caesar.cred* %credptr) {
    ret %int %y
 }
 
-define %int @Caesar.encrypt(%int %arg0, %int %arg1) {
+define private %int @Caesar.encrypt_stub(%int %arg0, %int %arg1) noinline {
    %arg1int = call %int @unmask(%int %arg1)
    %arg1type = call %int @unmasktype(%int %arg1)
    %check1 = icmp eq %int %arg1type, 4
@@ -54,7 +69,7 @@ define private %int @Caesar.encrypt_internal(%int %a, %Caesar.cred* %credptr) {
    ret %int %y
 }
 
-define %int @Caesar.newcredentials(){
+define private %int @Caesar.newcredentials_stub() noinline {
    %credptr = call %Caesar.cred* @Caesar.newcredentials_internal()
    %credint = ptrtoint %Caesar.cred* %credptr to %int
    %ret = call %int @mask(%int %credint,%int 4)

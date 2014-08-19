@@ -514,7 +514,9 @@ For clarity, this value is not shown in the figures representing frames.
 \myref{sec}{sec:StructureOfFrames} specified how frames can represent structures.
 %\to do{give functors their own chapter? Then 'The Structure of Frames' becomes a subsection with a number}
 It also concluded that in order to avoid tampering with the representation of secure frames, secure frames must be located inside the protected memory of the \emph{SPM}.
-This section shows that this restriction causes problems with the creation of frames representing structures.
+This section shows that this restriction means not all frames representing structures can be created at compile time (statically), but instead some must be created dynamically.
+%prevents the creation of frames at compile time (statically), 
+%causes problems with the creation of frames representing structures.
 
 \subsubsection{Problem Example}
 When compilation is done within the context of security all secure code is compiled first, and only afterwards is the insecure context compiled.
@@ -773,16 +775,16 @@ This means that the specific mapping of an identifier to the value of its index 
 %TO DO: Doesn't this break contextual equivalence? Solution: Sort alphabetically for those created in secure memory!
 Anywhere a secure structure is used in the source language, it is represented in the target language by the \cmath{loc_{frame}} pointer or its masking index in the \emph{f-list}.
 
-To allow context code to access members from secure structures, a wrapper function is provided that is located inside the \emph{SPM}.
-This wrapper function corresponds to an \emph{entry point} to the \emph{SPM}.
-The context can now pass an index in the \emph{f-list} \cmath{index_{f-list}} and an index for the structure member \cmath{index_{mem}}, as well as any arguments that should to be passed to the member to this wrapper function.
+To allow context code to access members from secure structures, a getter function is provided that is located inside the \emph{SPM}.
+This getter function corresponds to an \emph{entry point} to the \emph{SPM}.
+The context can now pass an index in the \emph{f-list} \cmath{index_{f-list}} and an index for the structure member \cmath{index_{mem}}, as well as any arguments that should to be passed to the member to this getter function.
 %to do: alternatively the pointer to the value is passed directly
-This wrapper, because it is located in secure code, can access the \emph{f-list} and the frames themselves.
+This getter, because it is located in secure code, can access the \emph{f-list} and the frames themselves.
 It then does the following things:
 \begin{itemize}
 \item Check whether \cmath{index_{f-list}} corresponds to a real frame by using the expected length of the list.
 Since structures resulting from a functor application are added dynamically, a situation could arise where the corresponding frame has not yet been added, or where something went wrong while adding the frame.
-In this case the wrapper function must not allow the \cmath{index_{f-list}} to be used.
+In this case the getter function must not allow the \cmath{index_{f-list}} to be used.
 \item Use \cmath{index_{f-list}} to get a \cmath{loc_{frame}} for the correct frame.
 \item Check whether the frame represents a simple structure or the result of functor application.
 \item Look up \cmath{index_{mem}} in the list of pointers within the frame to get a pointer to the accessed member.
@@ -794,9 +796,9 @@ The function implementing the member will uses this frame to determine the argum
 \item Return any results to the caller.
 \end{itemize}
 
-The wrapper functions only as a wrapper, so it presumes that any clearing of flags, registers, masking of values or other precautionary measures have already been taken care of by the functions that it wraps.
+The getter functions only as an additional level of indirection, so it presumes that any clearing of flags, registers, masking of values or other precautionary measures have already been taken care of by the functions that it passes the call to.
 
-Since all structure values are accessible through this wrapper function, the separate structure value stubs do \emph{not} have to be entry points in the \emph{SPM}. The wrapper function will always be necessary, because insecure functors that call a member in their argument structure can not hardwire a specific entry point in their generic code.
+Since all structure values are accessible through this getter function, the separate structure value stubs do \emph{not} have to be entry points in the \emph{SPM}. The getter function will always be necessary, because insecure functors that call a member in their argument structure can not hardwire a specific entry point in their generic code.
 \\[1em]
 \label{sec:StaticDefinitionFunctorApplication}
 Indeed, the stubs corresponding to structure members \emph{cannot} be made entry points in the \emph{SPM}, because the source language context is oblivious to whether a structure bound in secure code was the result of a functor application, or was statically defined. This corresponds to \myref{lst}{lst:FunctorApplicationOrStaticDefinition1} being contextually equivalent to \myref{lst}{lst:FunctorApplicationOrStaticDefinition2}.
@@ -863,7 +865,7 @@ To illustrate this, \myref{fig}{fig:callstackcomparisonsimple} shows the flow of
 %\end{itemize}
 
 %The values within a structure resulting from functor application are stubs that expect an extra argument, the location of the \emph{own} frame.
-%If these stubs can be called directly by the context without the wrapper function, care must be taken to check that the location of the own frame is either inside insecure memory or is interpreted as a mask in the f-table.
+%If these stubs can be called directly by the context without the getter function, care must be taken to check that the location of the own frame is either inside insecure memory or is interpreted as a mask in the f-table.
 
 %When providing this optimization, structures that were defined statically, i.e. \emph{not} as a result of functor application, need to take the location of their extra argument 
 
@@ -874,7 +876,6 @@ To illustrate this, \myref{fig}{fig:callstackcomparisonsimple} shows the flow of
 %If the values are inside a structure resulting from functor application, care has to be taken.
 %The code representing the values expects the frame of the argument structure to be passed as a first argument.
 %By design, a pointer to this frame is always present within the frame representing the functor output itself.
-
 \subsection{Security Consequences}
 
 In order to explore the possibility of contextual equivalence breaking due to the representation of structures differing between source and target language, the possible combinations of functor and structure security and the relevant security measures are recapped here case by case.
@@ -911,8 +912,8 @@ The use of members from the insecure structure by code inside the insecure funct
 \item[Insecure functor with secure structure]
 Because the code of the functor is now located outside of the \emph{SPM}, special care needs to be taken when the functor depends on members of the structure.
 Because the frame \cmath{Fr_{s}} representing the structure is now in secure memory, the functor cannot manipulate this frame or perform reads on this frame.
-In order for insecure functors to call these functions, an entry point is provided by the \emph{SPM}, corresponding to a generic wrapper  that takes as argument a \cmath{loc_{frame}} and an \cmath{index_{mem}}, as well as any arguments that would otherwise be passed directly.
-As a result, the generic wrapper returns the result of the call to its caller.
+In order for insecure functors to call these functions, an entry point is provided by the \emph{SPM}, corresponding to a generic getter that takes as argument a \cmath{loc_{frame}} and an \cmath{index_{mem}}, as well as any arguments that would otherwise be passed directly.
+As a result, the generic getter returns the result of the call to its caller.
 %to do: possible variant: this generic entry point returns a pointer
 %As a result, a pointer to the correct entry point is returned to the insecure code, which it can then call with the necessary arguments.
 %todo
@@ -932,4 +933,4 @@ Implementing values defined by functors using stubs that expect an argument repr
 The dichotomy between the security status of an output structure and where the functor application generating the structure is located results in the \emph{dynamic} creation of \emph{frames} and the added difficulty of \emph{structural type checking} functor applications.
 This is solved by adding meta information in so called \emph{meta-frame}s capturing any necessary information of types.
 
-Because functors can exist in insecure code, they can be passed frames. These frames are \emph{masked} in the same way as closures, which calls for another \emph{wrapping function} to be made available as an entry point into the \emph{SPM}, so that the values or functions within frames are callable.
+Because functors can exist in insecure code, they can be passed frames. These frames are \emph{masked} in the same way as closures, which calls for another \emph{getter function} to be made available as an entry point into the \emph{SPM}, so that the values or functions within frames are callable.

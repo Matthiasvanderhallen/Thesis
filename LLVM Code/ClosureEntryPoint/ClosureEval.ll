@@ -6,7 +6,7 @@
 %type = type {%int, %int, %int}
 %closure = type {%int, {%int, [0 x %int]}*, i1}
 
-define %int @GenericClosureEvaluation(%int %closure.mask, ...){
+define %int @GenericClosureEvaluation(%int %closure.mask, i8* %arg){
     %closure.unmask = call %int @unmask(%int %closure.mask)
     %type = call %int @unmasktype(%int %closure.mask) ; Check that it really is a closure
     switch %int %type, label %Error [%int 5, label %Continue1]
@@ -21,11 +21,10 @@ define %int @GenericClosureEvaluation(%int %closure.mask, ...){
     
     Continue2:
     %closure.fn = inttoptr %int %closure.ptr to %int (i1, {%int, [0 x %int]}*, i8*)*
-    %ap = call i8* @malloc(%int 8)
-    call void @llvm.va_start(i8* %ap)
-    %ret = call %int %closure.fn(i1 0, {%int, [0 x %int]}* %closure.env, i8* %ap)
-    call void @llvm.va_end(i8* %ap)
-    call void @free(i8* %ap)
+    %ret = call %int %closure.fn(i1 0, {%int, [0 x %int]}* %closure.env, i8* %arg)
+    ;%test.int = ptrtoint i8* %arg to %int
+    ;%test.ptr = inttoptr %int %test.int to {%int, i1, %int, %int}*
+    ;%test = bitcast i8* %arg to {%int, i1, %int, %int}*
     ret %int %ret
     
     Error:
@@ -33,11 +32,36 @@ define %int @GenericClosureEvaluation(%int %closure.mask, ...){
     unreachable
 }
 
+define %int @main() {
+    %t.1 = call i8* @malloc(%int 24)
+    %t.2 = bitcast i8* %t.1 to {%int,%int,%int}*
+    %args.0 = insertvalue {%int, %int, %int} undef, %int 1, 0
+    %args.1 = insertvalue {%int, %int, %int} %args.0, %int 3, 1
+    %args.2 = insertvalue {%int, %int, %int} %args.1, %int 2, 2
+    store {%int, %int, %int} %args.2, {%int,%int,%int}* %t.2
+    
+    %t = call %int @test(i8* %t.1)
+    
+    ret %int 1
+}
+
+@.strval = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+
+define %int @test(i8* %vargs) {
+    %vargs.typed = bitcast i8* %vargs to {%int,%int,%int}*
+    %vargs.val = load {%int,%int,%int}* %vargs.typed
+    %v0 = extractvalue {%int,%int,%int} %vargs.val, 0
+    %v1 = extractvalue {%int,%int,%int} %vargs.val, 1
+    %v2 = extractvalue {%int,%int,%int} %vargs.val, 2
+
+    call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %v2)
+
+    ret %int 1
+}
+
 declare void @exit(i32)
 declare i8* @malloc(%int)
 declare void @free(i8*)
 declare %int @unmask(%int)
 declare %int @unmasktype(%int)
-declare void @llvm.va_start(i8*)
-declare void @llvm.va_copy(i8*, i8*)
-declare void @llvm.va_end(i8*)
+declare i32 @printf(i8*, ...)

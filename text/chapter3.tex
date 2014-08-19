@@ -93,7 +93,7 @@ Now that the security status of closures had properly been defined and the closu
 
 \subsection{Secure Free Variables For A Secure Closure}
 
-In this case, the code that is executed when the closure is called runs within the \emph{SPM} itself.
+In this case, the code that is executed when the closure is called is located in the secure code section.
 The \emph{function pointer} and the \emph{referencing environment} are both in secure memory and are protected from any tampering by the target-level access control model and the checking performed upon compilation.
 
 \subsection{Insecure Free Variables For A Secure Closure}

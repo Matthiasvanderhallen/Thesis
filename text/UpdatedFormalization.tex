@@ -2,14 +2,15 @@
 \intertextt{The processing of module expressions $me$ still occurs in alphabetical order of the identifiers.
 }
 
-\compile{$\overline{me}$}\cmath{^{SigId}} \makes \compile{sort($\overline{me}$)}\cmath{^{SigId}} \\
+\cmath{\compile{\overline{me}} = \compile{me_1,me_2,\ldots, me_n}} \makes \text{sort(}\cmath{\compile{me_1}, \compile{me_2},\ldots,\compile{me_n}}\text{)}\\
+%\compile{$\overline{me}$}\cmath{^{SigId}} \makes \compile{sort($\overline{me}$)}\cmath{^{SigId}} \\
 \end{tabularx}
 
 \subsubsection{Static structure bindings}
 Processing structure bindings using the \lsttext{struct} expression happens in much the same way as detailed in \myref{sec}{sec:formalization}. 
 The following changes are made:
 \begin{itemize}
-\item The stubs are no longer made entry points.
+\item The stubs are no longer entry points, as explained in \myref{sec}{sec:StaticDefinitionFunctorApplication}.
 \item Stubs use the \lsttext{va_arg} instruction and the accompanying intrinsic functions \lsttext{@llvm.va_start}, \lsttext{@llvm.va_copy} and \lsttext{@llvm.va_end}.
 
 This way, the \LLVMIR\ type of any stub is exactly the same: \lsttext{\%int (\%frame*, i8*)*}.
@@ -18,12 +19,12 @@ Giving all the stubs the same type is beneficial because then their pointers can
 
 The target frame pointer is set to null in this value, well as the pointer to the trimming list, since these values are irrelevant for a staticly defined structure.
 
-This code will outputted by the compiler only later, inside the @initialize function.
+This code is output by the compiler only later, inside the @initialize function.
 \end{itemize}
 The stubs still perform the masking and unmasking, as well as the stack switches or clearing the registers and flags.
 
 \subsubsection{Functor Definitions}
-Functors are processed just a little different from static structure bindings.
+Functors are processed much in the same way as static structure bindings.
 
 An additional function is generated, with signature \lsttext{void (\%int, i1, ...)}.
 This function is tasked with dynamically creating frames resulting from functor applications, as detailed in \myref{sec}{sec:creatingframes}.
@@ -74,11 +75,12 @@ However, from the frame that represents a functor application, it can perform a 
 \item The internal functions use the frame to look up the frame representing the argument structure.
 They need this to call values from argument structure.
 
-Frames contain a boolean i1 that signals whether the frame corresponds to an insecure structure or a secure structure.
+Frames contain a boolean with type \lsttext{i1}, called the \emph{security bit}. 
+This signals whether the frame corresponds to an insecure structure or a secure structure.
 If the frame is an insecure structure, additional measures must be taken:
 \begin{itemize}
-\item Mask all arguments
-\item Clear the registers and switch the stack pointer
+\item Mask all arguments.
+\item Clear the registers and switch the stack pointer.
 \item Push the return address to the return address stack.
 \item Change the return address of the call to the returnback entry point.\footnote{As the return address is not manipulatable using LLVM, this security measure must be implemented during the compilation from \LLVMIR\ to assembly.}
 \item When execution returns, the return value is interpreted as a masked index.
@@ -101,7 +103,7 @@ This private function will take a variable amount of arguments.
 \end{tabularx}
 \vspace{-2.9em} %Todo: latex voodoo!
 \begin{itemize}
-\item The first of these arguments is a one bit wide integer, which indicates whether the function was called by the generic closure evaluation point or by other code inside the secure context.
+\item The first of these arguments is a single bit, which indicates whether the function was called by the generic closure evaluation point or by other code inside the secure context.
 As this value is always set within the secure context, its value can be trusted.
 
 Depending on this value, the next arguments are interpreted as pointers cast to int, or as indices in the masking map.
@@ -110,18 +112,18 @@ It will also determine whether the return value is a pointer cast to int, or is 
 \item The compilation of $e$ will be adjusted so that it references variables that are neither the parameters, nor defined within expression e itself using the their offset in the environment.
 \end{itemize}
 
-The lambda expression will also lead to the creation of an llvm object of type\ \lsttext{\%closure}.
+The lambda expression will also lead to the creation of an LLVM object of type\ \lsttext{\%closure}.
 It is initialized with
 \begin{itemize}
-\item a reference to a list of pointers cast to int, representing the environment,
-\item a pointer to the function the $\lambda$-expression was translated to,
+\item a reference to a list of pointers cast to int, representing the environment;
+\item a pointer to the function the $\lambda$-expression was translated to;
 \item and a one bit integer to indicate whether the closure was secure or insecure.
 \end{itemize}
 
 \subsubsection{Applying closures}
 When application is performed in secure code on an identifier that represents a closure, the closure value is loaded.
 The secure code checks whether the closure value represents a secure or an insecure closure.
-This is done using the i1 boolean value provided in the \lsttext{\%closure} type.
+This is done using the security bit provided in the \lsttext{\%closure} type.
 
 If the closure is secure, the secure context can simply convert the integer in the closure value to a function pointer and call the function.
 As arguments, it provides a value 1 to signal that the arguments are unmasked, followed by the arguments and the pointer to the environment.
@@ -182,9 +184,9 @@ define %int @GenericClosureEvaluation(%int %closure.mask, ...){
 The addition of functors required that values were called by specifying the frame that corresponds to the structure that defines them, and the offset of the value within the frame.
 This Structure Value entry point had the following arguments:
 \begin{itemize}
-\item an index in the f-list,
-\item an offset for the value to be called,
-\item and any number of arguments meant for the value 
+\item an index in the f-list;
+\item an offset for the value to be called;
+\item and any number of arguments meant for the value.
 \end{itemize}
 
 %{%int, [0 x %int (%frame*, i8*)*]}*

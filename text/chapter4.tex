@@ -1,6 +1,6 @@
 \chapter{Advanced Concepts: Formalization}
 \label{chap:FormalizationOfAdvancedConcepts}
-First, \myref{sec}{sec:formalspec2} of this chapter will extend the formalization of \MiniML\ made in \myref{sec}{sec:MiniMLFormalSpecification} with the additions described in \myref{chap}{chap:AdvancedConcepts}.
+First, \myref{sec}{sec:formalspec2} of this chapter extends the formalization of \MiniML\ made in \myref{sec}{sec:MiniMLFormalSpecification} with the additions described in \myref{chap}{chap:AdvancedConcepts}.
 Later, \myref{sec}{sec:formalizedcompiler2} extends upon the secure compiler as it was formalized in \myref{sec}{sec:formalizedcompiler}.
 
 \section{Formal Specification of \MiniML}
@@ -16,7 +16,7 @@ To implement closures, the ability to create anonymous functions using the $\lam
 This addition makes it possible to define a function as: \cmath{\lambda(\overline{x}:\overline{\sigma}).e}.
 This expression is considered as the construction of a closure.
 
-These expressions are also the \emph{only} way of constructing a closure, as explained in \myref{sec}{sec:OnlyLambdaClosures} on \mypageref{sec:OnlyLambdaClosures}. 
+These expressions are also the \emph{only} way of constructing a closure, as explained in \myref{sec}{sec:OnlyLambdaClosures}. 
 Essentially, when a named function is used as a closure, this is considered to be syntactic sugar.
 Its desugared form is an expression in which a closure is explicitly constructed using the $\lambda$-notation to wrap around the named function.
 
@@ -62,10 +62,10 @@ A functor application specifies the identifier to which the resulting structure 
 \input{UpdatedModuleSyntax}
 
 \subsection{Type system}
-The type system also needs some minor modifications to allow the new concepts.
+The type system also needs some minor modifications to account for the new concepts.
 As earlier, due to its simplicity the Program type system sees no modifications.
 
-First, the concept of a \emph{context} $\Gamma$ is extended in \myref{fig}{fig:UpdatedMiniMLContexts}, so that it can contain conclusions related to functors: The signature it conforms to, its body of definitions, and the name of the signature that its argument must conform to.
+First, the concept of a \emph{context} $\Gamma$ is extended in \myref{fig}{fig:UpdatedMiniMLContexts}, so that it can contain assumptions related to functors: The signature it conforms to, its body of definitions, and the name of the signature that its argument must conform to.
 
 \begin{figure}[!htb]
 \begin{align*}

@@ -373,19 +373,20 @@ It provides a language syntax as well as static and dynamic semantics.
 In \myref{fig}{fig:LLVMSyntax}, the reduced syntax of LLVM IR is given, with some small changes from the work of Jianzhou Zhao et al.~\cite{Zhao:2012:FLI:2103656.2103709}.\begin{figure}[!htb]
 \begin{align*}
 \begin{aligned}
-\text{Modules }\mathit{mod} ::= &\overline{\mathit{prod}} \\
-\text{Products }prod ::= & \mathit{id =\ }\kw{global}\ \mathit{typ}\ \mathit{const}\ \mathit{align}\ |\ \kw{define} \mathit{\ typ\ id(\overline{arg})\{\overline{b}\}}\\
-&|\ \kw{declare} \mathit{\ typ\ id(\overline{arg})} \\
-\text{Types } \mathit{typ} ::= &\kw{i} \mathit{sz\ |\ } \kw{void} \mathit{\ |\ typ*\ |\ \left[sz \times typ\right]\ |\ \lbrace\ \overline{typ_{j}}^{j}\ \rbrace\ |\ typ\ \overline{typ_{j}}^{j}\ \rbrace\ | id} \\
-\text{Values } \mathit{val} ::= &\mathit{ id\ |\ cnst} \\
-\text{Binops } \mathit{bop} ::= &\kw{add} \ |\ \kw{sub}\ |\ \kw{mul}\ |\ \kw{udiv}\ |\ \kw{sdiv}\ |\ \kw{urem}\ |\ \kw{srem}\ |\ \kw{shl}\ |\ \kw{lshr}\ |\ \kw{and}\\
+\text{Modules }\mathit{mod} ::=\ &\overline{\mathit{prod}} \\
+\text{Products }prod ::=\ & \mathit{id =\ }\mathit{link}\ \kw{global}\ \mathit{typ}\ \mathit{const}\ \mathit{align}\ |\ \mathit{link}\ \kw{define} \mathit{\ typ\ id(\overline{arg})\{\overline{b}\}}\\
+&|\ \kw{declare} \mathit{\ typ\ id(\overline{arg})}\ |\ \mathit{link}\ \kw{constant}\ \mathit{typ}\ \mathit{const}\ \mathit{align}\\
+\text{Linkage } \mathit{link} ::=\ &\kw{private}\ |\ \kw{external}\\
+\text{Types } \mathit{typ} ::=\ &\kw{i} \mathit{sz\ |\ } \kw{void} \mathit{\ |\ typ*\ |\ \left[sz \times typ\right]\ |\ \lbrace\ \overline{typ_{j}}^{j}\ \rbrace\ |\ typ\ \overline{typ_{j}}^{j}\ \rbrace\ | id} \\
+\text{Values } \mathit{val} ::=\ &\mathit{ id\ |\ cnst} \\
+\text{Binops } \mathit{bop} ::=\ &\kw{add} \ |\ \kw{sub}\ |\ \kw{mul}\ |\ \kw{udiv}\ |\ \kw{sdiv}\ |\ \kw{urem}\ |\ \kw{srem}\ |\ \kw{shl}\ |\ \kw{lshr}\ |\ \kw{and}\\
 &|\ \kw{or}\ |\ \kw{xor} \\
-%\text{Float Ops } \mathit{fbop} ::= &\kw{fadd} \ |\ \kw{fsub} \ |\ \kw{fmul} \ |\ \kw{fdiv} \ |\ \kw{frem} \\
-\text{Extension } \mathit{eop} ::= &\kw{zext} \ |\ \kw{sext} \ |\ \kw{fpext} \\
-\text{Cast op } \mathit{cop} ::= &%\kw{fptoui} \ |\ 
+%\text{Float Ops } \mathit{fbop} ::=\ &\kw{fadd} \ |\ \kw{fsub} \ |\ \kw{fmul} \ |\ \kw{fdiv} \ |\ \kw{frem} \\
+\text{Extension } \mathit{eop} ::=\ &\kw{zext} \ |\ \kw{sext} \ |\ \kw{fpext} \\
+\text{Cast op } \mathit{cop} ::=\ &%\kw{fptoui} \ |\ 
 \kw{ptrtoint} \ |\ \kw{inttoptr} \ |\ \kw{bitcast} \\
-\text{Trunc op } \mathit{trop} ::= &\kw{trunc}_{int} \ |\ \kw{trunc}_{fp} \\
-\text{Constants } \mathit{cnst} ::= &\kw{i}\mathit{sz\ Int\ |\ }
+\text{Trunc op } \mathit{trop} ::=\ &\kw{trunc}_{int} \ |\ \kw{trunc}_{fp} \\
+\text{Constants } \mathit{cnst} ::=\ &\kw{i}\mathit{sz\ Int\ |\ }
 %fp\ Float\ |\ 
 \mathit{typ\ *\ id\ |\ (typ*)\ } \kw{null}\mathit{\ |\ typ\ } \kw{zeroinitializer} \\
 &\mathit{|\ typ\overline{[cnst_{j}]}^{j}\ |\ \overline{\lbrace cnst_{j} \rbrace}^{j}\ |\ typ\ }\kw{undef}\mathit{\ |\ bop\ cnst_{1}\ cnst_{2}} \\
@@ -395,12 +396,12 @@ In \myref{fig}{fig:LLVMSyntax}, the reduced syntax of LLVM IR is given, with som
 &\mathit{|\ }\kw{fcmp}\mathit{\ fcond\ cnst_{1}\ cnst_{2}}\\
 %
 %
-\text{Blocks } \mathit{b} ::= &\mathit{l\ \overline{\phi}\ \overline{c}\ tmn} \\
-\phi\ \text{nodes } \phi ::= &\mathit{id} = \kw{phi}\ \mathit{typ \overline{[val_{j} , l_{j} ]}^{j}}\\
-\text{Label } \mathit{l} ::= & \mathit{id}\kw{:}\\
-%\phi\ \text{nodes} \mathit{\phi} ::= &\mathit{id\ =\ } \text{phi} typ [val_{j} , l_{j} ] \\
-\text{Tmns } \mathit{tmn} ::= &\kw{br}\mathit{\ val\ l_{1}\ l_{2} \ |\ }\kw{br}\mathit{\ l \ |\ }\kw{ret}\mathit{\ typ\ val\ |\ }\kw{ret}\mathit{\ void\ |\ }\kw{unreachable} \\
-\text{Commands } \mathit{c} ::= &\mathit{id\ =\ bop(int\ sz)\ val_{1}\ val_{2}\ |\ }
+\text{Blocks } \mathit{b} ::=\ &\mathit{l\ \overline{\phi}\ \overline{c}\ tmn} \\
+\phi\ \text{nodes } \phi ::=\ &\mathit{id} = \kw{phi}\ \mathit{typ \overline{[val_{j} , l_{j} ]}^{j}}\\
+\text{Label } \mathit{l} ::=\ & \mathit{id}\kw{:}\\
+%\phi\ \text{nodes} \mathit{\phi} ::=\ &\mathit{id\ =\ } \text{phi} typ [val_{j} , l_{j} ] \\
+\text{Tmns } \mathit{tmn} ::=\ &\kw{br}\mathit{\ val\ l_{1}\ l_{2} \ |\ }\kw{br}\mathit{\ l \ |\ }\kw{ret}\mathit{\ typ\ val\ |\ }\kw{ret}\mathit{\ void\ |\ }\kw{unreachable} \\
+\text{Commands } \mathit{c} ::=\ &\mathit{id\ =\ bop(int\ sz)\ val_{1}\ val_{2}\ |\ }
 %id\ =\ fbop\ fp\ val_{1}\ val_{2}}\\
 \mathit{|\ id\ =\ }\kw{load}\mathit{(typ*)\ val_{1}\ align}\\
 &\mathit{|\ }\kw{store}\mathit{\ typ\ val_{1}\ val_{2}\ align\ |\ id\ =\ }\kw{malloc}
@@ -413,10 +414,10 @@ In \myref{fig}{fig:LLVMSyntax}, the reduced syntax of LLVM IR is given, with som
 %&\mathit{|\ id\ =\ fcmp\ fcond\ fp\ val_{1}\ val_{2}\ }
 \mathit{|\ \langle id\rangle\ =\ }\kw{call}\mathit{\ typ_{0}\ val_{0}\ \overline{param}}\\
 &\mathit{|\ id\ =\ }\kw{getelementptr}\mathit{(typ*)\ val\ \overline{val_{j}}^{j}}
-%\text{} \mathit{} ::= &\mathit{} \\
-%\text{} \mathit{} ::= &\mathit{} \\
-%\text{} \mathit{} ::= &\mathit{} \\
-%\text{} \mathit{} ::= &\mathit{} \\
+%\text{} \mathit{} ::=\ &\mathit{} \\
+%\text{} \mathit{} ::=\ &\mathit{} \\
+%\text{} \mathit{} ::=\ &\mathit{} \\
+%\text{} \mathit{} ::=\ &\mathit{} \\
 \end{aligned}
 \end{align*}
 \caption[Syntax: LLVM]{The reduced LLVM Syntax, largely built upon Jianzhou Zhao et al.~\cite{Zhao:2012:FLI:2103656.2103709} \label{fig:LLVMSyntax}}

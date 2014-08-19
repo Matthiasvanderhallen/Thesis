@@ -10,11 +10,13 @@
 Processing structure bindings using the \lsttext{struct} expression happens in much the same way as detailed in \myref{sec}{sec:formalization}. 
 The following changes are made:
 \begin{itemize}
-\item The stubs are no longer entry points, as explained in \myref{sec}{sec:StaticDefinitionFunctorApplication}.
-\item Stubs use the \lsttext{va_arg} instruction and the accompanying intrinsic functions \lsttext{@llvm.va_start}, \lsttext{@llvm.va_copy} and \lsttext{@llvm.va_end}.
+\item As explained in \myref{sec}{sec:StaticDefinitionFunctorApplication}, the \emph{SPM} no longer creates an entry point for every separate stub. Instead, all values are accessed through the structure value entry point, which calls the stubs.
+In this call, the stubs get an additional argument, a pointer to the frame corresponding with the stubs defining structure.
+
+\item Stubs get a pointer to the location where its arguments are saved. The stub can cast this pointer to the right type and copy all of the arguments to secure memory.
 
 This way, the \LLVMIR\ type of any stub is exactly the same: \lsttext{\%int (\%frame*, i8*)*}.
-Giving all the stubs the same type is beneficial because then their pointers can all be saved together in an LLVM array:  \lsttext{\{\%int, [0 x \%int (\%frame* i8*)*]\}*}.
+Giving all the stubs the same type is beneficial because then their pointers can all be saved together in an LLVM array:  \lsttext{\{\%int, [0 x \%int (\%frame*, i8*)*]\}*}.
 \item The code creating a representation of the structure as an LLVM value of type \lsttext{\%frame} and corresponding \lsttext{\%metaframe} is built while processing the structure.
 
 The target frame pointer is set to null in this value, well as the pointer to the trimming list, since these values are irrelevant for a staticly defined structure.
@@ -26,7 +28,7 @@ The stubs still perform the masking and unmasking, as well as the stack switches
 \subsubsection{Functor Definitions}
 Functors are processed much in the same way as static structure bindings.
 
-An additional function is generated, with signature \lsttext{void (\%int, i1, ...)}.
+An additional function is generated, with signature \lsttext{void (\%int, i1, i8*)}.
 This function is tasked with dynamically creating frames resulting from functor applications, as detailed in \myref{sec}{sec:creatingframes}.
 
 \begin{itemize}
@@ -44,13 +46,13 @@ The rest of the arguments specify the trimming map.
 $\compile{\cmath{FunId(ArgStr:ArgSig):SigId = \overline{d}}} \rightarrow$
 
 \begin{lstlisting}[language={[x86masm]Assembler}]
-define void @±\cmath{FunId}±(%int %frame, i1 %ext, ...){
+define void @±\cmath{FunId}±(%int %frame, i1 %ext, i8* %vargs){
    call void @initialize()
    ; The initialize function will initialize the f-list, if it isn't initialized already.
    br i1 %ext label %External, label %Secure
    External:
     ; The frame and metaframe can be built.
-    ; Read the trimming list using va_arg.
+    ; Read the trimming list
     ; No checking is necessary.
     ; Add frame to the f-list.
     ret void
@@ -149,10 +151,10 @@ Use the experimental \lsttext{llvm.read_register} and \lsttext{llvm.writeregiste
 
 \subsubsection{Generic Closure Evaluation Entry Point}
 \label{sec:genericclosureevaluationentrypoint}
-This is a generic entry point into the \emph{SPM} provided to evaluate closure values created within the secure code and passed to the insecure context. It receives an int, which is the masked index of the closure value, and a variable number of arguments.
+This is a generic entry point into the \emph{SPM} provided to evaluate closure values created within the secure code and passed to the insecure context. It receives an int, which is the masked index of the closure value, and a pointer to a variable number of arguments.
 
 \begin{lstlisting}
-define %int @GenericClosureEvaluation(%int %closure.mask, ...){
+define %int @GenericClosureEvaluation(%int %closure.mask, i8* %vargs){
     %closure.unmask = call %int @unmask(%int %closure.mask)
     %type = call %int @unmasktype(%int %closure.mask) ; Check that it really is a closure
     switch %int %type, label %Error [%int 5, label %Continue1]
@@ -167,11 +169,15 @@ define %int @GenericClosureEvaluation(%int %closure.mask, ...){
     
     Continue2:
     %closure.fn = inttoptr %int %closure.ptr to %int (i1, {%int, [0 x %int]}*, i8*)*
-    %ap = call i8* @malloc(%int 8)
-    call void @llvm.va_start(i8* %ap)
+    
+    %ret = call %int %closure.fn(i1 0, {%int, [0 x %int]}* %closure.env, i8* %vargs)
+    ±
+    %%ap = call i8* @malloc(%int 8)
+    %call void @llvm.va_start(i8* %ap)
     %ret = call %int %closure.fn(i1 0, {%int, [0 x %int]}* %closure.env, i8* %ap)
-    call void @llvm.va_end(i8* %ap)
-    call void @free(i8* %ap)
+    %call void @llvm.va_end(i8* %ap)
+    %call void @free(i8* %ap)
+    ±
     ret %int %ret
     
     Error:
@@ -193,7 +199,7 @@ This Structure Value entry point had the following arguments:
 \begin{lstlisting}
 @.flist = private global {%int, [0 x %frame*]}* null
 
-define %int @StructureEntryPoint(%int %findex, %int %index, ...){
+define %int @StructureEntryPoint(%int %findex, %int %index, i8* %vargs){
     %flist.ptr = load {%int, [0 x %frame*]}** @.flist
     %flist = load {%int, [0 x %frame*]}* %flist.ptr
     %elems = extractvalue {%int, [0 x %frame*]} %flist, 0
@@ -215,12 +221,14 @@ define %int @StructureEntryPoint(%int %findex, %int %index, ...){
     Continue2:
     %val.ptr = getelementptr [0 x %int (%frame*, i8*)*]* %list.ptr, i32 0, %int %index
     %val = load %int (%frame*, i8*)** %val.ptr
-
-    %ap = call i8* @malloc(%int 8)
-    call void @llvm.va_start(i8* %ap)
+    
+    %ret = call %int %val(%frame* %frame.ptr,i8* %vargs)
+    ±%ap = call i8* @malloc(%int 8)
+    %call void @llvm.va_start(i8* %ap)
     %ret = call %int %val(%frame* %frame.ptr,i8* %ap)
-    call void @llvm.va_end(i8* %ap)
-    call void @free(i8* %ap)
+    %call void @llvm.va_end(i8* %ap)
+    %call void @free(i8* %ap)
+    ±
     ret %int %ret
     
     Error:

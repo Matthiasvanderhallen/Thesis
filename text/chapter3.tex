@@ -893,7 +893,7 @@ The use of members from the insecure structure by code inside the insecure funct
 \item[Insecure functor with secure structure]
 Because the code of the functor is now located outside of the \emph{SPM}, special care needs to be taken when the functor depends on members of the structure.
 Because the frame \cmath{Fr_{s}} representing the structure is now in secure memory, the functor cannot manipulate this frame or perform reads on this frame.
-In order for insecure functors to call these functions, a generic wrapper is provided by the \emph{SPM} that takes as argument a \cmath{loc_{frame}} and an \cmath{index_{mem}}, as well as any arguments that would otherwise be passed directly.
+In order for insecure functors to call these functions, an entry point is provided by the \emph{SPM}, corresponding to a generic wrapper  that takes as argument a \cmath{loc_{frame}} and an \cmath{index_{mem}}, as well as any arguments that would otherwise be passed directly.
 As a result, the generic wrapper returns the result of the call to its caller.
 %to do: possible variant: this generic entry point returns a pointer
 %As a result, a pointer to the correct entry point is returned to the insecure code, which it can then call with the necessary arguments.
@@ -903,7 +903,7 @@ As a result, the generic wrapper returns the result of the call to its caller.
 %\to do{When calling values of the argument structure, the functor must at all times take care to determine whether the argument frame represents another functor output, or a basic structure, since calling a value within functor output requires the first argument to be a frame pointer to the argument structure. Should I add this remark in text, or should I provide code that does this check, and refer to that.}
 
 \section{Conclusion}
-In this chapter, some more advanced concepts of ML were added to the \MiniML\ language:
+In this chapter, some more advanced concepts of ML were added to the \MiniML\ language: higher-order functions and functors.
 
 Higher order functions, and the closely related concept of closures, can be introduced if certain sensitive information, such as environment values and pointer values are confined to the secure memory.
 This is done by reusing the earlier concept of \emph{masking}~\cite{Patrignani}, and applying it to closures.

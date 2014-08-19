@@ -98,15 +98,24 @@ The secure code is provided and compiled to an \emph{SPM}, and is linked to an i
 \section{Protected Module Architecture}
 \label{sec:protectedmodulearchitecture}
 As explained in \myref{sec}{sec:SecureCompilation}, a secure compilation scheme is a compilation scheme that preserves source level security guarantees in the target language.
+
+The secure compilation scheme compiles security sensitive parts of an application into a self-protected module or \emph{SPM}~\cite{PCBAC}.
+Such an \emph{SPM} operates in isolation of the other parts of the application.
+The high-level security guarantees of an \emph{SPM} with respect to the other parts of the application (i.e. the insecure context) are preserved in the low-level.
+In other words, any part of the application outside the \emph{SPM} can only operate on the \emph{SPM} in ways specified by the \emph{SPM}'s public high-level API.
+
 Such a preservation of security guarantees is only possible if some form of access controlled memory is available.
+Indeed, if no protection of any memory where possible, no confidentiality of values within the \emph{SPM} with respect to other parts of the application could ever be preserved, as values would always be readable directly from memory.
 
-Indeed, if no protection of any memory where possible, no confidentiality could ever be preserved, as values would always be readable directly from memory.
-For this reason, the securely compiled module is to an architecture that provides \emph{program counter based access control}~\cite{PCBAC} or \emph{PCBAC}.
-Such an architecture is called a \emph{Protected Module Architecture}. 
-The term \emph{program counter based access control} refers to the fact that the validity of a memory access depends on the current location of the program counter.
+An \emph{SPM} enforces a specific access control model: \emph{SPM}s are split into a protected code and a protected data section.
+Protected code contains the security sensitive part of the application's code.
+All other memory, containing data and code corresponding to other parts of the application, is considered to be the unprotected memory.
 
-The semantics of the access control imposed by the platform are given in \myref{fig}{fig:AccessControlSemantics}.
-This work uses the same memory access control model as given by Agten et al. in~\cite{Agten:2012:SCM:2354412.2355247}.
+Metadata in the \emph{SPM} also specifies a list of entry points.
+This list contains all memory locations in the protected code section that are valid entry points into the \emph{SPM}.
+
+The semantics of the access control imposed the SPM are summarized in \myref{fig}{fig:AccessControlSemantics}.
+This work uses the same memory access control model as given by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}.
 As shown by Patrignani et al.~\cite{Patrignani} the same access control model can be used to provide secure compilation for more advanced concepts object oriented programming concepts.
 
 \begin{figure}[htb]
@@ -121,16 +130,30 @@ As shown by Patrignani et al.~\cite{Patrignani} the same access control model ca
     \caption[PCBAC Semantics]{Program counter based access control semantics as specified in Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:AccessControlSemantics}}
 \end{figure}
 
-The \emph{SPM} created by secure compilation is loaded in the \emph{protected} memory.
-The code associated with an \emph{SPM} is located in the code section of the protected memory, memory allocations are done within the data section of protected memory.
-An \emph{SPM} must also provide a list of \emph{entry points}, which are specific positions within the protected code section.
-The insecure context is loaded in \emph{unprotected} memory.
+The architecture running the SPM enforces that execution can only enter the \emph{SPM} by jumping to an entry point.
+Jumping from unprotected memory to other memory locations inside protected memory than those mentioned in the entry points list is not allowed.
+This protects the atomicity of function execution with respect to the insecure code.
+Code inside the protected code section can jump to any other memory location in the protected code section or any location in unprotected memory.
 
-The access control mechanism imposes that the insecure context can only divert control flow to entry points or other parts of the unprotected memory.
-Its read and write access is also limited to the unprotected memory.
-The \emph{SPM} has \emph{read} as well as \emph{execute} permissions for its entire code section, including its entry points.
+Besides being limited to jumping to protected code locations listed in the \emph{SPM}'s entry point list, the unprotected memory is not allowed read or write access to any location in the protected code or protected data section.
+Instead, unprotected memory can only read from or write to other unprotected memory.
+The protected code section can read from or write to any memory location in unprotected memory, as well as memory locations inside the protected data section.
 
-There are already a few architectures that support these program counter based access control semantics, or a variation of them~\cite{Fides, Salus, Sancus}.
+
+%The \emph{SPM} created by secure compilation is loaded in the \emph{protected} memory.
+%The code associated with an \emph{SPM} is located in the code section of the protected memory, memory allocations are done within the data section of protected memory.
+%An \emph{SPM} must also provide a list of \emph{entry points}, which are specific positions within the protected code section.
+%The insecure context is loaded in \emph{unprotected} memory.
+%
+%The access control mechanism imposes that the insecure context can only divert control flow to entry points or other parts of the unprotected memory.
+%Its read and write access is also limited to the unprotected memory.
+%The \emph{SPM} has \emph{read} as well as \emph{execute} permissions for its entire code section, including its entry points.
+
+To enforce such access control semantics, the SPM must execute on an architecture that provides \emph{program counter based access control}~\cite{PCBAC} or \emph{PCBAC}.
+Such an architecture is called a \emph{Protected Module Architecture}.
+The term \emph{program counter based access control} refers to the fact that the validity of a memory access depends on the current location of the program counter.
+
+There are already a few architectures that support these program counter based access control semantics, or a variation of them~\cite{Fides, Salus, Sancus, SGX}.
 
 \section{Thesis Structure}
 This thesis aims to show how secure compilation can be achieved for a \emph{functional} language that implements an \emph{ML-style} module system.

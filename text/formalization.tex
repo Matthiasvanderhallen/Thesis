@@ -46,22 +46,27 @@ This way, when a masked pointer is received in an entry stub, its type can be ch
 & & \\
 \compile{\lsttext{val} $id = e : \tau$}$^{\mathit{SigId}}$ \makes \lsttext{define private\ $\tau$* @}$id$\lsttext{_internal()\{} \compile{$e$}$^{\mathit{SigId}}$ \lsttext{\}} \nl
 \annot{The next part is only included if the value is declared in the signature}\nl
-\lsttext{define \%int @}$id$ \lsttext{()\{} \nl
-\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in SPM for @\cmath{id}}\nl
+\lsttext{define private \%int @}$id$\lsttext{_stub() noinline\{} \nl
+\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters.}\nl
 \longspace \lsttext{\%0 = call $\ \tau$* @}$id$\lsttext{_internal()} \nl
 \longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 to \%int} \nl
 \longspace \lsttext{\%2 = call \%int @mask(\%int \%1,\%int $\ \tau_{int}$)} \nl
-\longspace [Switch stack, clear registers] \nl
+\longspace [Switch stack, clear registers.] \nl
 \longspace \lsttext{ret \%int \%2} \nl
+\lsttext{\}} \nl
+\lsttext{define \%int @}$id$\lsttext{()\{} \nl
+\annot{Add entry point in SPM metadata for @\cmath{id}, pointing to this location.}\nl
+\longspace \lsttext{\%ret = tail call \%int @}\cmath{id}\lsttext{()} \nl
+\longspace \lsttext{ret \%int \%ret}\nl
 \lsttext{\}} \\
 & & \\
 \compile{\lsttext{fun\ $\cmath{id\ \overline{x} = e : \tau}$}}$^{\mathit{SigId}}$ \makes \lsttext{define private\ $\tau$* @}$id$\lsttext{_internal($\mathit{\overline{\tau_{x}*}\ \overline{x}}$)\{}\nl
 \longspace \compile{$e$}$^{\mathit{SigId}}$ \nl
 \lsttext{\}} \nl
 \annot{The next part is only included if the value is declared in the signature}\nl
-\lsttext{define \%int @}$id$ \lsttext{($\mathit{\overline{\%int}\ \overline{y}}$)\{} \nl
+\lsttext{define private \%int @}$id$\lsttext{_stub($\mathit{\overline{\%int}\ \overline{y}}$) noinline\{} \nl
 %\longspace [Switch stack, move parameters, add entry point in SPM for @\cmath{id}]\nl
-\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in SPM for @\cmath{id}}\nl
+\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters.}\nl
 \longspace \lsttext{$\overline{\%z}$ = call \%int @unmask($\overline{\%int}\ \overline{\%y}$)} \nl
 \longspace \lsttext{$\overline{\%t}$ = call \%int @unmasktype($\overline{\%int}\ \overline{\%y}$)} \nl
 \longspace \lsttext{$\overline{\%c}$ = icmp eq \%int $\ \overline{\%t}$\ $\overline{\%\tau_{x,int}}$}\nl
@@ -72,13 +77,18 @@ This way, when a masked pointer is received in an entry stub, its type can be ch
 \longspace \lsttext{\%0 = call $\ \tau$* @}$id$\lsttext{_internal($\overline{\tau_{x}*}\ \overline{\%x}$)} \nl
 \longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 to \%int} \nl
 \longspace \lsttext{\%2 = call \%int @mask(\%int \%1, \%int $\ \tau_{int}$)} \nl
-\longspace [Switch stack, clear registers and flags] \nl
+\longspace [Switch stack, clear registers and flags.] \nl
 \longspace \lsttext{ret \%int \%2} \nl
 \nl
 \longspace \lsttext{Error:}\nl
 \longspace \lsttext{call void @exit(i32 -1)}\nl
 \longspace \lsttext{unreachable}\nl
-\lsttext{\}} \\ 
+\lsttext{\}} \nl
+\lsttext{define \%int @}$id$\lsttext{($\mathit{\overline{\%int}\ \overline{y}}$)\{} \nl
+\annot{Add entry point in SPM metadata for @\cmath{id}, pointing to this location.}\nl
+\longspace \lsttext{\%ret = tail call \%int @}\cmath{id}\lsttext{($\mathit{\overline{\%int}\ \overline{y}}$)} \nl
+\longspace \lsttext{ret \%int \%ret}\nl
+\lsttext{\}} \\
 \intertextt{The code of the \lsttext{@mask}, \lsttext{@unmask} and \lsttext{@unmasktype} functions is given in \myref{lst}{lst:maskcode} in \myref{app}{app:LLVMCode}. 
 It provides a naive implementation of \lsttext{@mask}, \lsttext{@unmask} and \lsttext{@unmasktype} functions using linked lists.}
 \intertextt{If a function receives polymorphic arguments, for example \lsttext{createPair :: a -> a -> Pair a}, the internal functions arguments are of type \lsttext{\%tyvar*}.

@@ -502,7 +502,7 @@ Sorting module expressions based on the name used in the binding makes sure that
 \label{sec:formalization}
 
 \input{formalization}
-
+\vspace{-1.5em} %Todo: LaTeX voodoo
 The translation of an expression poses no additional security concerns and is compiled to the function or value body.
 Since \myref{sec}{sec:DefinitionOfCompilation} states the module expressions making up the \emph{SPM} are compiled in a separate file, before the context, nothing in these expressions can depend on things defined in insecure code.
 This is not a fundamental restriction, it is possible to have these expressions depend on outside code by either:

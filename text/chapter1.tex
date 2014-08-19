@@ -261,7 +261,7 @@ Ret:
 \end{lstlisting}
 
 %First, this restriction poses no real hindrance to a functional language as \MiniML, which already is single assignment.
-%This restriction is solved by providing the $\Phi$ function\cite{Appel} as a way to write code that modifies a registers value.
+%This restriction is solved by providing the $\Phi$ function~\cite{Appel} as a way to write code that modifies a registers value.
 
 %\to do{This is important for the secure compilation (clearing registers after function calls end). It might be necessary to rework this subsection to stress this more.}
 \end{description}
@@ -384,7 +384,7 @@ In the case of low-level architecture however, all communication occurs through 
 This means that a low-level attacker can try to perform side channel communication.
 
 In order to prevent the leaking of protected data through side channels, it is important to ensure that the information passed through unprotected memory, flags and registers is restricted to that information being passed by the returns and method calls in \mbox{MiniML}.
-Thus, any callback or return to untrusted code must: %\cite{Agten:2012:SCM:2354412.2355247}:
+Thus, any callback or return to untrusted code must: %~\cite{Agten:2012:SCM:2354412.2355247}:
 \begin{itemize}
 \item Clear the flags
 \item Clear the registers, except those being used to pass a parameter or a return value.

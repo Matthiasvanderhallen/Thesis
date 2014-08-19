@@ -66,9 +66,9 @@ The argument is highly influenced by the formal proof technique described in \my
 The first important step in a formal proof would be showing that the operational semantics of the target-language have an equivalent trace semantics.
 The secure compilation ensures this by limiting the information passed between insecure context and secure code.
 
-This is achieved by clearing flags and registers\cite{Agten:2012:SCM:2354412.2355247} when control flow passes from secure code to insecure context.
+This is achieved by clearing flags and registers~\cite{Agten:2012:SCM:2354412.2355247} when control flow passes from secure code to insecure context.
 Secondly, the leaking of information about memory locations is prevented.
-This is partly achieved by the use of  masking\cite{Patrignani}, and for the other part by making fields available using the generic structure value entry point and a (masked) reference to a frame.
+This is partly achieved by the use of masking~\cite{Patrignani}, and for the other part by making fields available using the generic structure value entry point and a (masked) reference to a frame.
 
 Information leakage about the order of definitions, whether it be value definitions of structure definitions, is prevented by imposing an alphabetical ordering on the definitions.
 An alphabetic reordering at compilation makes sure that the order of fields within a frame, or frames within the f-list is insensitive to a reordering of the source-level code.

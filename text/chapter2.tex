@@ -419,7 +419,7 @@ In \myref{fig}{fig:LLVMSyntax}, the reduced syntax of LLVM IR is given, with som
 %\text{} \mathit{} ::= &\mathit{} \\
 \end{aligned}
 \end{align*}
-\caption[Syntax: LLVM]{The reduced LLVM Syntax, largely built upon Jianzhou Zhao et al. \cite{Zhao:2012:FLI:2103656.2103709} \label{fig:LLVMSyntax}}
+\caption[Syntax: LLVM]{The reduced LLVM Syntax, largely built upon Jianzhou Zhao et al.~\cite{Zhao:2012:FLI:2103656.2103709} \label{fig:LLVMSyntax}}
 \end{figure}
 
 The syntax shows the idea of a module, which corresponds to a unit that can be compiled separately from other modules.
@@ -452,7 +452,7 @@ This set of module expressions \cmath{me} is compiled separately from any other,
 %This set of module expressions \cmath{me} has to be compiled in a fully abstract way to \LLVMIR\ \cmath{P\downarrow}.
 This means that if this \cmath{\compiled{P}} is later compiled further to an object file and linked together with a context \cmath{C}, there exists no context \cmath{C} that can tell from \cmath{\compiled{P}} from the compilation \cmath{\compiled{P'}}, where \cmath{\compiled{P'}} is the compilation result of a source-level contextually equivalent \MiniML\ program \cmath{P'}.
 
-The result of the translation $\compile{\bullet}$ is expected to run as an \emph{SPM} on a low-level machine model as used in \cite{Agten:2012:SCM:2354412.2355247,Patrignani}.
+The result of the translation is expected to run as an \emph{SPM} on a low-level machine model as used in~\cite{Agten:2012:SCM:2354412.2355247,Patrignani}.
 This model is a Protected Module Architecture or \emph{PMA}, with access control semantics as explained in \myref{sec}{sec:protectedmodulearchitecture}.
 
 %This model provides program counter based access control, or \emph{PCBAC}\footnote{https://distrinet.cs.kuleuven.be/software/pcbac/\#platforms}.
@@ -467,7 +467,7 @@ This model is a Protected Module Architecture or \emph{PMA}, with access control
 %		Protected & r x & r x & r w & r w x \\ \hline
 %		Unprotected & x & & & r w x \\ \hline
 %	\end{tabular}
-%    \caption[PCBAC Semantics]{Program counter based access control semantics as specified in Agten et al.\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:PCBAC}}
+%    \caption[PCBAC Semantics]{Program counter based access control semantics as specified in Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:PCBAC}}
 %\end{figure}
 %
 The result of the translation will be loaded within the protected code, and its data section will correspond to the protected data section of the \emph{PMA}.
@@ -508,7 +508,7 @@ This is not a fundamental restriction, it is possible to have these expressions 
 \item Allowing dependencies on the context to be hardcoded, which would correspond to the high-level \MiniML\ interpretation that the context is split up in two parts.
 The first part is compiled before the file containing the secure module expressions, the second part after the secure module expressions.
 
-The resulting security issues could by resolved by introducing a returnback entry point into the \emph{SPM}, as described by Agten et al.\cite{Agten:2012:SCM:2354412.2355247}.
+The resulting security issues could by resolved by introducing a returnback entry point into the \emph{SPM}, as described by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}.
 \item Adding the functionality of callbacks to the language, using closures.
 \end{itemize}
 

@@ -1,5 +1,5 @@
 \documentclass[11pt]{article}
-\title{Secure Compilation and The ML Language}
+\title{Secure Compilation and the ML Language}
 \author{Matthias van der Hallen}
 \date{}
 \usepackage{listings}
@@ -32,12 +32,12 @@
 \begin{document}
 \maketitle
 \abstract{
-The development of software is a daunting task, even more so when high security becomes an issue. 
-Meanwhile, in todays technology driven world, computer security is not so much a luxury as it is a necessity. 
+The development of software is a daunting task, even more so when security becomes an issue. 
+Meanwhile, in today's technology driven world, computer security is not so much a luxury as it is a necessity. 
 Nearly all development happens in a high-level programming language, mainly because it allows for easier reasoning about the program being written.
 This simplification of the thought process is a direct consequence of the abstract computing model that high-level languages usually offer to the programmer.
 
-The computing model offered by real architectures differs on many accounts from the one high-level languages offer.
+The computing models offered by real-world architectures differ on many accounts from the one high-level languages offer.
 It is during the compilation process that many bugs are introduced to seemingly correct software, because the abstract properties of the high-level language are lost.
 These bugs can even pop up in software whose workings were formally verified using tools such as verifast~\cite{Verifast:paper}.
 The goal of secure compilation is strengthening the compilation process such that any security guarantees derived from the abstract computing model are preserved when compiling.
@@ -46,12 +46,12 @@ This work aims to bring secure compilation to a language with an ML style module
 }
 
 \section{Introduction}
-The amount of software in todays world is growing at rapid rates.
+The amount of software in today's world is growing at rapid rates.
 As software programs take on a larger and larger role in our lives, and security sensitive applications run side by side with software of the garden-variety, it is important that these applications behave as expected.
 
 Most computer software is written using a high-level language, for example Java or ML.
-This high-level language offers a computing model that abstracts away many subtleties of real architectures.
-These subtleties of the computing model however are reintroduced when the software is compiled from those high-level language to a low-level language.
+These high-level languages offer a computing model that abstracts away many subtleties of real architectures.
+These subtleties of the computing model however are reintroduced when the software is compiled from those high-level languages to a low-level language.
 Some of the subtleties that are abstracted away are:
 \begin{itemize}
 \item The existence of registers and memory.
@@ -75,14 +75,14 @@ For example, Y. Erlinsson et al.~\cite{OVSPaper} list a number of ways that low-
 %a strengthening of the compilation process is needed.
 These bugs can introduce severe problems, such as breaking into security sensitive parts of an application by exploiting its bindings with less secure parts of the application.
 Hence, a strengthening of the compilation process is required.
-The goal of \emph{secure compilation} is to provide compilation that preserves all high-level security guarantees in the low-level.
+The goal of \emph{secure compilation} is to provide compilation that preserves all high-level security guarantees in the low-level output of the compiler.
 
 \section{Problem Setting}
 Informally, the goal of secure compilation was formulated as compilation that preserves all high-level security guarantees in the low-level.
 Contextual equivalence allows us to formalize what exactly are the security guarantees offered by the high-level language.
 
-Contextual equivalence~\cite{Agten:2012:SCM:2354412.2355247} does this by introducing a homomorphic equivalence relation $\simeq$ on programs or their components.
-Two objects or components $O1$ and $O2$ are contextually equivalent if no third object $O_C$, called the \emph{context}, is able to distinguish between the two components when it is run together with one of the objects as a programming.
+Contextual equivalence~\cite{Agten:2012:SCM:2354412.2355247} does this by introducing a equivalence relation $\simeq$ on programs or their components.
+Two objects $O1$ and $O2$ are contextually equivalent if no third object $O_C$, called the \emph{context}, is able to distinguish between the two components when it is run together with one of the objects as a programming.
 The two objects are thus perfectly substitutable, as their outward behaviour is the same: they function as one and the same blackbox.
 
 \[
@@ -108,8 +108,8 @@ public void f(){
 \end{lstlisting}
 \end{minipage}
 
-Now that contextual equivalences ability to express the security guarantees of a language is established, secure compilation can be formalized by the notion of \emph{full abstraction}~\cite{Abadi}, or the preservation of contextual equivalence during the compilation process.
-If $O_1$ is a high-level component and $\com{O_1}$ its low-level result from compilation, full abstraction becomes:
+Now that contextual equivalences ability to express the security guarantees of a language is established, secure compilation can be formalized by the notion of \emph{full abstraction}~\cite{Abadi}, or the preservation and reflection of contextual equivalence during the compilation process.
+If $O_1$ is a high-level component and $\com{O_1}$ is its low-level result from compilation, full abstraction can be stated formally as:
 \[
  \forall O_1, O_2 : O_1 \simeq O_2 \iff \com{O_1} \simeq \com{O_2}
 \]
@@ -232,11 +232,11 @@ When a collection of structures, signatures and functors is compiled with the se
 In order to securely compile a language with an ML style module system, it is important to preserve the basic security precautions that were described by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}. These are summarized here shortly:
 
 \begin{itemize}
-\item Every function has a single entry point.
+\item A single entry point is created for every funcion.
 The access control semantics of the low-level architecture make sure that control flow can only switch from the insecure code to the secure code by passing through such an entry point.
 This protects the `atomicity' of function execution.
 \item A shadow stack should be used for all stack operations done in the secure code. When control flow switches from the insecure context to the secure module or back, the stack pointer and the shadow stack pointer should be switched.
-\item When control flow passes from the secure code to the insecure code, all flags and all registers not used to pass the return value should be cleared.\footnote{With the exception of callee saved registers.}
+\item When control flow passes from the secure code to the insecure code, all flags and all registers not used to pass the return value should be cleared, with the exception of callee saved registers.
 \item A reordering of function definitions does not break contextual equivalence. Therefore, the order in which functions are defined in the low-level language should not provide a way to distinguish between the compilation results of contextually equivalent modules.
 \end{itemize}
 
@@ -266,7 +266,7 @@ For this, structures need to have a runtime representation containing a list wit
 These runtime representations are called \emph{frames}, and are collected in a list called the \emph{f-list}.
 The insecure code can refer to frames using their index in the \emph{f-list}
 
-\item[Trimming map]
+\item[Trimming Map]
 Code that represents the functor can now address values of the argument structure using the list of pointers inside the argument frame, and an offset.
 Because the argument structure can define more values than the expected signature declares, the offset of a value needed by the functor within the argument structure might differ from the offset of this same value in the argument signature.
 To solve this, a mapping between these offsets must be established as well, called the \emph{trimming map}. This is unique for every functor application.
@@ -302,7 +302,7 @@ As a result, the order of frames in the f-list has to be alphabetical for any fr
 
 Frames that represent structures resulting from \emph{functor applications} within \emph{insecure context} are appended in the order of their bindings.
 
-\item[A single entry point]
+\item[A Single Entry Point]
 Whether a structure was defined using functor application or statically is not a distinguishing feature in ML.
 This has an effect on how structure values should be called.
 
@@ -338,7 +338,7 @@ A recent innovation in restricting access on a hardway level is Intel\textregist
 \section{Conclusion}
 This work aims to bring a secure compilation scheme to languages that implement an ML style module system.
 This work shows that such a secure compilation scheme is possible on a low-level architecture providing certain access control semantics as specified by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}. 
-This was already shown to allow several advanced OOP concepts by Patrignani et al.~\cite{Patrignani}.
+This same architecture was already shown to allow for secure compilation of several advanced OOP concepts by Patrignani et al.~\cite{Patrignani}.
 
 \clearpage
 \begin{appendices}

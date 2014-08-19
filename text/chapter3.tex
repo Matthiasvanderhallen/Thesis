@@ -597,9 +597,9 @@ By choosing the unsound type assumptions that structure \cmath{S_{a}} makes care
 
 Summarizing, when compiling a secure functor the compiler must: %Todo: Nalezen, is dit duidelijk genoeg?
 \begin{itemize}
-\item Add an entry point in the \emph{SPM} pointing to a function that can create frames representing applications of the functor.
+\item Add an entry point in the \emph{SPM}'s metadata corresponding to a function that can create frames representing applications of the functor.
 \item Equip this function with the necessary checks to assure that when the argument structure is secure, the arguments signature also matches the expected signature specified by the functor definition.
-In other words, code must be added that reads type information about the argument structure and checks, using \emph{structural typing} as specified in \myref{sec}{sec:StructuralTyping} to ensure that functor application on secure structures only succeeds if the secure structure signature matches with the target signature.
+In other words, code must be added that reads type information about the argument structure and checks it, using \emph{structural typing} as specified in \myref{sec}{sec:StructuralTyping}. This is done to ensure that functor application on secure structures only succeeds if the secure structure signature matches with the target signature.
 \end{itemize}
 
 By preserving the order in which functors are applied when adding the frames dynamically, the compiler knows at compilation time the position of every frame in the \emph{SPM}'s \emph{f-list}.

@@ -834,7 +834,25 @@ If stubs were made entry points in the target language, the difference between s
 \item Compiling \myref{lst}{lst:FunctorApplicationOrStaticDefinition2} means calling value \lsttext{StrA.x} would use an entry point different from the one used when calling \lsttext{StrB.x}
 \end{itemize}
 Clearly, this would result in \myref{lst}{lst:FunctorApplicationOrStaticDefinition1} and \myref{lst}{lst:FunctorApplicationOrStaticDefinition2} not being contextually equivalent in the target language.
+\\[1em]
+The addition of a generic getter function that is used to access any value or function defined on a structure adds an additional level of indirection in calls between the insecure context and the secure code.
 
+To illustrate this, \myref{fig}{fig:callstackcomparisonsimple} shows the flow of execution corresponding to a function call in the simple \MiniML\ language or the work of Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}. As a comparison, \myref{fig}{fig:callstackcomparisonadvanced} shows the flow of execution for that same call in the \MiniML\ language with advanced concepts.
+
+\begin{figure}[htb]
+\centering
+\begin{subfigure}{\textwidth}
+\centering
+\includegraphics[scale=0.6]{img/Simple.png}
+\caption{Execution flow in the simple \MiniML\ language. \label{fig:callstackcomparisonsimple}}
+\end{subfigure}
+\\
+\begin{subfigure}{\textwidth}
+\includegraphics[scale=0.6]{img/Advanced.png}
+\caption{Execution flow in the \MiniML\ language. \label{fig:callstackcomparisonadvanced}}
+\end{subfigure}
+\caption{Comparison of execution}
+\end{figure}
 %However, in order to allow optimization, the structure values could safely be made entry points of the \emph{SPM} with only minimal changes to the scheme above:
 %\begin{itemize}
 %\item The high-level language context is oblivious to whether a structure bound in secure code is the result of functor application or was statically defined.

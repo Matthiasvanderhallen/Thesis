@@ -8,7 +8,10 @@ However, a formal verification of the source code can only show that no source-l
 After a program's source code has been written, it is usually compiled to a target language such as assembly that can be executed.
 This target language most often is substantially different from the source language.
 These differences are a direct consequence of the simplified computing model that high-level languages usually offer to the programmer.
+
 For example, high-level languages often hide the fact that values have to be represented using target-language concepts, saved in computer memory.
+Another concern hidden from the programmer is how the flow of control, i.e. determining the next command to be executed, is managed.
+In the high-level language, a function exection is an atomic operation that can only be executed as a whole, and never partially. This is less evident in the low-level language.
 The compilation process reintroduces these concerns.
 
 In many instances, malware exploits target-level bugs introduced by this compilation process~\cite{OVSPaper,Younan:2012:RCC:2187671.2187679}.
@@ -56,8 +59,8 @@ The target language, however, does not always offer these abstractions.
 For example, when executing software, the values created by this software must be saved in memory, using a certain representation.
 The platform on which the target language runs might not provide access control for this memory, which means values saved in memory might be readable by any code running on the platform.
 
-Software code must be saved somewhere as well, and doing this might corrupt control flow, for example by overwriting a return address~\cite{OVSPaper}.
-Such an attack might result executing functionality that was supposed to be hidden.
+Software code must be saved somewhere as well, and doing this might make it possible to corrupt control flow, for example by overwriting a return address~\cite{OVSPaper}.
+Such an attack might result in executing functionality that was supposed to be hidden, because the atomicity of function execution can be broken.
 
 \subsubsection{Full Abstraction}
 \label{sec:fullabstraction}

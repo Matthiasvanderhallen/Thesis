@@ -11,7 +11,7 @@ It states that \emph{contextual equivalence} for source-level objects is preserv
     O_{1} \simeq O_{2} \iff \compiled{O_{1}} \simeq \compiled{O_{2}}
 \]
 
-Proving full abstraction requires a proof for soundness  and completeness.
+Proving full abstraction of a compilation scheme, i.e. proving that it is secure, requires a proof for soundness and completeness.
 \begin{description}
 \item[Soundness]
 Soundness expresses that the compilation of two source-level objects does not `introduce' contextual equivalence in the target language.
@@ -28,7 +28,7 @@ Indeed, formulating the logically equivalent contrapositive of the soundness pro
 This expresses that two contextually \emph{un}equivalent source-level objects result in contextually \emph{un}equivalent translations.
 If a compilation scheme would \emph{not} be sound, there would exist two contextually \emph{un}equivalent source-level objects, whose translations would be contextually equivalent.
 
-Clearly, this compiler does not function `correctly', as there is a context in which the source-level objects behave differently, but the translations do not.
+Clearly, such a compiler does not function `correctly', as there is a context in which the source-level objects behave differently, but the translations do not.
 One of these translations does not accurately behave like the source-object it is derived from.
 \item[Completeness]
 Completeness says that all contextually equivalent source-level objects are translated to contextually equivalent target-level objects.

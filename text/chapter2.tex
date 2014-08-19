@@ -300,8 +300,9 @@ Type definitions and value declarations in a signature can contain type variable
 However, all type variables are assumed be quantified universally.
 This means, for example, that a type definition written as $type\ \overline{\alpha}\ t = \tau$ contained in $\overline{d}$ results in a type definition $t\ \overline{\alpha} = \forall \alpha_{1}...\forall \alpha_{n}.\tau$ as an element of \cmath{ES(\overline{d})}.
 %Todo: Nalezen, is dit duidelijk genoeg?
+
 Whether or not a structure's principal signature matches with a signature \cmath{Sig}, depends only on the structural characteristics \cmath{Sig} requires, and not on whether the structure was explicitly ascribed with \cmath{Sig}.
-For this reason, signature matching is a form of \emph{structural typing}, as opposed to \emph{nominal typing}.
+For this reason, signature matching is a form of \emph{structural typing}, as opposed to \emph{nominal typing}~\cite{Pierce:Adv}.
 %can still match with a signature \cmath{Sig}, even when its definition is not explicitly ascribed with \cmath{Sig}, as long as its 
 \\[1em]
 Note that signatures are in fact a set of type bindings and type definitions.

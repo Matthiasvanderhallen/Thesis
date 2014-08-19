@@ -134,11 +134,11 @@ When execution returns, the return value must be interpreted as a masking index.
 The returnback entry point, as specified by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247} is used to return from callbacks.
 Whenever a secure function calls a function in insecure memory, either directly or through the insecure closure evaluation point, the return address is changed to the returnback entry point and the real return address is pushed on the return address stack. When the returnback entry point is called, it will pop the first value off the return pointer stack, and jump to it.
 
-The return address register however can normally not be manipulated from within LLVM. This is a consequence of LLVMs target independent nature.
+The return address register however can normally not be manipulated from within LLVM. This is a consequence of LLVM's target independent nature.
 This leaves two options to implement this security measure, both out of the scope of this work:
 \begin{itemize}
 \item 
-Add the security measure when the llvm backend compiles the \LLVMIR source to assembly.
+Add the security measure when the LLVM backend compiles the \LLVMIR source to assembly.
 
 \item 
 Use the experimental \lsttext{llvm.read_register} and \lsttext{llvm.writeregister} intrinsics to perform platform dependent modifications.

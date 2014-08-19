@@ -33,7 +33,7 @@ Now, every definition is translated separately.
 The translation of a definition depends on a number of things:
 \begin{itemize}
 \item Whether the definition is that of a type or that of a field.
-%The definition of a type is not translated to llvm.
+%The definition of a type is not translated to LLVM.
 \item Whether or not the value is local to the structure \cmath{StrId}.
 This depends on the value being declared in the signature \cmath{SigId}.
 \end{itemize}
@@ -47,7 +47,7 @@ This way, when a masked pointer is received in an entry stub, its type can be ch
 \compile{\lsttext{val} $id = e : \tau$}$^{\mathit{SigId}}$ \makes \lsttext{define private\ $\tau$* @}$id$\lsttext{_internal()\{} \compile{$e$}$^{\mathit{SigId}}$ \lsttext{\}} \nl
 \annot{The next part is only included if the value is declared in the signature}\nl
 \lsttext{define \%int @}$id$ \lsttext{()\{} \nl
-\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in spm for @\cmath{id}}\nl
+\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in SPM for @\cmath{id}}\nl
 \longspace \lsttext{\%0 = call $\ \tau$* @}$id$\lsttext{_internal()} \nl
 \longspace \lsttext{\%1 = ptrtoint $\ \tau$* \%0 to \%int} \nl
 \longspace \lsttext{\%2 = call \%int @mask(\%int \%1,\%int $\ \tau_{int}$)} \nl
@@ -60,8 +60,8 @@ This way, when a masked pointer is received in an entry stub, its type can be ch
 \lsttext{\}} \nl
 \annot{The next part is only included if the value is declared in the signature}\nl
 \lsttext{define \%int @}$id$ \lsttext{($\mathit{\overline{\%int}\ \overline{y}}$)\{} \nl
-%\longspace [Switch stack, move parameters, add entry point in spm for @\cmath{id}]\nl
-\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in spm for @\cmath{id}}\nl
+%\longspace [Switch stack, move parameters, add entry point in SPM for @\cmath{id}]\nl
+\annot{\setlength{\leftskip}{3.5ex} Switch stack, move parameters, add entry point in SPM for @\cmath{id}}\nl
 \longspace \lsttext{$\overline{\%z}$ = call \%int @unmask($\overline{\%int}\ \overline{\%y}$)} \nl
 \longspace \lsttext{$\overline{\%t}$ = call \%int @unmasktype($\overline{\%int}\ \overline{\%y}$)} \nl
 \longspace \lsttext{$\overline{\%c}$ = icmp eq \%int $\ \overline{\%t}$\ $\overline{\%\tau_{x,int}}$}\nl

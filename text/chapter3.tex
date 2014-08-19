@@ -176,7 +176,7 @@ Each of these actions break contextual equivalence:
 \begin{description}
 \item[Change pointer value.] The pointer to the code might be changed to code that makes certain assumptions about the structure used to implement abstract data types.
 %For example, if the environment contains 
-This way, the context could discern between contextually equivalent SPMs in which the assumptions may or may not hold. 
+This way, the context could discern between contextually equivalent \emph{SPM}s in which the assumptions may or may not hold. 
 %\to do{provide vulnerability example}
 \item[Inspect environment values.]
 Assumptions about the way abstract data types are structured can be checked by inspecting the environment values.
@@ -343,7 +343,7 @@ As all conditional expressions are part of the \emph{Core} language, structure b
 \subsection{Security Status of the Resulting Structure}
 \label{sec:FunctorSecurityStatus}
 Now that functors are added to the MiniML language, it is necessary to determine the security status of functors. 
-When is the output structure of a functor considered to be part of the SPM, and when is it part of the insecure context?
+When is the output structure of a functor considered to be part of the \emph{SPM}, and when is it part of the insecure context?
 This question has a simple, yet perhaps surprising answer:
 The output structure resulting from a functor has its security status determined by the location of the code defining the functor.
 
@@ -356,7 +356,7 @@ Regardless of whether its argument, \lsttext{KeyStruct}, was defined in secure c
 The resulting dictionary structure is secure.
 This means that values of types that are defined by the functor can only be returned to the context as masked values.
 In its implementation, the functor can freely call functions of the (possibly insecure) structure, it must however take the same precautions as any callback to insecure code.
-%to do: How do we discriminate between structures that are inside the spm and those that are outside the spm? Do we simply check the pointer value against the region? (This is presumably very unsafe).
+%to do: How do we discriminate between structures that are inside the \emph{SPM} and those that are outside the \emph{SPM}? Do we simply check the pointer value against the region? (This is presumably very unsafe).
 %to do: How do we represent the structure that was created? It can be used as a parameter for a functor *again*
 %to do: Suppose StringEqualCaseSensitive and StringEqualCaseInsensitive are given as argument 
 \item[In insecure code:] Suppose \lsttext{DictionaryFn} is defined in insecure code.
@@ -398,7 +398,7 @@ This would result in either:
 
 \smallskip
 Choosing the second option means that all members (values or functions) of functors are implemented as stubs that take a pointer to a frame as an additional argument.
-%If the functor is located in the secure code segment, the memory locations for all stubs that \emph{do not} correspond to \emph{helper values} are added as \emph{entry points} to the SPM.
+%If the functor is located in the secure code segment, the memory locations for all stubs that \emph{do not} correspond to \emph{helper values} are added as \emph{entry points} to the \emph{SPM}.
 %This makes them callable by secure and insecure code alike.
 
 The stubs can implement any generic code, and use the information inside the passed frame to call any necessary member defined by the argument structure.
@@ -412,7 +412,7 @@ In the target language however, structures are translated to frames and are refe
 %\smallskip\noindent
 %Two main points have to be discussed when considering functors within the context of abstract compilation:
 %The first point that needs to be addressed asks what the security status is of the result of functor application.
-%Firstly, when is the output structure considered to be part of the SPM, and when is it part of the insecure context?
+%Firstly, when is the output structure considered to be part of the \emph{SPM}, and when is it part of the insecure context?
 %This is discussed in \myref{sec}{sec:SecurityStatus}.
 %The second point, considers 
 

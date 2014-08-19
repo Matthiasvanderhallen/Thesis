@@ -88,6 +88,8 @@ The two objects are thus perfectly substitutable, as their outward behaviour is 
 \[
  \forall O_C : O_C[O_1] \rightarrow^* c \iff O_C[O_2] \rightarrow^* c
 \]
+where $O_{C}[.]$ is a program where a certain component is unspecified. 
+$O_{C}[O_1]$ is the program that results from linking $O_C$ with $O_1$, where $O_1$ is used as the unspecified component.
 
 Contextual equivalence captures security guarantees such as the public/private access modifier or the atomicity of function executions. For example, if two components $O_1$ and $O_2$, containing functions \myref{lst}{lst:SimpleReturn} and \myref{lst}{lst:UnreachableCode} respectively, are contextually equivalent then the atomicity of function execution of \lstinline{f} is guaranteed. Being able to break function atomicity would result in the normally unreachable \lstinline{return} in \myref{lst}{lst:UnreachableCode} becoming reachable, which means substituting $O_1$ by $O_2$ would be observable from some context object $O_C$.
 
@@ -212,6 +214,12 @@ The contribution of this work is a secure compilation scheme for a language that
 In order to be able to preserve the security guarantees of ML when compiling to a low-level language, it is assumed that the low-level architecture offers certain access control semantics for the computer memory.
 The same access control semantics as specified by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247} are chosen (\myref{fig}{fig:PCBAC}).
 
+This access control semantic assumes that all memory is split into a protected and an unprotected section.
+Protected memory has a further subdivision into a code section and a data section.
+A number of memory locations inside the protected code section are designated to be entry points.
+These are the only memory locations to which instructions in unprotected memory can jump. 
+Furthermore, instructions in unprotected memory can only read from or write to memory locations located in unprotected memory.
+
 \begin{figure}[htb]
     \centering
 	\begin{tabular}{|c|c|c|c|c|}
@@ -224,7 +232,7 @@ The same access control semantics as specified by Agten et al.~\cite{Agten:2012:
     \caption[PCBAC Semantics]{Program counter based access control semantics as specified in Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:PCBAC}}
 \end{figure}
 
-They already specify a secure compilation scheme from a simple high-level language to this low-level architecture.
+Agten et al. already specify a secure compilation scheme from a simple high-level language to this low-level architecture.
 Patrignani et al.~\cite{Patrignani} expand on this work, adding several concepts from \emph{object oriented programming}.
 
 When a collection of structures, signatures and functors is compiled with the secure compilation scheme, it is assumed that execution will happen by loading the securely compiled code to the protected code memory and linking it with an insecure context that resides in unprotected memory. Memory allocations in the protected code will allocate memory inside the protected data section.
@@ -286,7 +294,7 @@ This means that all value calls must include a frame as an argument.
 
 This frame can only be the frame that represents the structure containing the value itself.
 Frames that represent the output structure of functor application must contain a reference to the frame that represents the argument of the functor application, so that the generic code representing the functor still gets a reference to the argument frame.
-\\[2em]
+\\[0.5em] %todo: Latex voodoo
 As a result, all frames now look like this, with an empty trimming map and pointer if the frame represents a statically defined structure.
 
 \begin{tabular}{|c c c|}

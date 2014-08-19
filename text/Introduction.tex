@@ -112,9 +112,9 @@ Protected code contains the security sensitive part of the application's code.
 All other memory, containing data and code corresponding to other parts of the application, is considered to be the unprotected memory.
 
 Metadata in the \emph{SPM} also specifies a list of entry points.
-This list contains all memory locations in the protected code section that are valid entry points into the \emph{SPM}.
+This list specifies the only memory locations in the protected code section to which instructions located in unprotected memory can jump.
 
-The semantics of the access control imposed the SPM are summarized in \myref{fig}{fig:AccessControlSemantics}.
+The semantics of the access control enforced the SPM are summarized in \myref{fig}{fig:AccessControlSemantics}.
 This work uses the same memory access control model as given by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}.
 As shown by Patrignani et al.~\cite{Patrignani} the same access control model can be used to provide secure compilation for more advanced concepts object oriented programming concepts.
 
@@ -131,13 +131,13 @@ As shown by Patrignani et al.~\cite{Patrignani} the same access control model ca
 \end{figure}
 
 The architecture running the SPM enforces that execution can only enter the \emph{SPM} by jumping to an entry point.
-Jumping from unprotected memory to other memory locations inside protected memory than those mentioned in the entry points list is not allowed.
+Instructions in unprotected memory are not allowed to jump to other memory locations inside protected memory than those mentioned in the entry points list.
 This protects the atomicity of function execution with respect to the insecure code.
-Code inside the protected code section can jump to any other memory location in the protected code section or any location in unprotected memory.
+Instructions inside the protected code section can jump to any other memory location in the protected code section or any location in unprotected memory.
 
-Besides being limited to jumping to protected code locations listed in the \emph{SPM}'s entry point list, the unprotected memory is not allowed read or write access to any location in the protected code or protected data section.
-Instead, unprotected memory can only read from or write to other unprotected memory.
-The protected code section can read from or write to any memory location in unprotected memory, as well as memory locations inside the protected data section.
+Besides being limited to jumping to protected code locations listed in the \emph{SPM}'s entry point list, instructions in the unprotected memory are not allowed read or write access to any location in the protected code or protected data section.
+Instead, instructions in unprotected memory can only read from or write to other unprotected memory.
+Instructions in the protected code section can read from or write to any memory location in unprotected memory, as well as memory locations inside the protected data section.
 
 
 %The \emph{SPM} created by secure compilation is loaded in the \emph{protected} memory.

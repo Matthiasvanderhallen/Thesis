@@ -181,7 +181,7 @@ Assumptions about the way abstract data types are structured can be checked by i
 \end{description}
 
 As a result, the closure entity itself should not be passed across the boundary between the \emph{SPM} and the trusted code.
-Instead, the closure should be masked\todo{as explained in}, and its corresponding index in the masking map of the \emph{SPM} is passed to the untrusted code.
+Instead, the closure should be masked, just like any value, as explained in \myref{sec}{sec:securityconcerns}. When a closure should be passed to the untrusted code, its corresponding index in the masking map of the \emph{SPM} is passed instead.
 %The code pointer inside the closure now points to 
 In order to later execute the closure, the \emph{SPM} should offer a \emph{closure-evaluation entry point}.
 This entry point first takes a pointer to a closure in the masking map.
@@ -325,7 +325,7 @@ For example, it would require only a very minimal change to create a dictionary 
 \smallskip
 
 \noindent Note that in the example above, the structure \lsttext{StringEqual} was a valid parameter to functor \lsttext{DictionaryFn} because \lsttext{StringEqual}s signature matched to the \lsttext{EQUAL} signature that the functor expected. In the example of \myref{lst}{code:DictionaryFunctor} this is straightforward, the transparent ascription of \lsttext{StringEqual} with signature \lsttext{EQUAL} already assures this.
-However, the signature matching relation allows the \emph{candidate} signature to be more broad than the \emph{target} signature.
+However, the signature matching relation allows the \emph{candidate} signature to be broader than the \emph{target} signature.
 For functor application this means that the argument structure that is passed can define more types or values than the functor expects.
 The existence of these types and values however is not assured and the functor can not use them in its body. 
 %\to do{mentioned as a prelude to the need of trimming}
@@ -358,7 +358,7 @@ In its implementation, the functor can freely call functions of the (possibly in
 \item[In insecure code:] Suppose \lsttext{DictionaryFn} is defined in insecure code.
 Now the choices made when implementing the dictionary are not expected to be abstract. There is no implementation hiding in this case.
 
-This is supported by the consideration that one could replace the functor code with the written out, non-parametrized structure that would result from functor application.
+This is supported by the consideration that one could replace the functor code with the non-parametrized structure that would result from functor application.
 % write out the non-parametrized structure that would result of functor application in MiniML by hand.
 This structure would then be a part of insecure code, and of course one would expect that the security status of structures does not change simply due to the use of functors.
 \end{description}

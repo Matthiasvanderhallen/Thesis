@@ -34,11 +34,15 @@ fun addCurried x =
 %
 %It is possible to discern between these two cases. This is no problem (I think).
 
-
-This raises the need to add the concept of \emph{closures} to \mbox{MiniML}.
-A closure consists of a simple function reference together with a referencing environment which contains all the free variables that are available due to the lexical scoping rules.
 When a function is created using a call to \lsttext{addCurried} (and possibly saved in a variable to call it later on) this function must be able to access the variable \lsttext{x} that was given as a parameter to \lsttext{addCurried}.
 The function entity created and possibly saved in a variable in other words must keep track of the non-local variables it has access to.
+This is implemented in \MiniML\ using the concept of \emph{closures}~\cite{Appel}.
+A closure consists of a simple function reference together with a list of all the free variables and their values.% called the \emph{referencing environment}.
+%a referencing environment which contains all the free variables that are available due to the lexical scoping rules.
+%This raises the need to add the concept of \emph{closures} to \mbox{MiniML}.
+%A closure consists of a simple function reference together with a referencing environment which contains all the free variables that are available due to the lexical scoping rules.
+%When a function is created using a call to \lsttext{addCurried} (and possibly saved in a variable to call it later on) this function must be able to access the variable \lsttext{x} that was given as a parameter to \lsttext{addCurried}.
+%The function entity created and possibly saved in a variable in other words must keep track of the non-local variables it has access to.
 This list of non-local variables and their values is called the \emph{referencing environment}.
 
 It is possible for these free variables to be complex data such as arrays or abstract data types, for example the Dictionary from \myref{lst}{code:DictionaryStructureExample}. 
@@ -53,7 +57,7 @@ How do the origin of the free variable and the location of the closure interact?
 \item Closures can be passed around as a value, enabling them to cross the security boundary.
 \end{itemize}
 
-This thesis will assume that the referencing environment is saved in the trusted memory when the closure is created in secure code, and in untrusted memory when it is created in untrusted code.
+The compilation scheme presented here requires that the referencing environment are saved in the trusted memory when the closure is created in secure code, and in untrusted memory when it is created in untrusted code.
 The creation of a closure happens when a function is used as a value.
 For example, \myref{lst}{code:LexicalScopingExample} returns the \lsttext{innerFunction} that it defines as a value.
 If \myref{lst}{code:LexicalScopingExample} is located in secure code, its referencing environment and pointer is saved in trusted memory.
@@ -301,10 +305,10 @@ In order to parametrize over the type of key, the dictionary signature of \myref
 On top of that, lines 10-14 specify a signature \lsttext{EQUAL} that defines the interface to which a type must comply in order to be a possible key for a dictionary.
 Lines 15-21 specify a structure \lsttext{StringEqual} that conforms to the signature needed to act as a key type for a dictionary.
 
-Finally, lines 24-34 show how we define a functor.
+Finally, lines 24-34 show how to define a functor in \MiniML.
 First the argument structures and their corresponding signatures are specified, in this case \lsttext{KeyStruct}, whose signature must match signature \lsttext{EQUAL}.
 Next, the structure resulting from functor application is bound to the \lsttext{DICTIONARY} signature using opaque ascription.
-The choice for opaque ascription ensures that the specific implementation of dictionaries, i.e. as a list of pairs or a pair of lists, remains hidden and that the dictionary type remains an abstract type whose values only can be created by the dictionary structure that results from the functor application.
+The choice for opaque ascription ensures that the specific implementation of dictionaries, i.e. as a list of pairs (\myref{lst}{code:DictionaryFunctor}) or a pair of lists (\myref{lst}{code:DictionaryFunctorAlternative}), remains hidden. As a consequence, the dictionary type is an abstract type whose values only can be created by the dictionary structure that results from the functor application.
 
 However, the signature \lsttext{DICTIONARY} hides the implementation of the \lsttext{key} type.
 This is a problem, since a user must be able to create values of type \lsttext{key} and pass them to insert function.
@@ -315,12 +319,12 @@ Nor can it be made a type variable in the type definition \lsttext{type 'a dicti
 This means any type can replace them, whereas a dictionary only makes sense if an equality check is possible on the type of its keys.
 In other words, specifying the key as a type variable (\lsttext{type ('key, 'a) dictionary}) is unsatisfactory because then the ability to put constraints on the chosen type is lost.
 
-Instead, the problem is solved by modifying our opaque ascription when it is applied to the structure resulting from the functor \lsttext{DictionaryFn}, by specifying that they \lsttext{key} type is equal to the type \lsttext{t} specified in the \lsttext{KeyStruct} that was passed as the functors argument. (Line 24)
+Instead, the problem is solved by modifying our opaque ascription when it is applied to the structure resulting from the functor \lsttext{DictionaryFn}, by specifying that they \lsttext{key} type is equal to the type \lsttext{t} specified in the \lsttext{KeyStruct} that was passed as the functor's argument (Line 24).
 This modification makes the type of key freely available, yet still dependent on the specific key structure that was used when the dictionary structure was created using the functor.
 
 The last line of \myref{lst}{code:DictionaryFunctor} shows how the functor \lsttext{DictionaryFn} is eventually applied to the \lsttext{StringEqual} structure, resulting in a dictionary structure saved as \lsttext{StringDict} that uses \lsttext{string} as type for its keys, and compares them using the regular \lsttext{String.compare} function.
 This way of specifying a functor allows for very easy change of the \lsttext{key} type, as well as the way that they are compared.
-For example, it would require only a very minimal change to create a dictionary that disregards capitalization when comparing its \lsttext{key}s of type \lsttext{string}, and it is even possible to cleanly use this alternative implementation in conjunction with the case-sensitive implementation.
+For example, it would require only a minimal change to create a dictionary that disregards capitalization when comparing its \lsttext{key}s of type \lsttext{string}, and it is even possible to cleanly use this alternative implementation in conjunction with the case-sensitive implementation.
 
 \smallskip
 
@@ -346,7 +350,7 @@ The output structure resulting from a functor has its security status determined
 To see why this is the logical choice, consider the example definitions of a dictionary functor in \myref{lst}{code:DictionaryFunctor} and \myref{lst}{code:DictionaryFunctorAlternative}, and the two possible locations for the functor source code:
 \begin{description}
 \item[In secure code:] 
-Suppose \lsttext{DictionaryFn} is defined in secure code, for example when it is part of a library that is offered as an \emph{SPM}.
+Suppose \lsttext{DictionaryFn} is defined in secure code, for example when it is part of a library that is offered as a protected module.
 This library could choose to implement the \lsttext{DictionaryFn} as in \myref{lst}{code:DictionaryFunctor} (line 24-34) or as in \myref{lst}{code:DictionaryFunctorAlternative}.
 Regardless of whether its argument, \lsttext{KeyStruct}, was defined in secure code or in insecure code, the specific implementation of this dictionary is supposed to be abstract.
 The resulting dictionary structure is secure.
@@ -378,7 +382,7 @@ Compilation to the target language has two distinct possibilities of handling st
 \begin{itemize}
     \item Structures, signatures, functors and functor applications can be compiled away, a technique called \emph{Static Interpretation}.~\cite{Elsman}
     This approach is taken by MLKit\footnote{Available at http://www.elsman.com/mlkit/}.
-    As a result, multiple applications of the same functor result in multiple generations of the functors body, specialized for every combination of parameters.
+    As a result, multiple applications of the same functor result in multiple generations of the functor's body, specialized for every combination of parameters.
     \item Structures can be compiled, keeping the values defined by the structures together in the target language in a record like manner called a \emph{frame}.
     Functors can then be compiled using generic code, which receives a reference to the frame representing the structure that is passed as parameter.
     The code of these functors dynamically calls the functions inside the structure received as an argument.
@@ -742,7 +746,7 @@ When creating a meta-frame, any type used in the typing of values is substituted
 \begin{description}
 \item[Handling where Expressions] 
 Only \lsttext{where} expressions of the template \lsttext{where type t = ArgStruct.t'} can not be processed at compile time.
-For these expressions, the compiler produces the structural typing checks so that they check:%Todo: Nalezen, is dit duidelijk genoeg?
+For these expressions, a compiler must produce the structural typing checks so that they check:%Todo: Nalezen, is dit duidelijk genoeg?
 \begin{enumerate}
 \item That the implementation of type \lsttext{t} is in fact \lsttext{ArgStruct.t}.
 \item What the opaqueness and implementation of type \lsttext{ArgStruct.t} is, so that any reference to type \lsttext{t} or \lsttext{ArguStruct.t} can be substituted by its implementation.
@@ -787,15 +791,15 @@ In case the frame represents the result of functor application, the pointer to t
 The function implementing the value will uses this frame to determine the argument frame.
 %argument frame must be provided when calling the value.
 %By design, a pointer to this frame is always present within the frame representing the functor output itself.
-\item return any results to the caller.
+\item Return any results to the caller.
 \end{itemize}
 
-The wrapper functions only as a wrapper, so it presumes any clearing of flags, registers, masking of values or other precautionary measures have already been taken care of by the functions that it wraps.
+The wrapper functions only as a wrapper, so it presumes that any clearing of flags, registers, masking of values or other precautionary measures have already been taken care of by the functions that it wraps.
 
 Since all structure values are accessible through this wrapper function, the separate structure value stubs do \emph{not} have to be entry points in the \emph{SPM}. The wrapper function will always be necessary, because insecure functors that call a value in their argument structure can not hardwire a specific entry point in their generic code.
 \\[1em]
 \label{sec:StaticDefinitionFunctorApplication}
-Indeed, the stubs corresponding to structure values even \emph{cannot} be made entry points in the \emph{SPM}, because the source language context is oblivious to whether a structure bound in secure code was the result of a functor application, or was statically defined. This corresponds to \myref{lst}{lst:FunctorApplicationOrStaticDefinition1} being contextually equivalent to \myref{lst}{lst:FunctorApplicationOrStaticDefinition2}.
+Indeed, the stubs corresponding to structure values \emph{cannot} be made entry points in the \emph{SPM}, because the source language context is oblivious to whether a structure bound in secure code was the result of a functor application, or was statically defined. This corresponds to \myref{lst}{lst:FunctorApplicationOrStaticDefinition1} being contextually equivalent to \myref{lst}{lst:FunctorApplicationOrStaticDefinition2}.
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Functor Application or Static Definition: 1]Binding StrA and StrB using functor application.},
 label=lst:FunctorApplicationOrStaticDefinition1, morekeywords={where}]

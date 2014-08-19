@@ -415,18 +415,18 @@ structure Dictionary =
 
 Even more so, one would expect the two programs/modules to be contextually equivalent! However, clearly, if no checking is performed on functions expecting something of type dictionary, a low-level attacker could discriminate between the two using the following tactic: call a function expecting a dictionary argument with a self-created list of string pairs. If it gives the expected results, the dictionary implementation being used is the one given in \myref{lst}{code:DictionaryStructureExample}. If not, it is the module described in \myref{lst}{code:DictionaryStructureExample2}, expecting a pair of string lists. This breaks contextual equivalence.
 
-The code must assure that any object, passing as an argument of type dictionary, was in fact created by the module code itself (using the emptydictionary method). If not, it should raise an error (even if the object has the correct type according to the synonyms) in order to prevent an attack on contextual equivalence in the same spirit as the one described above.
+The code must assure that any object, passing as an argument of type dictionary, was in fact created by the module code itself (using the \lsttext{emptydictionary} method). If not, it should raise an error (even if the object has the correct type according to the synonyms) in order to prevent an attack on contextual equivalence in the same spirit as the one described above.
 
 This restriction can be enforced by a technique called masking, introduced by Patrignani et al.~\cite{Patrignani}. 
 This works by ensuring that the code creating a dictionary never returns a pointer to this dictionary itself, instead saving this dictionary in an internal list in protected memory.
 The index in this list can then be returned and used as a mask for the real object.
 
-All publicly available functions\footnote{These consist only of security related stubs that call the internal implementation of functions that were publicly available in \MiniML.}\todo{incorporate} in the module that expect a dictionary as their argument then no longer get a pointer to this dictionary object in memory. 
+All publicly available low-level functions (i.e. the stubs that represent public high-level functions) that expect a dictionary as their argument then no longer get a pointer to this dictionary object in memory. 
 Instead, they get the index of the desired dictionary in the internal list.
 
 When these publicly available functions receive the index, they get the pointer associated with the index from the internal list and check whether it points to the right type of object.
-
-
+%
+%
 %\todo{The explanation of why extra type information might prove necessary. However: The argument must be presented in a more careful manner. Furthermore, this also depends on whether a separate list is being used per type or not. If a separate list is being used anyway, instead of a central list of masked objects, then the extra type information proves unnecessary, or rather, it is already implicitly available.}
 
 \subsection{Translation}

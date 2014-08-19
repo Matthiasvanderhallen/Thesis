@@ -76,8 +76,8 @@ Formally, $O_{1} \simeq O_{2}$ means:
 \[
     \forall O_C : O_C[O_{1}] \rightarrow c \iff O_C[O_{2}] \rightarrow c
 \]
-where $O_{C}[.]$ is a program where a certain component is missing. 
-$O_{C}[O_1]$ is the program that results from linking $O_C$ with $O_1$, where $O_1$ is used as the missing component.
+where $O_{C}[.]$ is a program where a certain component is unspecified. 
+$O_{C}[O_1]$ is the program that results from linking $O_C$ with $O_1$, where $O_1$ is used as the unspecified component.
 
 Note that contextual equivalence does indeed imply security guarantees are enforced.
 Suppose that two programs $O_1$ and $O_2$ differ only by a value that is supposedly confidential.

@@ -513,6 +513,16 @@ The resulting security issues could by resolved by introducing a returnback entr
 \item Adding the functionality of callbacks to the language, using closures.
 \end{itemize}
 
+\subsection{Implementation}
+
+An implementation of this formal compiler was written in Scala.
+This secure compiler takes an abstract syntax tree (\emph{AST}) representing a \MiniML\ program as its input.
+The nodes of this \emph{AST} correspond to \MiniML's syntactical constructs, as specified in \myref{sec}{sec:ch2syntax}.
+It assumes that the program represented by this \emph{AST} is correctly typed, i.e. it has passed a type check as specified by the type system in \myref{sec}{sec:MLTypeSystem}.
+
+As a result of the compilation, it outputs a file with extension .ll, containing the LLVM IR translation of the \MiniML\ program.
+An example output of this compiler was shown in \myref{sec}{sec:TranslatedExample}.
+
 \section{Conclusion}
 This chapter formally specified a simple version of the \MiniML\ source language and the \LLVMIR\ target-language.
 It then gave a formal representation of the secure compiler from \MiniML\ to \LLVMIR.

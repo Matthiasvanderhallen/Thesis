@@ -1,0 +1,2785 @@
+% $Date: 91/11/18 07:13:52 $
+% $Revision: 1.13 $
+% (c) 1991 Simon Peyton Jones & David Lester.
+\chapter{Lambda Lifting\index{lambda lifting}}
+\label{sect:lambda-lift}
+
+\section{Introduction}
+
+In this chapter\footnote{Some of the material in this chapter was 
+first published in \cite{SPELambdaLift}.}
+we will be looking at ways to extend the set of
+programs that are acceptable to the machines we have looked at
+previously in the book.  The extension that we introduce is to allow
+\stressD{local function definitions}.  We are then faced with
+alternative approaches:
+\begin{itemize}
+\item add a mechanism to the machines to deal with environments; or
+\item transform the program so that there are no local function
+definitions; instead all functions are defined as supercombinators.
+\end{itemize}
+In this book we have always assumed that the second approach would be
+taken.
+
+This chapter is also an appropriate point at which to introduce
+the concept of \stress{full laziness}.
+Again, this desirable optimisation of
+functional languages is achieved using a program transformation.
+%
+% It should be noted that \mbox{\tt let(rec)}\indexTT{let(rec)} expressions are retained, despite the
+% fact that they are responsible for many of the subtleties in the rest
+% of the chapter.  They can certainly be transformed into applications
+% of lambda abstractions and the \mbox{\tt Y} combinator, but doing so seems to
+% result in a serious and unavoidable loss of efficiency.  For example,
+% eliminating a \mbox{\tt let}\indexTT{let} expression introduces a new lambda abstraction,
+% which will be lambda-lifted, and thereby decompose execution into
+% smaller steps.  Furthermore, much better code can be compiled from
+% \mbox{\tt let(rec)}\indexTT{let(rec)} expressions than the corresponding lambda applications.
+
+\section{Improving the \mbox{\tt expr}\indexTT{expr} data type}
+
+Before we begin the program proper, we must import the language
+and utilities modules.
+
+\begin{verbatim}
+> module Lambda where
+> import Utils
+> import Language
+\end{verbatim}
+\indexDTT{module}%
+\indexDTT{import}%
+\indexDTT{import}%
+Unfortunately, the data types defined there (\mbox{\tt coreExpr}\indexTT{coreExpr},
+\mbox{\tt coreProgram}\indexTT{coreProgram} and so on) are insufficiently flexible for our needs in
+this chapter, so we will attend to this problem first.  Many compiler
+passes add information to the abstract syntax tree, and we need a
+systematic way to represent this information.  Examples of analyses
+which generate this sort of information are: free-variable analysis,
+binding level analysis, type inference, strictness analysis and
+sharing analysis.
+
+The most obvious way to add such information is to add a new
+constructor for annotations to the \mbox{\tt expr}\indexTT{expr} data type, thus:
+\begin{verbatim}
+> expr * = EVar name
+>          | ...
+>          | EAnnot annotation (expr *)
+\end{verbatim}
+\indexDTT{expr}%
+\indexDTT{EAnnot}%
+together with an auxiliary data type for annotations, which can be
+extended as required:
+\begin{verbatim}
+> annotation ::= FreeVars (set name)
+>                | Level num
+\end{verbatim}
+\indexDTT{annotation}%
+\indexDTT{FreeVars}%
+\indexDTT{Level}%
+This allows annotations to appear freely throughout the syntax tree,
+which appears admirably flexible.  In practice, it suffers from two
+major disadvantages:
+\begin{itemize}
+\item
+It is easy enough to {\em add\/} annotation information in the form just
+described, but writing a compiler pass which {\em uses\/} information
+placed there by a previous pass is downright awkward.  Suppose, for
+example, that a pass wishes to use the free-variable information left
+at every node of the tree by a previous pass. Presumably this
+information is attached immediately above every node, but the data
+type would permit several annotation nodes to appear above each node,
+and worse still none (or more than one) might have a free-variable
+annotation.
+
+Even if the programmer is prepared to certify that there is exactly
+one annotation node above every tree node, and that it is a
+free-variable annotation, the implementation will still perform
+pattern matching to check these assertions when extracting the
+annotation.
+
+Both of these problems, namely the requirement for uncheckable
+programmer assertions and some implementation overhead, are directly
+attributable to the fact that every annotated tree has the rather
+uninformative type \mbox{\tt expr}\indexTT{expr}, which says nothing about which
+annotations are present.
+
+\item The second major problem is that further experimentation reveals
+that {\em two\/} distinct forms of annotation are required.  The first
+annotates expressions as above, but the second annotates the binding
+occurrences of variables; that is, the occurrences on the left-hand
+sides of \mbox{\tt let(rec)}\indexTT{let(rec)} definitions, and the bound variables in lambda
+abstractions or case expressions.  We will call these occurrences
+\stressD{binders}.  An example of the need to annotate binders comes
+in type inference, where the compiler infers a type for each
+binder, as well as for each sub-expression.
+
+It is possible to use the expression annotation to annotate binders,
+but it is clumsy and inconvenient to do so.
+\end{itemize}
+
+We will address the second problem first, since it has an easy
+solution.  Recall from Section~\ref{sect:core-data-types} that
+the \mbox{\tt expr}\indexTT{expr} type was {\em parameterised\/} with respect to the type of its
+binders; we repeat its definition here as a reminder:
+\begin{verbatim}
+> expr *
+>  ::=  EVar name                      || Variables
+>       | ENum num                     || Numbers
+>       | EConstr num num              || Constructor tag arity
+>       | EAp (expr *) (expr *)        || Applications
+>       | ELet                         || Let(rec) expressions
+>            isRec                     ||   boolean with True = recursive,
+>            [(*, expr *)]             ||   Definitions
+>            (expr *)                  ||   Body of let(rec)
+>       | ECase                        || Case expression
+>            (expr *)                  ||   Expression to scrutinise
+>            [alter *]                 ||   Alternatives
+>       | ELam [*] (expr *)            || Lambda abstractions
+\end{verbatim}
+\indexDTT{expr}%
+\indexDTT{EVar}%
+\indexDTT{ENum}%
+\indexDTT{EConstr}%
+\indexDTT{EAp}%
+\indexDTT{ELet}%
+\indexDTT{ECase}%
+\indexDTT{ELam}%
+The type \mbox{\tt coreExpr}\indexTT{coreExpr} is a specialised form of \mbox{\tt expr}\indexTT{expr} in which the
+binders are of type \mbox{\tt name}\indexTT{name}. This is expressed using a type synonym
+(also repeated from Section~\ref{sect:core-data-types}):
+\begin{verbatim}
+> coreExpr == expr name
+\end{verbatim}
+\indexDTT{coreExpr}%
+The advantage of parameterising \mbox{\tt expr}\indexTT{expr} is that we can also define
+other specialised forms.  For example,
+\mbox{\tt typedExpr}\indexTT{typedExpr} is a data type in which binders are names annotated with a type:
+\begin{verbatim}
+> typedExpr = expr (name, typeExpr)
+\end{verbatim}
+\indexDTT{typedExpr}%
+where \mbox{\tt typeExpr}\indexTT{typeExpr} is a data type representing type expressions.
+
+Returning to annotations on expressions, we can reuse the same
+technique by parameterising the data type of expressions with respect
+to the annotation type.  We want to have an annotation on every node
+of the tree, so one possibility would be to add an extra field to
+every constructor with the annotation information.  This is
+inconvenient if, for example, you simply want to extract the
+free-variable information at the top of a given expression without
+performing case analysis on the root node.  This leads to the
+following idea:
+\begin{important}
+each level of the tree is a pair, whose first
+component is the annotation, and whose second component is the
+abstract syntax tree node.
+\end{important}
+Here are the corresponding Miranda data type definitions:
+\begin{verbatim}
+> type AnnExpr a b = (b, AnnExpr' a b)
+\end{verbatim}
+\indexDTT{type}%
+\begin{verbatim}
+> data AnnExpr' a b = AVar Name
+>                   | ANum Int
+>                   | AConstr Int Int
+>                   | AAp (AnnExpr a b) (AnnExpr a b)
+>                   | ALet Bool [AnnDefn a b] (AnnExpr a b)
+>                   | ACase (AnnExpr a b) [AnnAlt a b]
+>                   | ALam [a] (AnnExpr a b)
+\end{verbatim}
+\indexDTT{data}%
+\indexDTT{ANum}%
+\indexDTT{AConstr}%
+\indexDTT{AAp}%
+\indexDTT{ALet}%
+\indexDTT{ACase}%
+\indexDTT{ALam}%
+\begin{verbatim}
+> type AnnDefn a b = (a, AnnExpr a b)
+\end{verbatim}
+\indexDTT{type}%
+\begin{verbatim}
+> type AnnAlt a b  = (Int, [a], (AnnExpr a b))
+\end{verbatim}
+\indexDTT{type}%
+\begin{verbatim}
+> type AnnProgram a b = [(Name, [a], AnnExpr a b)]
+\end{verbatim}
+\indexDTT{type}%
+
+Notice the way that the mutual recursion between \mbox{\tt annExpr}\indexTT{annExpr} and
+\mbox{\tt annExpr'} ensures that every node in the tree carries an annotation.
+The sort of annotations carried by an expression are now manifested in
+the type of the expression.  For example, an expression annotated with
+free variables has type \mbox{\tt annExpr\ name\ (set\ name)}.
+
+It is a real annoyance that \mbox{\tt annExpr'} and \mbox{\tt expr}\indexTT{expr} have to define two
+essentially identical sets of constructors.  There appears to be no
+way around this within the Hindley-Milner type system.  It would be
+possible to abandon the \mbox{\tt expr}\indexTT{expr} type altogether, because the \mbox{\tt expr\ *}
+is nearly isomorphic to \mbox{\tt annExpr\ *\ **}, but there are two reasons why
+we choose not to do this.  Firstly, the two types are not quite
+isomorphic, because the latter distinguishes $\mbox{\tt ((),}\perp\mbox{\tt )}$ from
+$\perp$ while the former does not. Secondly (and more seriously), it
+is very tiresome to write all the \mbox{\tt ()}'s when building and
+pattern matching on trees of type \mbox{\tt annExpr\ *\ **}.
+
+This completes our development of the central data type.  The
+discussion has revealed some of the strengths, and a
+weakness, of the algebraic data types provided by modern
+functional programming languages.
+
+\begin{exercise}
+\label{ll:X:eprint}
+Our present pretty-printing function, \mbox{\tt pprint}\indexTT{pprint}, defined in
+Section~\ref{sect:pretty}, is only able to print \mbox{\tt coreProgram}\indexTT{coreProgram}s.
+In order to print out intermediate stages in the lambda lifter we will
+need a function \mbox{\tt pprintGen}\indexTT{pprintGen} which can display values of type \mbox{\tt program\ *}.
+(The `\mbox{\tt Gen}\indexTT{Gen}' is short for `generic'.)
+\mbox{\tt pprintGen}\indexTT{pprintGen} needs an extra argument to tell it how to print
+the binders:
+\begin{verbatim}
+> pprintGen :: (* -> iseq)     || function from binders to iseq
+>              -> program *    || the program to be formatted
+>              -> [char]       || result string
+\end{verbatim}
+\indexDTT{pprintGen}%
+For example, once we have written \mbox{\tt pprintGen}\indexTT{pprintGen} we can define \mbox{\tt pprint}\indexTT{pprint} in
+terms of it:
+\begin{verbatim}
+> pprint prog = pprintGen iStr prog
+\end{verbatim}
+\indexDTT{pprint}%
+Write a definition for \mbox{\tt pprintGen}\indexTT{pprintGen}, and its associated functions \mbox{\tt pprExprGen}\indexTT{pprExprGen},
+and so on.
+\end{exercise}
+\begin{exercise}
+Do a similar job for printing values of type \mbox{\tt annProgram\ *\ **}.  Here you
+will need two extra arguments, one for formatting the binders and one for
+formatting the annotations:
+\begin{verbatim}
+> pprintAnn :: (* -> iseq)             || function from binders to iseq
+>              -> (** -> iseq)         || function from annotations to iseq
+>              -> annProgram * **      || program to be displayed
+>              -> [char]               || result string
+\end{verbatim}
+\indexDTT{pprintAnn}%
+Write a definition for \mbox{\tt pprintAnn}\indexTT{pprintAnn} and its associated auxiliary functions.
+\end{exercise}
+
+
+%****************************************************************
+%*                                                              *
+        \section{Mark~1: A simple lambda lifter\index{lambda lifter!Mark 1}}
+        \label{ll:mk1}
+%*                                                              *
+%****************************************************************
+
+Any implementation of a lexically scoped programming language has to
+cope with the fact that a function or procedure may have {\em free
+variables}\index{free variable}.  Unless these are removed in some
+way, an environment-based implementation has to manipulate linked
+environment frames, and a reduction-based system is made significantly
+more complex by the need to perform renaming during substitution.  A
+popular way of avoiding these problems, especially in graph reduction
+implementations, is to eliminate all free variables from function
+definitions by means of a transformation known as {\em lambda
+lifting}.  Lambda lifting is a term coined by \cite{JohnssonLL}, but
+the transformation was independently developed by \cite{HughesThesis}.
+
+In our context, lambda lifting transforms a Core-language program into
+an equivalent one in which there are no embedded lambda abstractions.
+To take a simple example, consider the program
+\begin{verbatim}
+        f x = let g = \y. x*x + y in (g 3 + g 4)
+        main = f 6
+\end{verbatim}
+The \mbox{\tt {\char'134}y} abstraction
+can be removed by defining a new supercombinator \mbox{\tt {\char'44}g} which takes
+\mbox{\tt x} as an extra parameter, but whose body is the offending
+abstraction, and replacing the \mbox{\tt {\char'134}y} abstraction with an application of
+\mbox{\tt {\char'44}g}, giving the following
+set of supercombinator definitions:
+\begin{verbatim}
+        $g x y = x*x + y
+        f x = let g = $g x in (g 3 + g 4)
+        main = f 6
+\end{verbatim}
+How did we decide to make just \mbox{\tt x} into the extra parameter to \mbox{\tt {\char'44}g}?
+We did it because \mbox{\tt x} is a \stressD{free variable} of
+the abstraction \mbox{\tt {\char'134}y.\ x*x\ +\ y}:
+\begin{important}
+{\bf Definition.} An occurrence of a variable $v$ in an expression $e$
+is said to be {\em free\/}\index{free variable} in $e$ if the occurrence
+is not bound by an enclosing lambda or \mbox{\tt let(rec)}\indexTT{let(rec)} expression in $e$.
+\end{important}
+On the other hand, \mbox{\tt y} is not free in \mbox{\tt ({\char'134}y.\ x*x\ +\ y)}, because its
+occurrence is in the scope of an enclosing lambda abstraction which
+binds it.
+
+Matters are no more complicated when recursion is involved.  Suppose
+that \mbox{\tt g} was recursive, thus:
+\begin{verbatim}
+        f x = letrec g = \y. cons (x*y) (g y) in g 3
+        main = f 6
+\end{verbatim}
+Now \mbox{\tt x} and \mbox{\tt g} are both free in the \mbox{\tt {\char'134}y} abstraction, so the lambda
+lifter will make them both into extra parameters of \mbox{\tt {\char'44}g}, producing
+the following set of supercombinators:
+\begin{verbatim}
+        $g g x y = cons (x*y) (g y)
+        f x = letrec g = $g g x in g 3
+        main = f 6
+\end{verbatim}
+Notice that the definition of \mbox{\tt g} is still recursive, but the lambda
+lifter has eliminated the local lambda abstraction.  The program is
+now directly implementable by most compiler back ends; and in
+particular by all of the abstract machines in this book.
+
+There one final gloss to add: there is no need to treat other top-level
+functions as extra parameters.  For example, consider the program
+\begin{verbatim}
+        h p q = p*q
+        f x = let g = \y. (h x x) + y in (g 3 + g 4)
+        main = f 6
+\end{verbatim}
+Here we do not want to treat \mbox{\tt h} as a free variable of the
+\mbox{\tt {\char'134}y} abstraction, because it is a constant which can be referred to
+directly from the body of the new \mbox{\tt {\char'44}g} supercombinator.  The same
+applies, of course, to the \mbox{\tt +} and \mbox{\tt *} functions!  In short, only
+supercombinator arguments, and variables bound by lambda abstractions
+or \mbox{\tt let(rec)}\indexTT{let(rec)} expressions, are candidates for being free variables.
+
+It is worth noting in passing that the lexical-scoping\index{lexical
+scoping} issue is not restricted to functional languages.  For
+example, Pascal allows a function to be declared locally within
+another function, and the inner function may have free variables bound
+by the outer scope.  On the other hand, the C language does not permit
+such local definitions.  In the absence of side effects, it is simple
+to make a local function definition into a global one: all we need do
+is add the free variables as extra parameters, and add these
+parameters to every call.  This is exactly what lambda lifting does.
+
+%\begin{exercise}\label{ll:X:impLs}
+%Why does not the technique of lambda-lifting work for imperative languages such
+%as Pascal?
+%\end{exercise}
+
+\subsection{Implementing a simple lambda lifter}
+\label{ll:mk1-imp}
+
+We are now ready to develop a simple lambda lifter. It will take a
+\mbox{\tt coreProgram}\indexTT{coreProgram} and return an equivalent \mbox{\tt coreProgram}\indexTT{coreProgram} in which there
+are no occurrences of the \mbox{\tt ELam}\indexTT{ELam} constructor.
+\begin{verbatim}
+> lambdaLift :: CoreProgram -> CoreProgram
+\end{verbatim}
+\indexDTT{lambdaLift}%
+The lambda lifter works in three passes:
+\begin{itemize}
+\item
+First, we annotate every node in the expression with its free variables.
+This is used by the following pass to decide which extra parameters
+to add to a lambda abstraction.  The \mbox{\tt freeVars}\indexTT{freeVars} function has type
+\begin{verbatim}
+> freeVars :: CoreProgram -> AnnProgram Name (Set Name)
+\end{verbatim}
+\indexDTT{freeVars}%
+The type \mbox{\tt set\ *} is a standard abstract data type for sets, whose
+definition is given in Appendix~\ref{sect:set}.
+
+\item
+Second, the function \mbox{\tt abstract}\indexTT{abstract} abstracts
+from each lambda abstraction $\mbox{\tt {\char'134}}x_1\ldots x_n\mbox{\tt .}e$ its
+free variables $v_1\ldots v_m$,
+replacing the lambda abstraction with
+an expression of the form
+\[
+(\mbox{\tt let\ sc\ =\ {\char'134}}v_1 \ldots v_m ~ x_1 \ldots x_n\mbox{\tt .}~e~\mbox{\tt in\ sc})~v_1 \ldots v_m
+\]
+We could use a direct application of the lambda abstraction to the free
+variables, but we need to give the new supercombinator a name, so we take
+the first step here by always giving it the name \mbox{\tt sc}.
+For example, the lambda abstraction
+\begin{verbatim}
+        (\x. y*x + y*z)
+\end{verbatim}
+would be transformed to
+\begin{verbatim}
+        (let sc = (\y z x.  y*x + y*z) in sc) y z
+\end{verbatim}
+\mbox{\tt abstract}\indexTT{abstract} has the type signature:
+\begin{verbatim}
+> abstract :: AnnProgram Name (Set Name) -> CoreProgram
+\end{verbatim}
+\indexDTT{abstract}%
+Notice, from the type signature, that \mbox{\tt abstract}\indexTT{abstract} removes the free variable
+information, which is no longer required.
+
+\item
+Now we traverse the program giving a unique name to each variable.
+This will have the effect of making unique all the \mbox{\tt sc} variables
+introduced by the previous pass.  Indeed, the sole purpose of
+introducing the extra \mbox{\tt let}\indexTT{let} expressions in the first place was to give
+each supercombinator a name which could then be made unique.  As a
+side effect, all other names in the program will be make unique, but
+this does not matter, and it will turn out to be useful later.
+\begin{verbatim}
+> rename :: CoreProgram -> CoreProgram
+\end{verbatim}
+\indexDTT{rename}%
+\item
+Finally, \mbox{\tt collectSCs}\indexTT{collectSCs}
+collects all the supercombinator definitions into a single list, and
+places them at the top level of the program.
+\begin{verbatim}
+> collectSCs :: CoreProgram -> CoreProgram
+\end{verbatim}
+\indexDTT{collectSCs}%
+\end{itemize}
+
+The lambda lifter itself is the composition of these three functions:
+\begin{verbatim}
+> lambdaLift = collectSCs . rename . abstract . freeVars
+\end{verbatim}
+\indexDTT{lambdaLift}%
+To make it easier to see what is happening we define the a function \mbox{\tt runS}\indexTT{runS}
+(the `\mbox{\tt S}' stands for `simple') to integrate the parser and printer:
+\begin{verbatim}
+> runS = pprint . lambdaLift . parse
+\end{verbatim}
+\indexDTT{runS}%
+It would of course be possible to do all the work in a single pass,
+but the modularity provided by separating them has a number of
+advantages: each individual pass is easier to understand, the passes
+may be reusable (for example, we reuse \mbox{\tt freeVars}\indexTT{freeVars} below) and
+modularity makes it easier to change the algorithm somewhat.
+
+As an example of the final point, some compilers are able to generate
+better code by omitting the \mbox{\tt collectSCs}\indexTT{collectSCs} pass, because more is then
+known about the context in which the supercombinator is applied
+\cite{STG2}.  For example, consider the following expression, which
+might be produced by the \mbox{\tt abstract}\indexTT{abstract} pass:
+\begin{verbatim}
+        let f = (\v x. v-x) v
+        in ...f...f...
+\end{verbatim}
+Here \mbox{\tt abstract}\indexTT{abstract} has removed \mbox{\tt v} as a free variable from the
+\mbox{\tt {\char'134}x} abstraction\footnote{We are ignoring the \mbox{\tt let}\indexTT{let} expression which
+\mbox{\tt abstract}\indexTT{abstract} introduces to name the supercombinator.}.  Rather than
+compiling the supercombinator independently of its context, a compiler
+could construct a closure for \mbox{\tt f}, whose code accesses \mbox{\tt v} directly
+from the closure and \mbox{\tt x} from the stack.  The calls to \mbox{\tt f} thus do not
+have to move \mbox{\tt v} onto the stack.  The more free variables there are
+the more beneficial this becomes.  Nor do the calls to \mbox{\tt f} become less
+efficient because the definition is a local one; the compiler can see
+the binding for \mbox{\tt f} and can jump directly to its code.
+
+In the following sections we give definitions for each of these
+passes.  We omit the equations for \mbox{\tt case}\indexTT{case} expressions, which appear as
+Exercise~\ref{ex:simple-lambdalift-case}.
+
+\subsection{Free variables}
+
+The core of the free-variable pass is function \mbox{\tt freeVars{\char'137}e} which has type
+\begin{verbatim}
+> freeVars_e :: (Set Name)                   -- Candidates for free variables
+>               -> CoreExpr                  -- Expression to annotate
+>               -> AnnExpr Name (Set Name)   -- Annotated result
+\end{verbatim}
+Its first argument is the set of local variables which are in scope;
+these are the possible free variables.  The second argument is the
+expression to be annotated, and the result is the annotated
+expression.  The main function \mbox{\tt freeVars}\indexTT{freeVars} just runs down the list of
+supercombinator definitions, applying \mbox{\tt freeVars{\char'137}e} to each:
+\begin{verbatim}
+> freeVars prog = [ (name, args, freeVars_e (setFromList args) body)
+>                 | (name, args, body) <- prog
+>                 ]
+\end{verbatim}
+\indexDTT{freeVars}%
+The \mbox{\tt freeVars{\char'137}e} function runs over the expression recursively; in the
+case of numbers there are no free variables, so this is what is
+returned in the annotated expression.
+\begin{verbatim}
+> freeVars_e lv (ENum k)      = (setEmpty, ANum k)
+\end{verbatim}
+\par
+In the case of a variable, we check to see whether it is in the set of
+candidates to decide whether to return the empty set or a singleton set:
+\begin{verbatim}
+> freeVars_e lv (EVar v) | setElementOf v lv = (setSingleton v, AVar v)
+>                        | otherwise         = (setEmpty, AVar v)
+\end{verbatim}
+\par
+The case for applications is straightforward: we first annotate the
+expression \mbox{\tt e1} with its free variables, then annotate \mbox{\tt e2}, returning
+the union of the two sets of free variables as the free variables of
+\mbox{\tt EAp\ e1\ e2}.
+\begin{verbatim}
+> freeVars_e lv (EAp e1 e2)
+>  = (setUnion (freeVarsOf e1') (freeVarsOf e2'), AAp e1' e2')
+>    where e1'            = freeVars_e lv e1
+>          e2'            = freeVars_e lv e2
+\end{verbatim}
+In the case of a lambda abstractions we need to add the \mbox{\tt args}\indexTT{args} to the
+local variables passed in, and subtract them from the free variables
+passed out:
+\begin{verbatim}
+> freeVars_e lv (ELam args body)
+>  = (setSubtraction (freeVarsOf body') (setFromList args), ALam args body')
+>    where body'          = freeVars_e new_lv body
+>          new_lv         = setUnion lv (setFromList args)
+\end{verbatim}
+\par
+The equation for \mbox{\tt let(rec)}\indexTT{let(rec)} expressions has rather a lot of plumbing,
+but is quite straightforward. The local variables in scope that are
+passed to the body is \mbox{\tt body{\char'137}lv}; the set of local variables passed to
+each right-hand side is \mbox{\tt rhs{\char'137}lv}. Next we annotate each right-hand
+side with its free variable set, giving \mbox{\tt rhss'}, from this we can
+construct the annotated definitions: \mbox{\tt defns'}. The annotated body of
+the \mbox{\tt let(rec)}\indexTT{let(rec)} is \mbox{\tt body'}. The free variables of the definitions is
+calculated to be \mbox{\tt defnsFree}\indexTT{defnsFree}, and those of the body are \mbox{\tt bodyFree}\indexTT{bodyFree}.
+\begin{verbatim}
+> freeVars_e lv (ELet is_rec defns body)
+>  = (setUnion defnsFree bodyFree, ALet is_rec defns' body')
+>    where binders        = bindersOf defns
+>          binderSet      = setFromList binders
+>          body_lv        = setUnion lv binderSet
+>          rhs_lv | is_rec    = body_lv
+>                 | otherwise = lv
+>
+>          rhss'          = map (freeVars_e rhs_lv) (rhssOf defns)
+>          defns'         = zip2 binders rhss'
+>          freeInValues   = setUnionList (map freeVarsOf rhss')
+>          defnsFree | is_rec    = setSubtraction freeInValues binderSet
+>                    | otherwise = freeInValues
+>          body'          = freeVars_e body_lv body
+>          bodyFree       = setSubtraction (freeVarsOf body') binderSet
+\end{verbatim}
+The function \mbox{\tt zip2}\indexTT{zip2} in the definition of \mbox{\tt defns'} is a standard
+function which takes two lists and returns a list consisting of pairs
+of corresponding elements of the argument lists.  The set operations
+\mbox{\tt setUnion}\indexTT{setUnion}, \mbox{\tt setSubtraction}\indexTT{setSubtraction} and so on are defined in the utilities
+module, whose interface is given in Appendix~\ref{sect:set}.
+
+We postpone dealing with \mbox{\tt case}\indexTT{case} and constructor expressions:
+\begin{verbatim}
+> freeVars_e lv (ECase e alts) = freeVars_case lv e alts
+> freeVars_e lv (EConstr t a) = error "freeVars_e: no case for constructors"
+> freeVars_case lv e alts = error "freeVars_case: not yet written"
+\end{verbatim}
+\mbox{\tt freeVarsOf}\indexTT{freeVarsOf} and \mbox{\tt freeVarsOf{\char'137}alt} are simple auxiliary functions:
+\begin{verbatim}
+> freeVarsOf :: AnnExpr Name (Set Name) -> Set Name
+> freeVarsOf (free_vars, expr) = free_vars
+\end{verbatim}
+\indexDTT{freeVarsOf}%
+\indexDTT{freeVarsOf}%
+\begin{verbatim}
+> freeVarsOf_alt :: AnnAlt Name (Set Name) -> Set Name
+> freeVarsOf_alt (tag, args, rhs)
+>  = setSubtraction (freeVarsOf rhs) (setFromList args)
+\end{verbatim}
+\subsection{Generating supercombinators}
+\label{ll:abstract}
+
+The next pass merely replaces each lambda abstraction, which is now
+annotated with its free variables, with a new abstraction (the
+supercombinator) applied to its free variables.
+\begin{verbatim}
+> abstract prog = [ (sc_name, args, abstract_e rhs)
+>                    | (sc_name, args, rhs) <- prog
+>                    ]
+\end{verbatim}
+\indexDTT{abstract}%
+As usual, we define an auxiliary function \mbox{\tt abstract{\char'137}e} to do most of
+the work:
+\begin{verbatim}
+> abstract_e :: AnnExpr Name (Set Name) -> CoreExpr
+\end{verbatim}
+It takes an expression annotated with the free variable information
+and returns an expression with each lambda abstraction replaced by a
+new abstraction applied to the free variables. There is little to say
+about the first four cases, they just recursively abstract each
+expression.
+\begin{verbatim}
+> abstract_e (free, AVar v)    = EVar v
+> abstract_e (free, ANum k)    = ENum k
+> abstract_e (free, AAp e1 e2) = EAp (abstract_e e1) (abstract_e e2)
+> abstract_e (free, ALet is_rec defns body)
+>  =  ELet is_rec [ (name, abstract_e body) | (name, body) <- defns]
+>                   (abstract_e body)
+\end{verbatim}
+The function \mbox{\tt foldll}\indexTT{foldll} is a standard function, defined in
+Appendix~\ref{sect:util-funs}; given a dyadic function $\oplus$, a
+value $b$, and a list $xs\ =\ [x_1,...,x_n]$, $\mbox{\tt foldll}\indexTT{foldll}\ \oplus\ b\
+xs$ computes $( \ldots ((b~ \oplus~ x_1)~ \oplus~ x_2)~ \oplus~ \ldots
+x_n)$.  Notice the way that the free-variable information is discarded
+by the pass, since it is no longer required.
+
+The final case we show is the heart of the \mbox{\tt abstract{\char'137}e} function.
+First we create a list of free variables: \mbox{\tt fvList}\indexTT{fvList}. We recall that
+there is no ordering implicit in a set; the function \mbox{\tt setToList}\indexTT{setToList} has
+induced an ordering on the elements, but we do not much care what order
+this is. Next we make a new supercombinator. This involves
+\begin{enumerate}
+\item applying \mbox{\tt abstract{\char'137}e} to the body of the lambda expression; and
+
+\item augmenting the argument list, by prefixing the original one with
+the free-variable list.
+\end{enumerate}
+Next, to allow the \mbox{\tt collectSCs}\indexTT{collectSCs} pass to detect this new
+supercombinator, we wrap it into a \mbox{\tt let}\indexTT{let} expression.  Finally, we apply
+the new supercombinator to each free variable in turn.
+\begin{verbatim}
+> abstract_e (free, ALam args body)
+>  = foldll EAp sc (map EVar fvList)
+>    where
+>    fvList = setToList free
+>    sc = ELet nonRecursive [("sc",sc_rhs)] (EVar "sc")
+>    sc_rhs = ELam (fvList ++ args) (abstract_e body)
+\end{verbatim}
+\mbox{\tt case}\indexTT{case} expressions and constructors are deferred:
+\begin{verbatim}
+> abstract_e (free, AConstr t a) = error "abstract_e: no case for Constr"
+> abstract_e (free, ACase e alts) = abstract_case free e alts
+> abstract_case free e alts = error "abstract_case: not yet written"
+\end{verbatim}
+It is worth observing that \mbox{\tt abstract{\char'137}e} treats the two expressions
+\linebreak[3]
+\mbox{\tt (ELam\ args1\ (ELam\ args2\ body))} and \mbox{\tt (ELam\ (args1++args2)\ body)}
+\linebreak[3]
+differently.  In the former case, the two abstractions will be treated
+separately, generating two supercombinators, while in the latter only
+one supercombinator is produced.  It is clearly advantageous to merge
+directly nested \mbox{\tt ELam}\indexTT{ELam}s before performing lambda lifting.  This is
+equivalent to the $\eta$-abstraction optimisation noted by
+\cite{HughesThesis}.
+
+\subsection{Making all the variables unique\index{renaming pass, of lambda lifter}}
+
+Next, we need to make each variable so that all the \mbox{\tt sc} variables
+introduced by \mbox{\tt abstract}\indexTT{abstract} are unique.  The auxiliary function,
+\mbox{\tt rename{\char'137}e}, takes an environment mapping old names to new names, a
+name supply and an expression.  It returns a depleted name supply and
+a new expression.
+\begin{verbatim}
+> rename_e :: ASSOC Name Name                   -- Binds old names to new
+>             -> NameSupply                     -- Name supply
+>             -> CoreExpr                       -- Input expression
+>             -> (NameSupply, CoreExpr)         -- Depleted supply and result
+\end{verbatim}
+Now we can define \mbox{\tt rename}\indexTT{rename} in terms of \mbox{\tt rename{\char'137}e}, by applying the latter
+to each supercombinator definition, plumbing the name supply along with
+\mbox{\tt mapAccuml}\indexTT{mapAccuml}.
+\begin{verbatim}
+> rename prog
+>  = second (mapAccuml rename_sc initialNameSupply prog)
+>    where
+>    rename_sc ns (sc_name, args, rhs)
+>     = (ns2, (sc_name, args', rhs'))
+>       where
+>       (ns1, args', env) = newNames ns args
+>       (ns2, rhs') = rename_e env ns1 rhs
+\end{verbatim}
+\indexDTT{rename}%
+\par
+The function \mbox{\tt newNames}\indexTT{newNames} takes a name supply and a list of names as its
+arguments.  It allocates a new name for each old one from the name supply,
+returning the depleted name supply, a list of new names and an association
+list mapping old names to new ones.
+\begin{verbatim}
+> newNames :: NameSupply -> [Name] -> (NameSupply, [Name], ASSOC Name Name)
+> newNames ns old_names
+>  = (ns', new_names, env)
+>    where
+>    (ns', new_names) = getNames ns old_names
+>    env = zip2 old_names new_names
+\end{verbatim}
+\indexDTT{newNames}%
+\indexDTT{newNames}%
+The definition of \mbox{\tt rename{\char'137}e} is now straightforward, albeit dull.
+When we meet a variable, we look it up in the environment.  For top-level
+functions and built-in functions (such as \mbox{\tt +}) we will find no substitution
+for it in the environment, so we just use the existing name:
+\begin{verbatim}
+> rename_e env ns (EVar v)      = (ns, EVar (aLookup env v v))
+\end{verbatim}
+\par
+Numbers and applications are easy.
+\begin{verbatim}
+> rename_e env ns (ENum n)      = (ns, ENum n)
+> rename_e env ns (EAp e1 e2)
+>  = (ns2, EAp e1' e2')
+>    where
+>    (ns1, e1') = rename_e env ns e1
+>    (ns2, e2') = rename_e env ns1 e2
+\end{verbatim}
+When we meet an \mbox{\tt ELam}\indexTT{ELam} we need to invent new names for the arguments,
+using \mbox{\tt newNames}\indexTT{newNames}, and augment the environment with the mapping
+returned by \mbox{\tt newNames}\indexTT{newNames}.
+\begin{verbatim}
+> rename_e env ns (ELam args body)
+>  = (ns1, ELam args' body')
+>    where
+>    (ns1, args', env') = newNames ns args
+>    (ns2, body') = rename_e (env' ++ env) ns1 body
+\end{verbatim}
+\mbox{\tt let(rec)}\indexTT{let(rec)} expressions work similarly:
+\begin{verbatim}
+> rename_e env ns (ELet is_rec defns body)
+>  = (ns3, ELet is_rec (zip2 binders' rhss') body')
+>    where
+>    (ns1, body') = rename_e body_env ns body
+>    binders = bindersOf defns
+>    (ns2, binders', env') = newNames ns1 binders
+>    body_env = env' ++ env
+>    (ns3, rhss') = mapAccuml (rename_e rhsEnv) ns2 (rhssOf defns)
+>    rhsEnv | is_rec    = body_env
+>           | otherwise = env
+\end{verbatim}
+\par
+We leave \mbox{\tt case}\indexTT{case} expressions as an exercise:
+\begin{verbatim}
+> rename_e env ns (EConstr t a) = error "rename_e: no case for constructors"
+> rename_e env ns (ECase e alts) = rename_case env ns e alts
+> rename_case env ns e alts = error "rename_case: not yet written"
+\end{verbatim}
+\subsection{Collecting supercombinators\index{collecting
+supercombinators pass, of lambda lifter}}
+
+Finally, we have to name the supercombinators and collect them
+together.  The main function, \mbox{\tt collectSCs{\char'137}e}, therefore has to return
+the collection of supercombinators it has found, as well as the
+transformed expression.
+\begin{verbatim}
+> collectSCs_e :: CoreExpr -> ([CoreScDefn], CoreExpr)
+\end{verbatim}
+\mbox{\tt collectSCs}\indexTT{collectSCs} is defined using \mbox{\tt mapAccuml}\indexTT{mapAccuml} to do all the plumbing:
+\begin{verbatim}
+> collectSCs prog
+>  = concat (map collect_one_sc prog)
+>    where
+>    collect_one_sc (sc_name, args, rhs)
+>     = (sc_name, args, rhs') : scs
+>      where
+>      (scs, rhs') = collectSCs_e rhs
+\end{verbatim}
+\indexDTT{collectSCs}%
+\par
+The code for \mbox{\tt collectSCs{\char'137}e} is now easy to write.  We just apply
+\mbox{\tt collectSCs{\char'137}e} recursively to the sub-expressions, collecting up the
+supercombinators thus produced.
+\begin{verbatim}
+> collectSCs_e (ENum k)      = ([], ENum k)
+> collectSCs_e (EVar v)      = ([], EVar v)
+> collectSCs_e (EAp e1 e2)   = (scs1 ++ scs2, EAp e1' e2')
+>                              where
+>                              (scs1, e1') = collectSCs_e e1
+>                              (scs2, e2') = collectSCs_e e2
+\end{verbatim}
+\begin{verbatim}
+> collectSCs_e (ELam args body) = (scs, ELam args body')
+>                                 where
+>                                 (scs, body') = collectSCs_e body
+> collectSCs_e (EConstr t a) = ([], EConstr t a)
+> collectSCs_e (ECase e alts)
+>  = (scs_e ++ scs_alts, ECase e' alts')
+>    where
+>    (scs_e, e') = collectSCs_e e
+>    (scs_alts, alts') = mapAccuml collectSCs_alt [] alts
+>    collectSCs_alt scs (tag, args, rhs) = (scs++scs_rhs, (tag, args, rhs'))
+>                                          where
+>                                          (scs_rhs, rhs') = collectSCs_e rhs
+\end{verbatim}
+\par
+The case for \mbox{\tt let(rec)}\indexTT{let(rec)} is the interesting one.  We need to
+process the definitions recursively and then split them into two
+groups: those of the form $v ~\mbox{\tt =\ {\char'134}} args \mbox{\tt .}~e$ (the
+supercombinators), and the others (the non-supercombinators).  The
+supercombinators are returned as part of the supercombinator list, and
+a new \mbox{\tt let(rec)}\indexTT{let(rec)} is formed from the remaining non-supercombinators:
+\begin{verbatim}
+> collectSCs_e (ELet is_rec defns body)
+>  = (rhss_scs ++ body_scs ++ local_scs, mkELet is_rec non_scs' body')
+>    where
+>    (rhss_scs,defns') = mapAccuml collectSCs_d [] defns
+>
+>    scs'     = [(name,rhs) | (name,rhs) <- defns',  isELam rhs ]
+>    non_scs' = [(name,rhs) | (name,rhs) <- defns',  not (isELam rhs)]
+>    local_scs = [(name,args,body) | (name,ELam args body) <- scs']
+>
+>    (body_scs, body') = collectSCs_e body
+>
+>    collectSCs_d scs (name,rhs) = (scs ++ rhs_scs, (name, rhs'))
+>                                  where
+>                                  (rhs_scs, rhs') = collectSCs_e rhs
+\end{verbatim}
+The auxiliary function \mbox{\tt isELam}\indexTT{isELam} tests for an \mbox{\tt ELam}\indexTT{ELam} constructor; it is
+used to identify supercombinators.
+\begin{verbatim}
+> isELam :: Expr a -> Bool
+> isELam (ELam args body) = True
+> isELam other            = False
+\end{verbatim}
+\indexDTT{isELam}%
+\indexDTT{isELam}%
+\indexDTT{isELam}%
+The \mbox{\tt mkELet}\indexTT{mkELet} function just builds an \mbox{\tt ELet}\indexTT{ELet} expression:
+\begin{verbatim}
+> mkELet is_rec defns body = ELet is_rec defns body
+\end{verbatim}
+\indexDTT{mkELet}%
+%****************************************************************
+%*                                                              *
+        \section{Mark 2: Improving the simple lambda lifter\index{lambda lifter!Mark 2}}
+        \label{sect:simple-lambdalift-improvements}
+%*                                                              *
+%****************************************************************
+
+This completes the definition of the simple lambda lifter.
+We now consider some simple improvements.
+
+\subsection{Simple extensions}
+
+\begin{exercise}
+The simple lambda lifter generates lots of \mbox{\tt let}\indexTT{let} expressions with an
+empty list of bindings, because \mbox{\tt collectSCs}\indexTT{collectSCs} removes the single binding
+from each of the supercombinator \mbox{\tt let}\indexTT{let} expressions introduced by \mbox{\tt abstract}\indexTT{abstract}.
+Modify \mbox{\tt mkELet}\indexTT{mkELet} to elide these redundant \mbox{\tt let}\indexTT{let} expressions.
+\end{exercise}
+
+\begin{exercise} \label{ex:simple-lambdalift-case}
+Give definitions for \mbox{\tt freeVars{\char'137}case}, \mbox{\tt abstract{\char'137}case} and \mbox{\tt collectSCs{\char'137}case},
+and test them.
+\end{exercise}
+
+\subsection{Eliminating redundant supercombinators\index{redundant
+supercombinators, in lambda lifter}}
+
+Consider the Core-language program
+\begin{verbatim}
+        f = \x. x+1
+\end{verbatim}
+This will be transformed by \mbox{\tt lambdaLift}\indexTT{lambdaLift} to
+\begin{verbatim}
+        f = $f
+        $f x = x+1
+\end{verbatim}
+It would be nicer to avoid introducing the redundant definition.
+This improvement will become rather more significant when we come to
+consider full laziness, because many supercombinators of this form
+will be introduced.
+\begin{exercise}
+Add a special case to the function \mbox{\tt collect{\char'137}one{\char'137}sc} (in \mbox{\tt collectSCs}\indexTT{collectSCs}),
+to behave differently when \mbox{\tt rhs}\indexTT{rhs} is a lambda abstraction.
+You should be able to avoid introducing a new supercombinator
+in this situation.
+\end{exercise}
+
+\subsection{Eliminating redundant local definitions\index{redundant
+local definitions, in lambda lifter}}
+
+A similar situation can arise with local definitions.
+Consider the Core-language program
+\begin{verbatim}
+        f x = let g = (\y. y+1) in g (g x)
+\end{verbatim}
+The lambda lifter will produce the program
+\begin{verbatim}
+        f x = let g = $g in g (g x)
+        $g y = y+1
+\end{verbatim}
+\begin{exercise}
+Improve the definition of \mbox{\tt collectSCs{\char'137}d} (in the \mbox{\tt ELet}\indexTT{ELet} case of \mbox{\tt collectSCs{\char'137}e}),
+so that it gives special treatment to definitions
+whose right-hand side is a lambda abstraction.  For the above example you
+should generate
+\begin{verbatim}
+        f x = g (g x)
+        g y = y+1
+\end{verbatim}
+\end{exercise}
+
+
+%****************************************************************
+%*                                                              *
+        \section{Mark~3: Johnsson-style lambda lifting\index{lambda lifter!Mark 3}\index{lambda lifter!Johnsson's}}
+        \label{ll:jll}\label{sect:johnsson}
+%*                                                              *
+%****************************************************************
+
+There is an interesting variant of the lambda lifting technique, which
+was discovered by \cite{JohnssonLL}. One slight problem with our
+current technique is that it produces programs in which many of the
+calls are to functions which are passed in as arguments.  For example,
+consider the recursive example in Section~\ref{ll:mk1}:
+\begin{verbatim}
+        f x = letrec g = \y. cons (x*y) (g y) in g 3
+        main = f 6
+\end{verbatim}
+Our current lambda lifter produces the following set of
+supercombinators:
+\begin{verbatim}
+        $g g x y = cons (x*y) (g y)
+        f x = letrec g = $g g x in g 3
+        main = f 6
+\end{verbatim}
+Notice that \mbox{\tt {\char'44}g} makes a call to its argument \mbox{\tt g}.  In some
+implementations it would be more efficient if \mbox{\tt {\char'44}g} was directly
+recursive, like this:
+\begin{verbatim}
+        $g x y = cons (x*y) ($g x y)
+        f x = $g x 3
+        main = f 6
+\end{verbatim}
+The inner \mbox{\tt letrec}\indexTT{letrec} has vanished altogether, and the supercombinator
+$g$ has become directly recursive.
+
+To get a more detailed idea of how to do Johnsson-style lambda
+lifting, we will look at a slightly more complicated example:
+\begin{verbatim}
+        f x y = letrec
+                   g = \p. ...h...x...
+                   h = \q. ...g...y...
+                in
+                ...g...h...
+\end{verbatim}
+Here, \mbox{\tt g} is meant to be a function which calls \mbox{\tt h}, and mentions the
+variable \mbox{\tt x}; similarly \mbox{\tt h} calls \mbox{\tt g} and mentions \mbox{\tt y}.  The first
+step is to transform the definition like this:
+\begin{verbatim}
+        f x y = letrec
+                   g = \x y p. ...(h x y)...x...
+                   h = \x y q. ...(g x y)...y...
+                in
+                ...(g x y)...(h x y)...
+\end{verbatim}
+
+This transformation, which we call the \stressD{abstraction step}, is
+a little tricky.  It does the following:
+\begin{itemize}
+\item
+take the free variables of the right-hand sides of the \mbox{\tt letrec}\indexTT{letrec},
+namely \mbox{\tt g}, \mbox{\tt h}, \mbox{\tt x} and \mbox{\tt y};
+\item
+exclude the variables being bound (\mbox{\tt g} and
+\mbox{\tt h}) to leave just \mbox{\tt x} and \mbox{\tt y};
+\item
+make these variables into extra arguments
+of each right-hand side;
+\item
+and replaced all occurrences of \mbox{\tt g} with \mbox{\tt (g\ x\ y)},
+similarly for \mbox{\tt h}.
+\end{itemize}
+It is important that we make \mbox{\tt y} into an extra parameter of \mbox{\tt g} even
+though \mbox{\tt y} does not occur directly in its right-hand side, because \mbox{\tt g}
+will need it to pass to \mbox{\tt h}.  In general, each member of the
+mutually recursive group must take as extra arguments the free
+variables of {\em all\/} the members together.
+
+Now all we need do is float the definitions of \mbox{\tt g} and \mbox{\tt h} out to the
+top level, leaving:
+\begin{verbatim}
+        f x y = ...(g x y)...(h x y)...
+        g x y p = ...(h x y)...x...
+        h x y q = ...(g x y)...y...
+\end{verbatim}
+
+One last point. Before doing this process it is important that all
+binders are unique.  Otherwise name clashes could arise, in two ways.
+The obvious way is that two supercombinators could have the same name.
+The less obvious way is illustrated by the following variant of the
+same example:
+\begin{verbatim}
+        f x y = letrec
+                   g = \p. ...h...x...
+                   h = \x. ...g...y...
+                in
+                ...g...h...
+\end{verbatim}
+Now \mbox{\tt h} uses the same name for its argument as \mbox{\tt f}, which will cause
+trouble when we try to make the free variable of \mbox{\tt g}, namely \mbox{\tt x}, into
+an extra argument to \mbox{\tt h}!  All in all, it is much easier simply to
+rename the program before starting work.
+
+\subsection{Implementation}
+
+The Johnsson-style lambda lifter can be implemented in several passes:
+\begin{itemize}
+\item
+The first pass renames the program so that all binders are unique.  We
+can reuse the \mbox{\tt rename}\indexTT{rename} function for this purpose.
+
+\item
+Next, we annotate the program with its free-variable information, using
+the existing function \mbox{\tt freeVars}\indexTT{freeVars}.
+
+\item
+Now comes the main abstraction step discussed above:
+\begin{verbatim}
+> abstractJ :: AnnProgram Name (Set Name) -> CoreProgram
+\end{verbatim}
+\indexDTT{abstractJ}%
+\item
+Finally, we can collect supercombinators with \mbox{\tt collectSCs}\indexTT{collectSCs}.
+\end{itemize}
+The full Johnsson-style lambda lifter is just the composition of these
+stages:
+\begin{verbatim}
+> lambdaLiftJ = collectSCs . abstractJ . freeVars . rename
+> runJ = pprint . lambdaLiftJ . parse
+\end{verbatim}
+\indexDTT{lambdaLiftJ}%
+\indexDTT{runJ}%
+\subsection{Abstracting free variables in functions}
+
+The only new function we need is \mbox{\tt abstractJ}\indexTT{abstractJ}.  The abstraction process
+makes substitutions as it goes along, replacing $g$ with $g~v_1\ldots
+v_n$, where $g$ is one of the new supercombinators and
+$v_1,\ldots,v_n$ are the free variables of its declaration group.  It
+follows that the auxiliary function \mbox{\tt abstractJ{\char'137}e} needs to take an
+environment mapping each supercombinator $g$ to the free variables of
+its group $v_1,\ldots,v_n$:
+\begin{verbatim}
+> abstractJ_e :: ASSOC Name [Name]              -- Maps each new SC to
+>                                               --   the free vars of its group
+>                -> AnnExpr Name (Set Name)     -- Input expression
+>                -> CoreExpr                    -- Result expression
+\end{verbatim}
+To be fair, it looks as though the first argument could be of type
+\mbox{\tt assoc\ name\ coreExpr} but, as we shall see, we need to make use of the
+environment in another way as well, which leads to the type we suggest
+here.
+
+It is now easy to define \mbox{\tt abstractJ}\indexTT{abstractJ} in terms of \mbox{\tt abstractJ{\char'137}e}, by
+applying the latter to each top-level definition:
+\begin{verbatim}
+> abstractJ prog = [ (name,args,abstractJ_e [] rhs)
+>                  | (name, args, rhs) <- prog]
+\end{verbatim}
+\indexDTT{abstractJ}%
+Now we come to \mbox{\tt abstractJ{\char'137}e}.  The cases for constants and
+applications are easy.
+\begin{verbatim}
+> abstractJ_e env (free, ANum n)      = ENum n
+> abstractJ_e env (free, AConstr t a) = EConstr t a
+> abstractJ_e env (free, AAp e1 e2)   = EAp (abstractJ_e env e1)
+>                                           (abstractJ_e env e2)
+\end{verbatim}
+When we come to a variable $g$, we look it up in the environment,
+getting back a list of variables $v_1,\ldots,v_n$.  We then return the
+application $g~v_1 \ldots v_n$.  If $g$ does not appear in the
+environment we return the empty list from the environment lookup, and
+hence the `application' we construct will simply be the variable
+$g$!
+\begin{verbatim}
+> abstractJ_e env (free, AVar g)
+>  = foldll EAp (EVar g) (map EVar (aLookup env g []))
+\end{verbatim}
+\par
+Sometimes we may find a lambda abstraction on its own; for example:
+\begin{verbatim}
+        f xs = map (\x. x+1) xs
+\end{verbatim}
+The \mbox{\tt {\char'134}x}-abstraction is not the right-hand side of a \mbox{\tt let(rec)}\indexTT{let(rec)}
+definition, so we treat it in just same way as we did in the simple
+lambda lifter (see the \mbox{\tt ELam}\indexTT{ELam} case of \mbox{\tt abstract}\indexTT{abstract}).
+
+There is just one important difference.  Since \mbox{\tt abstractJ{\char'137}e} is
+simultaneously performing a substitution on the expression, the
+free-variables information does not reflect the post-substitution
+state of affairs.  Rather, we need to perform the substitution on the
+free-variable set too, to find what variables are free in the result.
+This is done by the function \mbox{\tt actualFreeList}\indexTT{actualFreeList}, which is defined at the
+end of this section.  It was the need to perform this operation on the
+free-variable information which guided our choice of environment
+representation.
+\begin{verbatim}
+> abstractJ_e env (free, ALam args body)
+>  = foldll EAp sc (map EVar fv_list)
+>    where
+>    fv_list = actualFreeList env free
+>    sc = ELet nonRecursive [("sc",sc_rhs)] (EVar "sc")
+>    sc_rhs = ELam (fv_list ++ args) (abstractJ_e env body)
+\end{verbatim}
+\par
+Lastly, we treat \mbox{\tt let(rec)}\indexTT{let(rec)} expressions.  Each variable bound to a
+lambda abstraction will be turned into a supercombinator, while the
+others (not bound to a lambda abstraction) will not.  It follows that
+we need to treat separately these two kinds of definitions, which we
+call `function definitions' and `variable definitions'
+respectively.
+\begin{verbatim}
+> abstractJ_e env (free, ALet isrec defns body)
+>  = ELet isrec (fun_defns' ++ var_defns') body'
+>    where
+>    fun_defns = [(name,rhs) | (name,rhs) <- defns,  isALam rhs ]
+>    var_defns = [(name,rhs) | (name,rhs) <- defns,  not (isALam rhs)]
+\end{verbatim}
+\par
+Now that we have separated the function definitions from the variable
+definitions we can compute the set of variables to abstract from the
+functions.  We take the union of the free variables of the function
+definitions, remove from this set the function names being bound, and
+then use \mbox{\tt actualFreeList}\indexTT{actualFreeList} (for the same reason as in the \mbox{\tt ELam}\indexTT{ELam}
+equation) to get the result:
+\begin{verbatim}
+>    fun_names = bindersOf fun_defns
+>    free_in_funs = setSubtraction
+>                        (setUnionList [freeVarsOf rhs | (name,rhs)<-fun_defns])
+>                        (setFromList fun_names)
+>    vars_to_abstract = actualFreeList env free_in_funs
+\end{verbatim}
+Next, we compute the new environment, to be used in the right-hand
+sides and in the body of the \mbox{\tt let(rec)}\indexTT{let(rec)}:
+\begin{verbatim}
+>    body_env = [(fun_name, vars_to_abstract) | fun_name <- fun_names] ++ env
+>    rhs_env | isrec     = body_env
+>            | otherwise = env
+\end{verbatim}
+Lastly, we compute the new function definitions, variable definitions
+and body, by recursively using \mbox{\tt abstractJ{\char'137}E} with the appropriate
+environment:
+\begin{verbatim}
+>    fun_defns' = [ (name, ELam (vars_to_abstract ++ args)
+>                               (abstractJ_e rhs_env body))
+>                 | (name, (free, ALam args body)) <- fun_defns
+>                 ]
+>    var_defns' = [(name, abstractJ_e rhs_env rhs) | (name, rhs) <- var_defns]
+>    body' = abstractJ_e body_env body
+\end{verbatim}
+\par
+The function \mbox{\tt actualFreeList}\indexTT{actualFreeList} takes the environment and a set of free
+variables, applies the environment to the set, and returns a list
+(without duplicates) of the post-substitution free variables.
+\begin{verbatim}
+> actualFreeList :: ASSOC Name [Name] -> Set Name -> [Name]
+> actualFreeList env free
+>  = setToList (setUnionList [ setFromList (aLookup env name [name])
+>                            | name <- setToList free
+>                            ])
+\end{verbatim}
+\indexDTT{actualFreeList}%
+\indexDTT{actualFreeList}%
+The function \mbox{\tt isALam}\indexTT{isALam} identifies \mbox{\tt ALam}\indexTT{ALam} constructors.
+\begin{verbatim}
+> isALam :: AnnExpr a b -> Bool
+> isALam (free, ALam args body) = True
+> isALam other                  = False
+\end{verbatim}
+\indexDTT{isALam}%
+\indexDTT{isALam}%
+\indexDTT{isALam}%
+This concludes the Johnsson-style lambda lifter.
+
+\begin{exercise}
+Add a case for \mbox{\tt case}\indexTT{case} expressions to the function \mbox{\tt abstractJ{\char'137}e}.
+\end{exercise}
+
+\subsection{A tricky point\advanced}
+
+When a \mbox{\tt letrec}\indexTT{letrec} contains a mixture of function and variable
+definitions, the lambda lifter we have designed may introduce some
+redundant parameters.  For example, consider the definition
+\begin{verbatim}
+        f x y = letrec
+                  g = \p. h p + x ;
+                  h = \q. k + y + q;
+                  k = g y
+                in
+                g 4 ;
+\end{verbatim}
+The free variables of the \mbox{\tt g}/\mbox{\tt h} group are \mbox{\tt x}, \mbox{\tt y} and \mbox{\tt k}, so we
+will transform to:
+\begin{verbatim}
+        f x y = letrec
+                   k = g x y k y
+                in
+                g 4
+
+        g x y k p = h x y k p + x ;
+        h x y k q = k + y + q;
+\end{verbatim}
+Here the extra parameter \mbox{\tt x} is not actually used in \mbox{\tt h}, so better
+definitions for \mbox{\tt g} and \mbox{\tt h} would be
+\begin{verbatim}
+        g x y k p = h y k p + x ;
+        h y k q = k + y + q;
+\end{verbatim}
+
+\begin{exercise}\advanced
+Modify \mbox{\tt abstractJ}\indexTT{abstractJ} to solve perform this more sophisticated transformation.
+Warning: this is quite a difficult job!
+\end{exercise}
+
+%****************************************************************
+%*                                                              *
+        \section{Mark~4: A separate full laziness pass\index{lambda lifter!Mark 4}\index{full laziness}}
+        \label{ll:mk2}
+%*                                                              *
+%****************************************************************
+
+We now turn our attention to an important property of functional programs
+called \stressD{full laziness}.
+Previous accounts of full laziness have invariably linked it to lambda
+lifting, by describing `fully lazy lambda lifting', which turns out
+to be rather a complex process.  \cite{HughesThesis} gives an
+algorithm, but it is extremely subtle and does not handle \mbox{\tt let(rec)}\indexTT{let(rec)}
+expressions.  On the other hand, \cite{PJBook} does cover \mbox{\tt let(rec)}\indexTT{let(rec)}
+expressions, but the description is only informal and no algorithm is
+given.
+
+In this section we show how full laziness and lambda lifting can be
+cleanly separated.  This is done by means of a transformation
+involving \mbox{\tt let}\indexTT{let} expressions.  Lest it be supposed that we have
+simplified things in one way only by complicating them in another, we
+also show that performing fully lazy lambda lifting without \mbox{\tt let(rec)}\indexTT{let(rec)}
+expressions risks an unexpected loss of laziness.  Furthermore, much
+more efficient code can be generated for \mbox{\tt let(rec)}\indexTT{let(rec)} expressions in later
+phases of most compilers than for their equivalent lambda expressions.
+
+\subsection{A review of full laziness}
+
+We begin by briefly reviewing the concept of full laziness.
+Consider again the example given in Section~\ref{ll:mk1}.
+\begin{verbatim}
+        f x = let g = \y. x*x + y in (g 3 + g 4)
+        main = f 6
+\end{verbatim}
+The simple lambda lifter generates the program:
+\begin{verbatim}
+        $g x y = x*x + y
+        f x = let g = $g x in (g 3 + g 4)
+        main = f 6
+\end{verbatim}
+In the body of \mbox{\tt f} there are two calls to \mbox{\tt g} and hence to \mbox{\tt {\char'44}g}.
+But \mbox{\tt ({\char'44}g\ x)} is not a reducible expression, so
+\mbox{\tt x*x} will be computed twice.  But \mbox{\tt x} is fixed in the body of \mbox{\tt f}, so
+some work is being duplicated.  It would be better to share the
+calculation of \mbox{\tt x*x} between the two calls to \mbox{\tt {\char'44}g}.  This can be
+achieved as follows: instead of making \mbox{\tt x} a parameter to \mbox{\tt {\char'44}g}, we
+make \mbox{\tt x*x} into a parameter, like this:
+\begin{verbatim}
+        $g p y = p + y
+        f x = let g = $g (x*x) in (g 3 + g 4)
+\end{verbatim}
+(we omit the definition of \mbox{\tt main}\indexTT{main} from now on, since it does not
+change).  So a fully lazy lambda lifter will make each {\em maximal
+free sub-expresssion\/} (rather than each free variable)
+of a lambda abstraction into an argument of the
+corresponding supercombinator.  A maximal free expression\index{maximal free expression} (or MFE) of
+a lambda abstraction is an expression which contains no occurrences of
+the variable bound by the abstraction, and is not a sub-expression of
+a larger expression with this property.
+
+Full laziness corresponds precisely to moving a loop-invariant
+expression outside the loop, so that it is computed just once at the
+beginning rather than once for each loop iteration.
+
+How important is full laziness for `real' programs?
+No serious studies have yet been made of this question, though we plan to
+do so.
+However, recent work by Holst
+suggests that the importance of full laziness may be greater than
+might at first be supposed \cite{Holst}.
+He shows how to perform a transformation which automatically enhances the
+effect of full laziness, to the point where the optimisations obtained
+compare favourably with those gained by partial
+evaluation \cite{Mix}, though with much less effort.
+
+\subsection{Fully-lazy lambda lifting in the presence of \mbox{\tt let(rec)}\indexTT{let(rec)}s}
+
+Writing a fully lazy lambda lifter, as outlined in the previous
+section, is surprisingly difficult.  Our language, which includes
+\mbox{\tt let(rec)}\indexTT{let(rec)} expressions, appears to make this worse by introducing a new
+language construct.  For example, suppose the definition of \mbox{\tt g} in our
+running example was slightly more complex, thus:
+\begin{verbatim}
+        g = \y. let z = x*x
+                in let p = z*z
+                in p + y
+\end{verbatim}
+Now, the sub-expression \mbox{\tt x*x} is an MFE of the
+\mbox{\tt {\char'134}y}-abstraction, but sub-expression \mbox{\tt z*z} is not since \mbox{\tt z} is bound
+inside the \mbox{\tt {\char'134}y}-abstraction.  Yet it is clear that \mbox{\tt p} depends only on
+\mbox{\tt x} (albeit indirectly), and so we should ensure that \mbox{\tt z*z} is only
+computed once.
+
+Does a fully lazy lambda lifter spot this if \mbox{\tt let}\indexTT{let} expressions are coded
+as lambda applications?  No, it does not.  The definition of \mbox{\tt g} would
+become
+\begin{verbatim}
+        g = \y. (\z. (\p. p+y) (z*z)) (x*x)
+\end{verbatim}
+Now, \mbox{\tt x*x} is free as before, but \mbox{\tt z*z} is not.  In other words, {\em
+if the compiler does not treat \mbox{\tt let(rec)}\indexTT{let(rec)} expressions specially, it may
+lose full laziness which the programmer might reasonably expect to
+be preserved}.
+
+Fortunately, there is a straightforward way to handle
+\mbox{\tt let(rec)}\indexTT{let(rec)} expressions -- described in \cite[Chapter~15]{PJBook} --
+namely to `float' each \mbox{\tt let(rec)}\indexTT{let(rec)} definition outward until it is
+outside any lambda abstraction in which it is free.  For example, all
+we need do is transform the definition of \mbox{\tt g} to the following:
+\begin{verbatim}
+        g = let z = x*x
+            in let p = z*z
+            in \y. p + y
+\end{verbatim}
+Now \mbox{\tt x*x} and \mbox{\tt z*z} will each be computed only once.  Notice that this
+property should hold {\em for any implementation of the language}, not
+merely for one based on lambda lifting and graph reduction.  This is a
+clue that full laziness and lambda lifting are not as closely related
+as at first appears, a topic to which we will return in the next
+section.
+
+Meanwhile, how can we decide how far out to float a definition?  It is
+most easily done by using {\em lexical level numbers\/}\index{lexical
+level number} (or {\em de Bruijn numbers\/}\index{de Bruijn numbers}).
+There are three steps:
+\begin{itemize}
+\item
+First, assign to each lambda-bound variable a level number, which
+says how many lambdas enclose it.   Thus in our example,
+\mbox{\tt x} would be assigned level number 1, and \mbox{\tt y} level number 2.
+\item
+Now, assign a level number to each \mbox{\tt let(rec)}\indexTT{let(rec)}-bound variable (outermost
+first), which is the maximum of the level numbers of its free
+variables, or zero if there are none.
+In our example, both \mbox{\tt p} and \mbox{\tt z} would be assigned level
+number 1.  Some care needs to be taken to handle \mbox{\tt letrec}\indexTT{letrec}s correctly.
+
+\item
+Finally, float each definition (whose binder has level $n$, say)
+outward, until it is outside the lambda abstraction whose binder has
+level $n+1$, but still inside the level-$n$ abstraction.  There is
+some freedom in this step about exactly where between the two the
+definition should be placed.
+\end{itemize}
+
+Each mutually recursive set of definitions defined in a \mbox{\tt letrec}\indexTT{letrec}
+should be floated out together, because they depend on each other and
+must remain in a single \mbox{\tt letrec}\indexTT{letrec}.  If, in fact, the definitions are
+{\em not\/} mutually recursive despite appearing in the same \mbox{\tt letrec}\indexTT{letrec},
+this policy might lose laziness by retaining in an inner scope a
+definition which could otherwise be floated further outwards.  The
+standard solution is to perform {\em dependency
+analysis\/}\index{dependency analysis!effect on full laziness} on the
+definitions in each \mbox{\tt letrec}\indexTT{letrec} expression, to break each group of
+definitions into its minimal subgroups.  We will look at this in
+Section~\ref{sect:dependency}.
+
+Finally, a renaming pass should be carried out before the floating
+operation, so that there is no risk that the bindings will be altered
+by the movement of the \mbox{\tt let(rec)}\indexTT{let(rec)} definitions.  For example, the
+expression
+\begin{verbatim}
+        \y. let y = x*x in y
+\end{verbatim}
+is obviously not equivalent to
+\begin{verbatim}
+        let y = x*x in \y->y
+\end{verbatim}
+All that is required is to give every binder a unique name to
+eliminate the name clash.
+
+\subsection{Full laziness without lambda lifting}
+
+At first it appears that the requirement to float \mbox{\tt let(rec)}\indexTT{let(rec)}s outward in
+order to preserve full laziness merely further complicates the already
+subtle fully lazy lambda lifting algorithm suggested by Hughes.
+However, a simple transformation allows {\em all\/} the full laziness to
+be achieved by \mbox{\tt let(rec)}\indexTT{let(rec)} floating, while lambda lifting is performed by
+the original simple lambda lifter.
+
+The transformation is this: {\em before floating \mbox{\tt let(rec)}\indexTT{let(rec)} definitions,
+replace each MFE $e$ with the expression \mbox{\tt let\ v\ =\ }$e$\mbox{\tt \ in\ v}}.  This
+transformation both gives a name to the MFE and makes it accessible to
+the \mbox{\tt let(rec)}\indexTT{let(rec)} floating transformation, which can now float out the new
+definitions.  Ordinary lambda lifting can then be performed.  For
+example, consider the original definition of \mbox{\tt g}:
+\begin{verbatim}
+        f x = let g = \y. x*x + y
+              in (g 3 + g 4)
+        main = f 6
+\end{verbatim}
+The sub-expression \mbox{\tt x*x} is an MFE, so it
+is replaced by a trivial \mbox{\tt let}\indexTT{let} expression:
+\begin{verbatim}
+        f x = let g = \y. (let v = x*x in v) + y
+              in (g 3 + g 4)
+        main = f 6
+\end{verbatim}
+Now the \mbox{\tt let}\indexTT{let} expression is floated outward:
+\begin{verbatim}
+        f x = let g = let v = x*x in \y. v + y
+              in (g 3 + g 4)
+        in
+        f 6
+\end{verbatim}
+Finally, ordinary lambda lifting will discover that \mbox{\tt v} is free in the
+\mbox{\tt {\char'134}y}-abstraction, and the resulting program becomes:
+\begin{verbatim}
+        $g v y = v + y
+        f x = let g = let v = x*x in $g v
+              in (g 3 + g 4)
+        main = f 6
+\end{verbatim}
+
+A few points should be noted here.
+Firstly, the original definition of a maximal free expression
+was relative to a {\em particular\/} lambda abstraction.
+The new algorithm we have just developed transforms certain expressions
+into trivial \mbox{\tt let}\indexTT{let} expressions.
+Which expressions are so transformed?  Just the ones which are MFEs of
+{\em any\/} enclosing lambda abstraction.  For example, in the expression:
+\begin{verbatim}
+        \y. \z. (y + (x*x)) / z
+\end{verbatim}
+two MFEs are identified: \mbox{\tt (x*x)}, since it is an MFE of the \mbox{\tt {\char'134}y}-abstraction,
+and \mbox{\tt (y\ +\ (x*x))}, since it is an MFE of the \mbox{\tt {\char'134}z}-abstraction.
+After introducing the trivial \mbox{\tt let}\indexTT{let} bindings, the expression becomes
+\begin{verbatim}
+        \y. \z. (let v1 = y + (let v2 = x*x in v2) in v1) / z
+\end{verbatim}
+
+Secondly, the
+newly introduced variable \mbox{\tt v} must either be unique, or the expression
+must be uniquely renamed after the MFE-identification pass.
+
+Thirdly, in the final form of the program \mbox{\tt v} is only referenced once,
+so it would be sensible to replace the reference by the right-hand side
+of the definition and eliminate the definition, yielding exactly the
+program we obtained using Hughes's algorithm.  This is a straightforward
+transformation, and we will not discuss it further here, except to note that
+this property will hold
+for all \mbox{\tt let}\indexTT{let} definitions which are floated out past a lambda.
+In any case, many compiler back ends will generate the same code
+regardless of whether or not the transformation is performed.
+
+\subsection{A fully lazy lambda lifter}
+
+Now we are ready to define the fully lazy lambda lifter.  It can be
+decomposed into the following stages:
+\begin{itemize}
+\item
+First we must make sure that each \mbox{\tt ELam}\indexTT{ELam} constructor and supercombinator
+definition binds only a
+single argument, because the fully lazy lambda lifter must treat each
+lambda individually.  It would be possible to encode this in later
+phases of the algorithm, by dealing with a list of arguments, but it
+turns out that we can express an important optimisation by altering
+this pass alone.
+\begin{verbatim}
+> separateLams :: CoreProgram -> CoreProgram
+\end{verbatim}
+\indexDTT{separateLams}%
+\item
+First we annotate all binders and expressions with level numbers,
+which we represent by natural numbers starting with zero:
+\begin{verbatim}
+> type Level = Int
+> addLevels :: CoreProgram -> AnnProgram (Name, Level) Level
+\end{verbatim}
+\indexDTT{type}%
+\indexDTT{addLevels}%
+\item
+Next we identify all MFEs, by replacing them with trivial
+\mbox{\tt let}\indexTT{let} expressions.  Level numbers are no longer required on every
+sub-expression, only on binders.
+\begin{verbatim}
+> identifyMFEs :: AnnProgram (Name, Level) Level -> Program (Name, Level)
+\end{verbatim}
+\indexDTT{identifyMFEs}%
+\item
+A renaming pass makes all binders unique, so that floating does not
+cause name-capture errors.  This must be done after \mbox{\tt identifyMFEs}\indexTT{identifyMFEs},
+which introduces new bindings.  Sadly, this means that we cannot
+use our current \mbox{\tt rename}\indexTT{rename} function because it works on a \mbox{\tt coreProgram}\indexTT{coreProgram},
+whereas \mbox{\tt identifyMFEs}\indexTT{identifyMFEs} has produced a \mbox{\tt program\ (name,\ level)}.
+We invent a new function \mbox{\tt renameL}\indexTT{renameL} for the purpose:
+\begin{verbatim}
+> renameL ::  Program (Name, a) -> Program (Name, a)
+\end{verbatim}
+\indexDTT{renameL}%
+\item
+Now the \mbox{\tt let(rec)}\indexTT{let(rec)} definitions can be floated outwards.  The level
+numbers are not required any further.
+\begin{verbatim}
+> float :: Program (Name,Level) -> CoreProgram
+\end{verbatim}
+\indexDTT{float}%
+\par
+\item
+Finally, ordinary lambda lifting can be carried out, using
+\mbox{\tt lambdaLift}\indexTT{lambdaLift} from Section~\ref{ll:mk1-imp}.
+
+\end{itemize}
+The fully lazy lambda lifter is just the composition of these passes:
+\begin{verbatim}
+> fullyLazyLift = float . renameL . identifyMFEs . addLevels . separateLams
+> runF          = pprint . lambdaLift . fullyLazyLift . parse
+\end{verbatim}
+\indexDTT{fullyLazyLift}%
+\indexDTT{runF}%
+As before, we leave most of the equations
+for \mbox{\tt case}\indexTT{case} expressions as an exercise.
+
+\subsection{Separating the lambdas}
+\label{separatelams}
+
+We define \mbox{\tt separateLams}\indexTT{separateLams} in terms of an auxiliary function \mbox{\tt separateLams{\char'137}e},
+which recursively separates variables bound in lambda abstractions in
+expressions:
+\begin{verbatim}
+> separateLams_e :: CoreExpr -> CoreExpr
+> separateLams_e (EVar v) = EVar v
+> separateLams_e (EConstr t a) = EConstr t a
+> separateLams_e (ENum n) = ENum n
+> separateLams_e (EAp e1 e2) = EAp (separateLams_e e1) (separateLams_e e2)
+> separateLams_e (ECase e alts)
+>  = ECase (separateLams_e e) [ (tag, args, separateLams_e e)
+>                             | (tag, args, e) <- alts
+>                             ]
+>
+> separateLams_e (ELam args body) = mkSepLams args (separateLams_e body)
+>
+> separateLams_e (ELet is_rec defns body)
+>  = ELet is_rec [(name, separateLams_e rhs) | (name,rhs) <- defns]
+>               (separateLams_e body)
+\end{verbatim}
+\begin{verbatim}
+> mkSepLams args body = foldr mkSepLam body args
+>                       where mkSepLam arg body = ELam [arg] body
+\end{verbatim}
+\indexDTT{mkSepLams}%
+\par
+Now we return to the top-level function \mbox{\tt separateLams}\indexTT{separateLams}.
+The interesting question is what to do about supercombinator definitions.
+The easiest thing to do is to turn them into the equivalent
+lambda abstractions!
+\begin{verbatim}
+> separateLams prog = [ (name, [], mkSepLams args (separateLams_e rhs))
+>                     | (name, args, rhs) <- prog
+>                     ]
+\end{verbatim}
+\indexDTT{separateLams}%
+\subsection{Adding level numbers}
+\label{levels}
+
+There are a couple of complications concerning annotating an expression
+with level numbers.
+At first it looks as though it is sufficient to write a function which
+returns an expression annotated with level numbers; then for an
+application, for example, one simply takes the maximum of the levels
+of the two sub-expressions.  Unfortunately, this approach loses too
+much information, because there is no way of mapping the level number
+of the {\em body\/} of a lambda abstraction to the level number of the
+abstraction {\em itself}.  The easiest solution is first to annotate
+the expression with its free variables, and then use a mapping
+\mbox{\tt freeSetToLevel}\indexTT{freeSetToLevel} from variables to level numbers, to convert the
+free-variable annotations to level numbers.
+\begin{verbatim}
+> freeSetToLevel :: ASSOC Name Level -> Set Name -> Level
+> freeSetToLevel env free
+>  = foldll max 0 [aLookup env n 0 | n <- setToList free]
+>    -- If there are no free variables, return level zero
+\end{verbatim}
+\indexDTT{freeSetToLevel}%
+\indexDTT{freeSetToLevel}%
+\par
+The second complication concerns \mbox{\tt letrec}\indexTT{letrec} expressions.  What is the
+correct level number to attribute to the newly introduced variables?
+The right thing to do is to take the maximum of the levels of the free
+variables of all the right-hand sides {\em without\/} the recursive
+variables, or equivalently map the recursive variables to level zero
+when taking this maximum.  This level should be attributed to each of
+the new variables.  \mbox{\tt let}\indexTT{let} expressions are much simpler: just attribute
+to each new variable the level number of its right-hand side.
+
+Now we are ready to define \mbox{\tt addLevels}\indexTT{addLevels}.  It is the composition of two
+passes, the first of which annotates the expression with its free
+variables, while the second uses this information to generate
+level-number annotations.
+\begin{verbatim}
+> addLevels = freeToLevel . freeVars
+\end{verbatim}
+\indexDTT{addLevels}%
+We have defined the \mbox{\tt freeVars}\indexTT{freeVars} function already, so it remains to
+define \mbox{\tt freeToLevel}\indexTT{freeToLevel}.  The main function will need to carry around the
+current level, and a mapping from variables to level numbers, so as
+usual we define \mbox{\tt freeToLevel}\indexTT{freeToLevel} in terms of \mbox{\tt freeToLevel{\char'137}e} which does
+all the work.
+\begin{verbatim}
+> freeToLevel_e :: Level                    -> -- Level of context
+>                  ASSOC Name Level         -> -- Level of in-scope names
+>                  AnnExpr Name (Set Name)  -> -- Input expression
+>                  AnnExpr (Name, Level) Level -- Result expression
+\end{verbatim}
+\par
+We represent the name-to-level mapping as an association list, with
+type \mbox{\tt assoc\ name\ level}.  The interface of association lists is given
+in Appendix~\ref{sect:utils}, but notice that it is {\em not\/}
+abstract.  It is so convenient to use all the standard functions on
+lists, and notation for lists, rather than to invent their analogues
+for associations, that we have compromised the abstraction.
+
+Now we can define \mbox{\tt freeToLevel}\indexTT{freeToLevel}, using an auxiliary function to
+process each supercombinator definition.  Remember that \mbox{\tt separateLams}\indexTT{separateLams}
+has removed all the arguments from supercombinator definitions:
+\begin{verbatim}
+> freeToLevel prog = map freeToLevel_sc prog
+>
+> freeToLevel_sc (sc_name, [], rhs) = (sc_name, [], freeToLevel_e 0 [] rhs)
+\end{verbatim}
+\indexDTT{freeToLevel}%
+\par
+For constants, variables and applications, it is simpler and more
+efficient to ignore the free-variable information and calculate the
+level number directly.
+\begin{verbatim}
+> freeToLevel_e level env (free, ANum k) = (0, ANum k)
+> freeToLevel_e level env (free, AVar v) = (aLookup env v 0, AVar v)
+\end{verbatim}
+\begin{verbatim}
+> freeToLevel_e level env (free, AConstr t a) = (0, AConstr t a)
+\end{verbatim}
+\begin{verbatim}
+> freeToLevel_e level env (free, AAp e1 e2)
+>  = (max (levelOf e1') (levelOf e2'), AAp e1' e2')
+>     where
+>     e1' = freeToLevel_e level env e1
+>     e2' = freeToLevel_e level env e2
+\end{verbatim}
+\par
+The same cannot be done for lambda abstractions; so we must compute
+the level number of the abstraction using \mbox{\tt freeSetToLevel}\indexTT{freeSetToLevel}.
+We also assign a level number to each variable
+in the argument list.  At
+present we expect there to be only one such variable, but we will
+allow there to be several and assign them all the same level number.
+This works correctly now, and turns out to be just what is needed to
+support a useful optimisation later (Section~\ref{sect:redundant}).
+\begin{verbatim}
+> freeToLevel_e level env (free, ALam args body)
+>  = (freeSetToLevel env free, ALam args' body')
+>    where
+>    body' = freeToLevel_e (level + 1) (args' ++ env) body
+>    args' = [(arg, level+1) | arg <- args]
+\end{verbatim}
+\par
+\mbox{\tt let(rec)}\indexTT{let(rec)} expressions follow the scheme outlined at the beginning of this
+section.
+\begin{verbatim}
+> freeToLevel_e level env (free, ALet is_rec defns body)
+>  = (levelOf new_body, ALet is_rec new_defns new_body)
+>    where
+>    binders = bindersOf defns
+>    rhss = rhssOf defns
+>
+>    new_binders = [(name,max_rhs_level) | name <- binders]
+>    new_rhss = map (freeToLevel_e level rhs_env) rhss
+>    new_defns = zip2 new_binders new_rhss
+>    new_body = freeToLevel_e level body_env body
+>
+>    free_in_rhss = setUnionList [free | (free,rhs) <- rhss]
+>    max_rhs_level = freeSetToLevel level_rhs_env free_in_rhss
+>
+>    body_env      = new_binders ++ env
+>    rhs_env | is_rec           = body_env
+>            | otherwise        = env
+>    level_rhs_env |  is_rec    = [(name,0) | name <- binders] ++ env
+>                  |  otherwise = env
+\end{verbatim}
+
+%       David's version: is buggy
+%
+%> freeToLevel_e level env (free, ALet is_rec defns body) =
+%>   (levelOf body', ALet is_rec defns' body')
+%>   where
+%>   defns' = map freeToLevel_d defns
+%>   envBody = bindersOf defns' ++ env
+%>   body' = freeToLevel_e level envBody body
+%>   freeToLevel_d (name, rhs) = ((name, levelOf rhs'), rhs')
+%>                               where rhs' = freeToLevel_e level envRhs rhs
+%>   envRhs = [(name,0) | (name, exp) <- defns] ++ env, is_rec
+%>          = env, otherwise
+Notice that the level of the whole \mbox{\tt let(rec)}\indexTT{let(rec)} expression is that of
+the body.  This is valid provided the body refers to all the binders
+directly or indirectly.  If any definition is unused, we might assign
+a level number to the \mbox{\tt letrec}\indexTT{letrec} which would cause it to be floated
+outside the scope of some variable mentioned in the unused definition.
+This is easily fixed, but it is simpler to assume that the expression
+contains no redundant definitions; the dependency analysis which we
+look at in the next section will eliminate such definitions.
+
+\mbox{\tt case}\indexTT{case} expressions are deferred:
+\begin{verbatim}
+> freeToLevel_e level env (free, ACase e alts)
+>  = freeToLevel_case level env free e alts
+> freeToLevel_case free e alts = error "freeToLevel_case: not yet written"
+\end{verbatim}
+\par
+Lastly the auxiliary functions \mbox{\tt levelOf}\indexTT{levelOf} extracts the level from an
+expression:
+\begin{verbatim}
+> levelOf :: AnnExpr a Level -> Level
+> levelOf (level, e) = level
+\end{verbatim}
+\indexDTT{levelOf}%
+\indexDTT{levelOf}%
+\subsection{Identifying MFEs\index{maximal free expression, identification of}}
+\label{identifyMFEs}
+
+It is simple to identify MFEs, by comparing the level number of an
+expression with the level of its context.  This requires an auxiliary
+parameter to give the level of the context.
+\begin{verbatim}
+> identifyMFEs_e :: Level                               -- Level of context
+>                   -> AnnExpr (Name, Level) Level      -- Input expression
+>                   -> Expr (Name, Level)               -- Result
+\end{verbatim}
+\begin{verbatim}
+> identifyMFEs prog = [ (sc_name, [], identifyMFEs_e 0 rhs)
+>                     | (sc_name, [], rhs) <- prog
+>                     ]
+\end{verbatim}
+\indexDTT{identifyMFEs}%
+\par
+Once an MFE $e$ has been identified, our strategy is to wrap it in a
+trivial \mbox{\tt let}\indexTT{let} expression of the form $\mbox{\tt let\ v\ =\ }e\mbox{\tt \ in\ v}$; but not all
+MFEs deserve special treatment in this way.  For example, it would be
+a waste of time to wrap such a \mbox{\tt let}\indexTT{let} expression around an MFE consisting
+of a single variable or constant.  Other examples are given in
+Section~\ref{sect:redundant}.  We encode this knowledge of which MFEs
+deserve special treatment in a function \mbox{\tt notMFECandidate}\indexTT{notMFECandidate}.
+\begin{verbatim}
+> notMFECandidate (AConstr t a) = True
+> notMFECandidate (ANum k)      = True
+> notMFECandidate (AVar v)      = True
+> notMFECandidate ae            = False -- For now everything else
+>                                       --         is a candidate
+\end{verbatim}
+\indexDTT{notMFECandidate}%
+\indexDTT{notMFECandidate}%
+\indexDTT{notMFECandidate}%
+\indexDTT{notMFECandidate}%
+\par
+\mbox{\tt identifyMFEs{\char'137}e} works by comparing the level number of the expression
+with that of its context.  If they are the same, or for some other
+reason the expression is not a candidate for special treatment, the
+expression is left unchanged, except that \mbox{\tt identifyMFEs{\char'137}e1} is used to
+apply \mbox{\tt identifyMFEs{\char'137}e} to its sub-expressions; otherwise we use
+\mbox{\tt transformMFE}\indexTT{transformMFE} to perform the appropriate transformation.
+\begin{verbatim}
+> identifyMFEs_e cxt (level, e)
+>  | level == cxt || notMFECandidate e = e'
+>  | otherwise = transformMFE level e'
+>    where
+>    e' = identifyMFEs_e1 level e
+\end{verbatim}
+\begin{verbatim}
+> transformMFE level e = ELet nonRecursive [(("v",level), e)] (EVar "v")
+\end{verbatim}
+\indexDTT{transformMFE}%
+\mbox{\tt identifyMFEs{\char'137}e1} applies \mbox{\tt identifyMFEs{\char'137}e} to the components of the
+expression.
+\begin{verbatim}
+> identifyMFEs_e1 :: Level                              -- Level of context
+>                    -> AnnExpr' (Name,Level) Level     -- Input expressions
+>                    -> Expr (Name,Level)               -- Result expression
+\end{verbatim}
+\begin{verbatim}
+> identifyMFEs_e1 level (AConstr t a)           = EConstr t a
+> identifyMFEs_e1 level (ANum n)                = ENum n
+> identifyMFEs_e1 level (AVar v)                = EVar v
+> identifyMFEs_e1 level (AAp e1 e2)
+>  = EAp (identifyMFEs_e level e1) (identifyMFEs_e level e2)
+\end{verbatim}
+\par
+When \mbox{\tt identifyMFEs{\char'137}e1} encounters a
+binder it changes the `current' level number carried
+down as its first argument, as we can see in the equations for lambda
+abstractions and \mbox{\tt let(rec)}\indexTT{let(rec)} expressions:
+\begin{verbatim}
+> identifyMFEs_e1 level (ALam args body)
+>  = ELam args (identifyMFEs_e arg_level body)
+>    where
+>    (name, arg_level) = hd args
+\end{verbatim}
+\begin{verbatim}
+> identifyMFEs_e1 level (ALet is_rec defns body)
+>  = ELet is_rec defns' body'
+>    where
+>    body' = identifyMFEs_e level body
+>    defns' = [ ((name, rhs_level), identifyMFEs_e rhs_level rhs)
+>             | ((name, rhs_level), rhs) <- defns
+>             ]
+\end{verbatim}
+\mbox{\tt case}\indexTT{case} expressions are deferred:
+\begin{verbatim}
+> identifyMFEs_e1 level (ACase e alts) = identifyMFEs_case1 level e alts
+> identifyMFEs_case1 level e alts = error "identifyMFEs_case1: not written"
+\end{verbatim}
+\subsection{Renaming variables}
+
+As we remarked above, it would be nice to use the existing \mbox{\tt rename}\indexTT{rename} function
+to make the binders unique, but it has the wrong type.  It would be possible
+to write \mbox{\tt renameL}\indexTT{renameL} by making a copy of \mbox{\tt rename}\indexTT{rename} and making some small
+alterations, but it would be much nicer to make a single generic renaming
+function, \mbox{\tt renameGen}\indexTT{renameGen}, which can be specialised to do either \mbox{\tt rename}\indexTT{rename}
+or \mbox{\tt renameL}\indexTT{renameL}.
+
+What should the type of \mbox{\tt renameGen}\indexTT{renameGen} be?
+The right question to ask is: {\em `what use did we make in \mbox{\tt rename}\indexTT{rename}
+of the fact that each binder was a simple \mbox{\tt name}\indexTT{name}?'\/} or, alternatively,
+`what operations did we perform on binders in \mbox{\tt rename}\indexTT{rename}?'.
+
+There is actually just one such operation, which constructs
+new binders.  In \mbox{\tt rename{\char'137}e}
+this function is called \mbox{\tt newNames}\indexTT{newNames}; it takes a name supply and
+a list of names, and returns a depleted name supply, a list
+of new names and an association list mapping old names to
+new ones:
+\begin{verbatim}
+> newNames :: nameSupply -> [name]  -> (nameSupply, [name], assoc name name)
+\end{verbatim}
+\indexDTT{newNames}%
+Since \mbox{\tt renameGen}\indexTT{renameGen} must be able to work over any kind of
+binder, not just those of type \mbox{\tt name}\indexTT{name}, {\em we must pass the new-binders
+function into \mbox{\tt renameGen}\indexTT{renameGen} as an extra argument}.
+So the type of \mbox{\tt renameGen}\indexTT{renameGen} is:
+\begin{verbatim}
+> renameGen :: (NameSupply -> [a]  -> (NameSupply, [a], ASSOC Name Name))
+>                                       -- New-binders function
+>              -> Program a             -- Program to be renamed
+>              -> Program a             -- Resulting program
+\end{verbatim}
+\indexDTT{renameGen}%
+Notice that the type of the binders is denoted by the type variable \mbox{\tt *},
+because \mbox{\tt renameGen}\indexTT{renameGen} is polymorphic in this type.
+Using \mbox{\tt renameGen}\indexTT{renameGen}, we can now redefine the original \mbox{\tt rename}\indexTT{rename} function,
+by passing \mbox{\tt newNames}\indexTT{newNames} to \mbox{\tt renameGen}\indexTT{renameGen} as the new-binders function.
+\begin{verbatim}
+> rename :: CoreProgram -> CoreProgram
+> rename prog = renameGen newNames prog
+\end{verbatim}
+\indexDTT{rename}%
+\indexDTT{rename}%
+\par
+\mbox{\tt renameL}\indexTT{renameL} is rather more interesting.  Its binders are \mbox{\tt (name,level)} pairs
+so we need to define a different new-binders function:
+\begin{verbatim}
+> renameL :: Program (Name,Level) -> Program (Name,Level)
+> renameL prog = renameGen newNamesL prog
+\end{verbatim}
+\indexDTT{renameL}%
+\indexDTT{renameL}%
+\par
+The function \mbox{\tt newNamesL}\indexTT{newNamesL} does just what \mbox{\tt newNames}\indexTT{newNames} does, but it does
+it for binders whose type is a \mbox{\tt (name,level)} pair:
+\begin{verbatim}
+> newNamesL ns old_binders
+>  = (ns', new_binders, env)
+>    where
+>    old_names = [name | (name,level) <- old_binders]
+>    levels        = [level | (name,level) <- old_binders]
+>    (ns', new_names) = getNames ns old_names
+>    new_binders =  zip2 new_names levels
+>    env = zip2 old_names new_names
+\end{verbatim}
+\indexDTT{newNamesL}%
+\par
+Now we can turn our attention to writing \mbox{\tt renameGen}\indexTT{renameGen}.  As usual we
+need an auxiliary function \mbox{\tt renameGen{\char'137}e} which carries around some
+extra administrative information.  Specifically, like \mbox{\tt rename{\char'137}e}, it needs to
+take a name supply and old-name to new-name mapping as arguments, and
+return a depleted supply as part of its result.  It also needs to be
+passed the new-binders function:
+\begin{verbatim}
+> renameGen_e :: (NameSupply -> [a]  -> (NameSupply, [a], ASSOC Name Name))
+>                                               -- New-binders function
+>                -> ASSOC Name Name             -- Maps old names to new ones
+>                -> NameSupply                  -- Name supply
+>                -> Expr a                      -- Expression to be renamed
+>                -> (NameSupply, Expr a)        -- Depleted name supply
+>                                               -- and result expression
+\end{verbatim}
+\par
+Using \mbox{\tt renameGen{\char'137}e} we can now write \mbox{\tt renameGen}\indexTT{renameGen}.
+Just like \mbox{\tt rename}\indexTT{rename},  \mbox{\tt renameGen}\indexTT{renameGen}
+applies a local function \mbox{\tt rename{\char'137}sc} to each supercombinator definition.
+\begin{verbatim}
+> renameGen new_binders prog
+>  = second (mapAccuml rename_sc initialNameSupply prog)
+>     where
+>     rename_sc ns (sc_name, args, rhs)
+>      = (ns2, (sc_name, args', rhs'))
+>         where
+>        (ns1, args', env) = new_binders ns args
+>        (ns2, rhs') = renameGen_e new_binders env ns1 rhs
+\end{verbatim}
+\indexDTT{renameGen}%
+
+\begin{exercise}
+Write the function \mbox{\tt renameGen{\char'137}e}.  It is very like \mbox{\tt rename{\char'137}e}, except that
+it takes the binder-manipulation functions as extra arguments.
+In the equations for \mbox{\tt ELet}\indexTT{ELet}, \mbox{\tt ELam}\indexTT{ELam} and \mbox{\tt ECase}\indexTT{ECase} (which each bind
+new variables), the function \mbox{\tt newBinders}\indexTT{newBinders} can be used in just the same way
+as it is in \mbox{\tt rename{\char'137}sc} above.
+
+Test your definition by checking that the simple lambda lifter still works with
+the new definition of \mbox{\tt rename}\indexTT{rename}.
+\end{exercise}
+
+\begin{exercise}
+The type signature we wrote for \mbox{\tt renameL}\indexTT{renameL} is actually slightly more restrictive
+than it need be.  How could it be made more general (without changing the code
+at all)?
+Hint: what use does \mbox{\tt renameL}\indexTT{renameL} make of the fact that the second component
+of a binder is of type \mbox{\tt level}\indexTT{level}?
+\end{exercise}
+
+This section provides a good illustration of the way in which
+higher-order functions can help us to make programs more modular.
+
+\subsection{Floating \mbox{\tt let(rec)}\indexTT{let(rec)} expressions}
+\label{float}
+
+The final pass floats \mbox{\tt let(rec)}\indexTT{let(rec)} expressions out to the appropriate
+level.
+The auxiliary function, which works over expressions,
+has to return an expression together with the
+collection of definitions which should be floated outside the expression.
+\begin{verbatim}
+> float_e :: Expr (Name, Level) -> (FloatedDefns, Expr Name)
+\end{verbatim}
+\par
+There are many possible representations for the \mbox{\tt floatedDefns}\indexTT{floatedDefns} type,
+and we will choose a simple one, by representing the definitions being
+floated as a list, each element of which represents a group of
+definitions, identified by its level, and together with its \mbox{\tt isRec}\indexTT{isRec}
+flag.
+\begin{verbatim}
+> type FloatedDefns = [(Level, IsRec, [(Name, Expr Name)])]
+\end{verbatim}
+\indexDTT{type}%
+Since the definitions in the list may depend on one another, we add
+the following constraint:
+\begin{important}
+a definition group may depend only on
+definition groups appearing {\em earlier\/} in the \mbox{\tt floatedDefns}\indexTT{floatedDefns} list.
+\end{important}
+
+We can now proceed to a definition of \mbox{\tt float{\char'137}e}.  The cases for
+variables, constants and applications are straightforward.
+\begin{verbatim}
+> float_e (EVar v) = ([], EVar v)
+> float_e (EConstr t a) = ([], EConstr t a)
+> float_e (ENum n) = ([], ENum n)
+> float_e (EAp e1 e2) = (fd1 ++ fd2, EAp e1' e2')
+>                       where
+>                       (fd1, e1') = float_e e1
+>                       (fd2, e2') = float_e e2
+\end{verbatim}
+How far out should a definition be floated?  There is more than
+one possible choice, but here we choose to install a definition
+just inside the innermost lambda which binds one its
+free variables (recall from
+Section~\ref{levels} that all variables bound by a single \mbox{\tt ELam}\indexTT{ELam}
+construct are given the same level):
+\begin{verbatim}
+> float_e (ELam args body)
+>  = (fd_outer, ELam args' (install fd_this_level body'))
+>    where
+>    args' = [arg | (arg,level) <- args]
+>    (first_arg,this_level) = hd args
+>    (fd_body, body') = float_e body
+>    (fd_outer, fd_this_level) = partitionFloats this_level fd_body
+\end{verbatim}
+\par
+The equation for a \mbox{\tt let(rec)}\indexTT{let(rec)} expression adds its definition group
+to those floated out from its body, and from its right-hand sides.
+The latter must come first, since the new definition group may depend on them.
+\begin{verbatim}
+> float_e (ELet is_rec defns body)
+>  = (rhsFloatDefns ++ [thisGroup] ++ bodyFloatDefns, body')
+>    where
+>    (bodyFloatDefns, body') = float_e body
+>    (rhsFloatDefns, defns') = mapAccuml float_defn [] defns
+>    thisGroup = (thisLevel, is_rec, defns')
+>    (name,thisLevel) = hd (bindersOf defns)
+>
+>    float_defn floatedDefns ((name,level), rhs)
+>     = (rhsFloatDefns ++ floatedDefns, (name, rhs'))
+>       where
+>       (rhsFloatDefns, rhs') = float_e rhs
+\end{verbatim}
+We defer \mbox{\tt case}\indexTT{case} expressions:
+\begin{verbatim}
+> float_e (ECase e alts) = float_case e alts
+> float_case e alts = error "float_case: not yet written"
+\end{verbatim}
+\par
+The auxiliary function \mbox{\tt partitionFloats}\indexTT{partitionFloats} takes a \mbox{\tt floatedDefns}\indexTT{floatedDefns} and a level
+number, and separates it into two: those belonging to an outer level and
+those belonging to the specified level (or an inner one):
+\begin{verbatim}
+> partitionFloats :: Level -> FloatedDefns -> (FloatedDefns, FloatedDefns)
+> partitionFloats this_level fds
+>  = (filter is_outer_level fds, filter is_this_level fds)
+>    where
+>    is_this_level  (level,is_rec,defns) = level >= this_level
+>    is_outer_level (level,is_rec,defns) = level <  this_level
+\end{verbatim}
+\indexDTT{partitionFloats}%
+\indexDTT{partitionFloats}%
+\par
+The function \mbox{\tt install}\indexTT{install} wraps an expression in a
+nested set of \mbox{\tt let(rec)}\indexTT{let(rec)}s containing the specified definitions:
+\begin{verbatim}
+> install :: FloatedDefns -> Expr Name -> Expr Name
+> install defnGroups e
+>  = foldr installGroup e defnGroups
+>    where
+>    installGroup (level, is_rec, defns) e = ELet is_rec defns e
+\end{verbatim}
+\indexDTT{install}%
+\indexDTT{install}%
+\par
+Finally, we can define the top-level function, \mbox{\tt float}\indexTT{float}.  It uses \mbox{\tt float{\char'137}sc}
+to apply \mbox{\tt float{\char'137}e} to each supercombinator, yielding a list of supercombinators,
+in just the same way as \mbox{\tt collectSCs}\indexTT{collectSCs} above.
+\begin{verbatim}
+> float prog = concat (map float_sc prog)
+\end{verbatim}
+\indexDTT{float}%
+\par
+The function \mbox{\tt float{\char'137}sc} takes a supercombinator definition to a
+list of supercombinator definitions, consisting of the transformed version
+of the original definition together with the level-zero definitions floated
+out from its body:
+\begin{verbatim}
+> float_sc (name, [], rhs)
+>  = [(name, [], rhs')] ++ concat (map to_scs fds)
+>    where
+>    (fds, rhs') = float_e rhs
+>    to_scs (level, is_rec, defns) = map make_sc defns
+>    make_sc (name, rhs) = (name, [], rhs)
+\end{verbatim}
+The top level of a program is implicitly
+mutually recursive, so we can drop the \mbox{\tt isRec}\indexTT{isRec} flags.  We also have
+to give each floated definition an empty argument list, since it is now a
+supercombinator definition.
+
+%****************************************************************
+%*                                                              *
+        \section{Mark 5: Improvements to full laziness\index{lambda lifter!Mark 5}}
+%*                                                              *
+%****************************************************************
+
+That completes the definition of the fully lazy lambda lifter.
+Its output is always correct, but it is larger and less
+efficient than it need be.  In this section we discuss some ways
+to improve the full laziness transformation.
+
+\subsection{Adding \mbox{\tt case}\indexTT{case} expressions}
+
+\begin{exercise}
+Write definitions for \mbox{\tt freeToLevel{\char'137}case}, \mbox{\tt identifyMFEs{\char'137}case1}
+and \mbox{\tt float{\char'137}case}.  All of them
+work in an analogous way to lambda abstractions.
+Hint: in \mbox{\tt float{\char'137}case} take care with alternatives whose argument list
+is empty.
+\end{exercise}
+
+\subsection{Eliminating redundant supercombinators\index{redundant
+supercombinators, in lambda lifter}}
+
+Consider the Core-language expression
+\begin{verbatim}
+        \x. \y. x+y
+\end{verbatim}
+Here the \mbox{\tt {\char'134}y}-abstraction has no MFEs apart from \mbox{\tt x} itself, so the
+full-laziness pass will not affect the expression at all.  Unfortunately,
+the simple lambda lifter, \mbox{\tt lambdaLift}\indexTT{lambdaLift}, will then generate {\em two\/}
+supercombinators,
+one for each lambda, whereas only one is needed.
+It would be better to combine nested \mbox{\tt ELam}\indexTT{ELam}
+expressions into a single \mbox{\tt ELam}\indexTT{ELam} before passing the program to \mbox{\tt lambdaLift}\indexTT{lambdaLift},
+so that the latter would then generate just one supercombinator.
+We could do this in a separate pass, but it saves work to do it as part of
+the work of \mbox{\tt float}\indexTT{float}.
+\begin{exercise}
+Modify the definition of the \mbox{\tt ELam}\indexTT{ELam} case of \mbox{\tt float}\indexTT{float} so that it combines
+nested \mbox{\tt ELam}\indexTT{ELam} constructors.  Hint: make use of the function:
+\begin{verbatim}
+> mkELam :: [Name] -> CoreExpr -> CoreExpr
+> mkELam args (ELam args' body) = ELam (args++args') body
+> mkELam args other_body        = ELam args          other_body
+\end{verbatim}
+\indexDTT{mkELam}%
+\indexDTT{mkELam}%
+\indexDTT{mkELam}%
+\end{exercise}
+
+\subsection{Avoiding redundant full laziness\index{redundant full laziness}}
+\label{sect:redundant}
+
+Full laziness does not come for free.  It has two main negative effects:
+\begin{itemize}
+\item
+Multiple lambda abstractions, such as \mbox{\tt {\char'134}x\ y.\ E}, turn into one
+supercombinator under the simple scheme, but may turn into
+two under the fully lazy
+scheme.  Two reductions instead of one are therefore required to apply
+it to two arguments, which may well be more expensive.
+\item
+Lifting out MFEs removes sub-expressions from their context, and
+thereby
+reduces opportunities for a compiler to perform optimisations.  Such
+optimisations might be partially restored by an interprocedural analysis
+which figured out the contexts again, but it is better still to avoid
+creating the problem.
+\end{itemize}
+
+These points are elaborated by \cite{FairbairnRedundant} and
+\cite{GoldbergThesis}.  Furthermore, they point out that often no
+benefit arises from lifting out {\em every\/} MFE from {\em every\/}
+lambda abstraction.  In particular:
+
+\begin{itemize}
+\item
+If no partial applications of a multiple abstraction can be shared,
+then nothing is gained by floating MFEs out to {\em between\/} the
+nested abstractions.
+
+\item
+Very little is gained by lifting out an MFE that is not a reducible
+expression.  No work is shared thereby, though there may be some
+saving in storage because the closure need only be constructed once.
+This is more than outweighed by the loss of compiler optimisations
+caused by removing the expression from its context.
+\end{itemize}
+
+These observations suggest some improvements to the fully lazy lambda
+lifter, and they turn out to be quite easy to incorporate:
+\begin{itemize}
+\item If a multiple abstraction is {\em not\/} separated into separate
+\mbox{\tt ELam}\indexTT{ELam} constructors by the \mbox{\tt separateLam}\indexTT{separateLam} pass, then all the variables
+bound by it will be given the {\em same\/} level number.  It follows
+that no MFE will be identified which is free in the inner abstraction
+but not the outer one.  This ensures that no MFEs will be floated out
+to between two abstractions represented by a single \mbox{\tt ELam}\indexTT{ELam}
+constructor.
+
+All that is required is to modify the \mbox{\tt separateLams}\indexTT{separateLams} pass to keep in a
+single \mbox{\tt ELam}\indexTT{ELam} constructor each multiple abstraction of which partial
+applications cannot be shared.  This sharing information is not
+trivial to deduce, but at least we have an elegant way to use its
+results by modifying only a small part of our algorithm.
+
+This is one reason why we allow \mbox{\tt ELam}\indexTT{ELam} constructors to take a
+list of binders.
+
+\item \mbox{\tt identifyMFEs}\indexTT{identifyMFEs} uses a predicate \mbox{\tt notMFECandidate}\indexTT{notMFECandidate} to decide
+whether to identify a particular sub-expression as an MFE.  This
+provides a convenient place to add extra conditions to exclude from
+consideration expressions which are not redexes.  This condition, too,
+is undecidable in general, but a good approximation can be made in
+many cases; for example \mbox{\tt (+\ 3)} is obviously not a redex.
+\end{itemize}
+
+This concludes the presentation of the full laziness transformation.
+
+
+%****************************************************************
+%*                                                              *
+        \section{Mark~6: Dependency analysis\advanced\index{dependency analysis}}
+        \label{sect:dependency}
+%*                                                              *
+%****************************************************************
+
+Consider the Core-language definition
+\begin{verbatim}
+        f x = let
+                g = \y. letrec
+                          h = y+1 ;
+                          k = x+2
+                        in
+                        h+k
+              in
+              g 4
+\end{verbatim}
+The inner \mbox{\tt letrec}\indexTT{letrec} is not recursive at all!  The program is equivalent to
+the following:
+\begin{verbatim}
+        f x = let
+                g = \y. let h = y+1 in
+                        let k = x+2 in
+                        h+k
+              in
+              g 4
+\end{verbatim}
+This transformation, which breaks up \mbox{\tt let(rec)}\indexTT{let(rec)} blocks into
+minimal-sized groups, and always uses \mbox{\tt let}\indexTT{let} in preference to \mbox{\tt letrec}\indexTT{letrec},
+is called \stressD{dependency analysis}.
+
+We have already alluded to the fact that better code can be generated
+if the program has been subjected to a dependency analysis.
+This has shown up in two places:
+\begin{itemize}
+\item
+In Johnsson-style lambda lifting, we treated the free variables for a
+\mbox{\tt letrec}\indexTT{letrec} block of definitions as a single entity\index{dependency
+analysis! use in Johnsson lambda lifter}. If we could in fact break
+the \mbox{\tt letrec}\indexTT{letrec} up into smaller blocks, then there would be fewer free
+variables in each block. This will then reduce the number of free
+variables that must be added to a function definition by the
+\mbox{\tt abstractJ}\indexTT{abstractJ} function.
+\item
+In the full-laziness transformation we always kept the declarations in
+a \mbox{\tt let(rec)}\indexTT{let(rec)} block together\index{dependency analysis! use in full
+laziness}. If we first do dependency analysis, to break the
+declarations into small groups, then perhaps some of the groups could
+be floated further out than before.
+\end{itemize}
+This section explores how to do dependency analysis on Core programs.
+
+\subsection{Strongly connected components\index{strongly connected components}}
+\label{ll:SCCs}
+
+In order to discuss the dependency analysis we need to understand some
+graph theory\index{graph theory}. We therefore begin with a definition.
+\begin{definition}
+A directed graph is a tuple $(V,\,E)$ of two components:
+\begin{itemize}
+\item a set of vertices (or nodes), $V$;
+\item a set of edges, $E$. Each edge is a pair: $(v_0,\,v_1)$; where
+$v_0\in V$ is the source of the edge, and $v_1\in V$ is the target.
+\end{itemize}
+\end{definition}
+In the following expression we say that \mbox{\tt x} depends on \mbox{\tt y} and \mbox{\tt z}, \mbox{\tt z}
+depends on \mbox{\tt x} and \mbox{\tt y}, but that \mbox{\tt y} does not depend on any other
+variable.
+\begin{verbatim}
+    letrec
+        x = y + 7 * tl z;
+        y = 5
+        z = (x,y)
+    in e
+\end{verbatim}
+The graph we construct for this definition block has three vertices,
+$\{\mbox{\tt x}, \mbox{\tt y}, \mbox{\tt z}\}$, and the edges:
+\[
+  \{(\mbox{\tt x}, \mbox{\tt y}),~(\mbox{\tt x}, \mbox{\tt z}),~(\mbox{\tt z}, \mbox{\tt x}),~(\mbox{\tt z}, \mbox{\tt y})\}
+\]
+The interpretation of the first edge is that \mbox{\tt x} {\em depends\/} on \mbox{\tt y},
+and the absence of any edges from \mbox{\tt y} means that \mbox{\tt y} does not depend
+on any other variables. Pictorially, the graph is as follows:
+\begin{center}
+\input{depend.tex}
+\end{center}
+Because we are not concerned with multiple edges between the same
+pairs of vertices, we can instead formulate the information about the
+edges as a map: \mbox{\it outs}.
+\begin{definition}\mbox{}
+\[
+ \mbox{\it outs} ~ v = \{v' \mathrel{|} (v,\,v') \in E\}
+\]
+\end{definition}
+The set $\mbox{\it outs}~ v$ is therefore the set of vertices that are
+targets for an edge whose source is $v$.  In the example we have just
+looked at $\mbox{\it outs}~ \mbox{\tt x} = \{\mbox{\tt y},\mbox{\tt z}\}$, $\mbox{\it outs}~ \mbox{\tt y}
+= \{\}$ and $\mbox{\it outs}~ \mbox{\tt z} = \{\mbox{\tt x},\mbox{\tt y}\}$.
+
+We can construct a similar map, \mbox{\it ins}, which is dual to the
+\mbox{\it outs} map.
+
+\begin{definition}\mbox{}
+\[
+ \mbox{\it ins} ~ v = \{v' \mathrel{|} (v',\,v) \in E\}
+\]
+\end{definition}
+This is the set of vertices that are the source of an edge pointing to
+$v$. In the example we have just looked at $\mbox{\it ins}~ \mbox{\tt x} =
+\{\mbox{\tt z}\}$, $\mbox{\it ins\/} \mbox{\tt y} = \{\mbox{\tt x},\mbox{\tt z}\}$ and $\mbox{\it ins\/}
+\mbox{\tt z} = \{\mbox{\tt x}\}$.
+
+\begin{definition}
+The map $r^\ast$ is the {\em transitive closure\/}\index{transitive
+closure} of the map $r$.  It can be defined recursively as:
+\begin{itemize}
+\item $a \in r^\ast ~ a$,
+\item if $b \in r^\ast ~ a$, then
+$r ~b \subseteq r^\ast~ a$.
+\end{itemize}
+\end{definition}
+The set $\mbox{\it outs}^\ast ~a$ is the set of all vertices that can
+be reached from the vertex $a$, by following the edges of the graph.
+We say that $b$ is {\em reachable\/}\index{reachability, of nodes in a
+graph} from $a$ whenever $b\in\mbox{\it outs}^\ast ~a$.  The set
+$\mbox{\it ins}^\ast~ a$ is the set of all vertices that can reach the
+vertex $a$ by following the edges of the graph.
+
+Using the running example, we have $\mbox{\it outs}^\ast~ \mbox{\tt x} =
+\{\mbox{\tt x},\mbox{\tt y},\mbox{\tt z}\}$, $\mbox{\it outs}^\ast~ \mbox{\tt y} = \{\mbox{\tt y}\}$, and
+$\mbox{\it outs}^\ast~ \mbox{\tt z} = \{\mbox{\tt x},\mbox{\tt y},\mbox{\tt z}\}$. We also have $\mbox{\it
+ins}^\ast~ \mbox{\tt x} = \{\mbox{\tt x},\mbox{\tt z}\}$, $\mbox{\it ins}^\ast~ \mbox{\tt y} =
+\{\mbox{\tt x},\mbox{\tt y},\mbox{\tt z}\}$, and $\mbox{\it ins}^\ast~ \mbox{\tt z} = \{\mbox{\tt x},\mbox{\tt z}\}$.
+
+We are now in a position to define a strongly connected component
+of a graph. Informally, the vertices $a$ and $b$ are in the same
+component whenever $a$ is reachable from $b$ and $b$ is reachable from
+$a$.
+\begin{definition}
+The strongly connected component of the graph containing the vertex
+$a$ is the set of vertices $\mbox{\it scc} ~a$, defined as:
+\[\mbox{\it scc} ~a = \mbox{\it outs}^\ast ~a \mathrel{\cap}
+                      \mbox{\it ins}^\ast ~a \]
+\end{definition}
+That is: a vertex $b$ is in $\mbox{\it scc} ~a$ if and only if it is
+reachable from $a$ and if $a$ is reachable from $b$. The graph in the
+running example has two strongly connected components: $\{\mbox{\tt x},\mbox{\tt z}\}$
+and $\{\mbox{\tt y}\}$.
+
+\begin{exercise}\label{ll:X:equivclass}
+Prove that the relation `in the same strongly connected component'
+partitions the set of vertices into equivalence classes.
+\end{exercise}
+
+\subsubsection{Topological sorting\index{topological sorting}}
+
+An ordering on vertices can be induced by considering the maps
+$\mbox{\it ins}^\ast$ and $\mbox{\it outs}^\ast$. This is a partial
+order which we will represent as $\preceq$.
+\begin{definition}
+The vertex $a$ is topologically less than or equal to the vertex $b$,
+written $a \preceq b$, if and only if:
+\[
+ b \in \mbox{\it outs}^\ast ~a
+\]
+\end{definition}
+In our example $\mbox{\tt x} \preceq \mbox{\tt x}$, $\mbox{\tt x} \preceq \mbox{\tt y}$, $\mbox{\tt x} \preceq
+\mbox{\tt z}$, $\mbox{\tt y} \preceq \mbox{\tt y}$, $\mbox{\tt z} \preceq \mbox{\tt x}$, $\mbox{\tt z} \preceq \mbox{\tt y}$ and
+$\mbox{\tt z} \preceq \mbox{\tt z}$.
+
+Because the strongly connected components are disjoint, a similar
+ordering is induced on them by considering the action of $\preceq$ on
+their elements. In our running example the two components are
+ordered as: $\{\mbox{\tt x},\mbox{\tt z}\}\preceq\{\mbox{\tt y}\}$.
+\begin{definition}
+A sequence of vertices (or strongly connected components) are
+topologically sorted if, for all $a$ and $b$ in the sequence, $a$
+precedes $b$ whenever $a \preceq b$.
+\end{definition}
+So, one possible topologically sorted sequence would be:
+$[\mbox{\tt x},\,\mbox{\tt z},\,\mbox{\tt y}]$. The other is $[\mbox{\tt z},\,\mbox{\tt x},\,\mbox{\tt y}]$.
+
+Having now determined that the two strongly connected components are
+ordered as $\{\mbox{\tt x},\mbox{\tt z}\}\preceq\{\mbox{\tt y}\}$, we may transform the original
+expression into the following one:
+\begin{verbatim}
+    letrec
+        y = 5
+    in letrec
+           x = y + 7 + second z
+           z = (x, y)
+       in e
+\end{verbatim}
+We next consider efficient ways to implement the strongly connected
+component algorithm.
+
+\subsection{Implementing a strongly connected component algorithm}
+
+\subsubsection{Depth first search\index{depth first search}}
+
+We will first consider the problem of implementing a depth first
+search of a graph. The function \mbox{\tt depthFirstSearch}\indexTT{depthFirstSearch} is parameterised
+over the map from vertices to their offspring; this permits us to
+reverse the direction in which the edges are traversed.  Furthermore,
+we choose to make the maps \mbox{\it ins} and \mbox{\it outs} into
+functions from vertices to sequences of vertices.  The reason for this
+change is that we have to traverse the offspring in some order and
+this is easier to arrange if we have a sequence rather than a set.
+\begin{verbatim}
+> depthFirstSearch :: Ord a =>
+>                     (a -> [a])   -> -- Map
+>                     (Set a, [a]) -> -- State: visited set,
+>                                     --        current sequence of vertices
+>                     [a]          -> -- Input vertices sequence
+>                     (Set a, [a])    -- Final state
+\end{verbatim}
+\indexDTT{depthFirstSearch}%
+\par
+The function \mbox{\tt depthFirstSearch}\indexTT{depthFirstSearch} updates a state as it runs down the
+input vertex sequence, using \mbox{\tt foldll}\indexTT{foldll}. The state consists of two
+parts: in the first we keep track of all of the vertices that we have
+so far visited; in the second we construct the sequence of vertices
+that we will output.
+\begin{verbatim}
+> depthFirstSearch
+>  = foldll . search
+>    where
+\end{verbatim}
+\par
+The key part of the depth first search is coded into \mbox{\tt search}\indexTT{search}: if we
+have already visited the vertex then the state is unchanged.
+\begin{verbatim}
+>    search relation (visited, sequence) vertex
+>     | setElementOf vertex visited = (visited,          sequence ) -- KH
+>     -- KH Was: = (visited,          sequence ), setElementOf vertex visited
+\end{verbatim}
+On the other hand, if this is the first time we have visited the
+vertex, then we must proceed to search from this vertex. When the
+state is returned from this search, we must add the current vertex to
+the sequence.
+\begin{verbatim}
+>     | otherwise = (visited', vertex: sequence') -- KH
+>     -- KH Was: = (visited', vertex: sequence'), otherwise
+>       where
+\end{verbatim}
+The visited set must be updated with the current vertex, before we
+begin the search, and the list of vertices to search from is
+determined by applying the map \mbox{\tt relation}\indexTT{relation}.
+\begin{verbatim}
+>       (visited', sequence')
+>        = depthFirstSearch relation
+>                           (setUnion visited (setSingleton vertex), sequence)
+>                           (relation vertex)
+\end{verbatim}
+The result will be a set of vertices visited, and a sequence of these
+visited vertices, in topological sort order.
+
+\begin{exercise}\label{ll:X:scc-depthfirst}
+Prove the following theorem:
+\[
+ \mbox{\tt depthFirstSearch}\indexTT{depthFirstSearch}~ \mbox{\it outs}~ (\{\},\, []) S
+  = (V,\, S')
+\]
+where $S$ is a sequence of vertices, $V = \bigcup_{v\in S} \mbox{\it
+outs}~ v$, and $S'$ is a topologically sorted sequence of the vertices
+in $V$.
+\end{exercise}
+
+\subsubsection{Spanning search\index{spanning search, in strongly
+connected component algorithm}}
+
+The function \mbox{\tt spanningSearch}\indexTT{spanningSearch} is a slight adaptation of the function
+\mbox{\tt depthFirstSearch}\indexTT{depthFirstSearch}, in which we retain the structuring information
+obtained during the search.
+\begin{verbatim}
+> spanningSearch   :: Ord a =>
+>                     (a -> [a])       -> -- The map
+>                     (Set a, [Set a]) -> -- Current state: visited set,
+>                                         --  current sequence of vertice sets
+>                     [a]              -> -- Input sequence of vertices
+>                     (Set a, [Set a])    -- Final state
+\end{verbatim}
+\indexDTT{spanningSearch}%
+Again, it is defined in terms of an auxiliary function \mbox{\tt search}\indexTT{search}
+\begin{verbatim}
+> spanningSearch
+\end{verbatim}
+\begin{verbatim}
+>  = foldll . search
+>    where
+\end{verbatim}
+If the current vertex has been visited already then we return the
+current state.
+\begin{verbatim}
+>    search relation (visited, setSequence) vertex
+>     | setElementOf vertex visited = (visited,          setSequence ) -- KH
+>     -- KH Was: = (visited,          setSequence ), setElementOf vertex visited
+\end{verbatim}
+\par
+Alternatively, if this is the first time we have visited the current
+vertex, then we search -- using \mbox{\tt depthFirstSearch}\indexTT{depthFirstSearch} -- from the current
+vertex.  The sequence that is returned constitutes the component
+associated with the current vertex. We therefore add it to the
+sequence of sets that we are constructing.
+\begin{verbatim}
+>     | otherwise = (visited', setFromList (vertex: sequence): setSequence) -- KH
+>     -- KH Was: = (visited', setFromList (vertex: sequence): setSequence)
+>       where
+>       (visited', sequence)
+>        = depthFirstSearch relation
+>                           (setUnion visited (setSingleton vertex), [])
+>                           (relation vertex)
+\end{verbatim}
+\subsubsection{Strongly connected components}
+
+The strongly connected component algorithm can now be implemented as the
+following function:
+\begin{verbatim}
+> scc :: Ord a =>
+>        (a -> [a]) -> -- The "ins"  map
+>        (a -> [a]) -> -- The "outs" map
+>        [a]        -> -- The root vertices
+>        [Set a]       -- The topologically sorted components
+\end{verbatim}
+\indexDTT{scc}%
+\par
+The function \mbox{\tt scc}\indexTT{scc} consists of two passes over the graph.
+\begin{verbatim}
+> scc ins outs
+>  = spanning . depthFirst
+\end{verbatim}
+\indexDTT{scc}%
+In the first we construct a topologically sorted sequence of the
+vertices of the graph.
+\begin{verbatim}
+>    where depthFirst = second . depthFirstSearch outs (setEmpty, [])
+\end{verbatim}
+In the second pass we construct the reverse of the topologically
+sorted sequence of strongly connected components.
+\begin{verbatim}
+>          spanning   = second . spanningSearch   ins  (setEmpty, [])
+\end{verbatim}
+\par
+Let us consider what happens when we construct the first component. At
+the head of the sequence is the vertex \mbox{\tt a}. Any other vertices that
+satisfy $\mbox{\tt a} \preceq \mbox{\tt b}$ will occur later in the sequence. There are
+no vertices satisfying $\mbox{\tt b} \preceq \mbox{\tt a}$.  The call to
+\mbox{\tt spanningSearch}\indexTT{spanningSearch} with \mbox{\tt ins}\indexTT{ins} as its relational parameter, will
+construct $\mbox{\it ins}^\ast ~ \mbox{\tt a}$. The visited set will be
+augmented with each vertex in the component.
+
+In the example we considered earlier, we will be applying \mbox{\tt spanning}\indexTT{spanning}
+to the list $[\mbox{\tt x},~\mbox{\tt z},~\mbox{\tt y}]$. This expands to:
+\begin{verbatim}
+        second (search ins (search ins (search ins ({},[]) x) z) y)
+\end{verbatim}
+Expanding the inner \mbox{\tt search}\indexTT{search} we obtain:
+\begin{verbatim}
+        second (search ins (search ins (vs, [setFromList (x:s)]) z) y)
+        where (vs,s) = depthFirstSearch ins ({x},[]) (ins x)
+\end{verbatim}
+But $\mbox{\tt ins}\indexTT{ins}~\mbox{\tt x} = [\mbox{\tt z}]$; this means that $\mbox{\tt vs} = \{\mbox{\tt x},~\mbox{\tt z}\}$ and
+$\mbox{\tt s} = [\mbox{\tt z}]$. Hence we reduce the expression to:
+\begin{verbatim}
+        second (search ins (search ins ({x,z}, [{x,z}]) z) y)
+\end{verbatim}
+Because \mbox{\tt z} is already in the visted set, this becomes:
+\begin{verbatim}
+        second (search ins ({x,z}, [{x,z}]) y)
+\end{verbatim}
+The \mbox{\tt search}\indexTT{search} expands as:
+\begin{verbatim}
+        second (vs, [setFromList (y:s), {x,z}])
+        where (vs,s) = depthFirstSearch ins ({x,y,z},[]) (ins y)
+\end{verbatim}
+But $\mbox{\tt ins}\indexTT{ins}~\mbox{\tt y} = [\mbox{\tt x},~\mbox{\tt z}]$; both of which are already visited, so
+$\mbox{\tt vs} = \{\mbox{\tt x},~\mbox{\tt z},~\mbox{\tt y}\}$ and $s = []$.
+
+The final form of the expression becomes:
+\begin{verbatim}
+        [{y}, {x,z}]
+\end{verbatim}
+\begin{important}
+The visited set in \mbox{\tt spanningSearch}\indexTT{spanningSearch} represents those vertices that
+have already been assigned to a strongly connected component.
+\end{important}
+
+When we come across a vertex in the input sequence that is already in
+the visited set, it behaves as if it had been deleted from further
+consideration. Suppose that the vertex \mbox{\tt b} is the next vertex in the
+input sequence that has not already been visited. When we come to
+compute
+\[
+ \mbox{\tt depthFirstSearch}\indexTT{depthFirstSearch}~ \mbox{\it ins}~
+  (\{\mbox{\tt b}\}\cup \mbox{\tt visited}\indexTT{visited},\,[])~ (\mbox{\it ins}~\mbox{\tt b})
+\]
+This will produce a new visited set (which will be $\mbox{\it scc}~\mbox{\tt a}
+\mathrel{\cup} \mbox{\it scc}~\mbox{\tt b}$) and a sequence whose elements are
+the vertices in $\mbox{\it scc}~\mbox{\tt b}$.
+
+Note that the strongly connected components are output in reverse
+topological order.
+
+\begin{exercise}\label{ll:X:sccs}
+Let
+\[
+\mbox{\tt scc}\indexTT{scc}~ \mbox{\it ins}~\mbox{\it outs}~ R
+  = S,
+\]
+and $V = \bigcup \{\mbox{\it ins}^\ast~v \mathrel{|} v\in R\}$.
+Prove that
+\begin{itemize}
+\item firstly, that the sequence $S$ contains all of the strongly
+connected components, i.e.
+\[
+ \mbox{\tt setFromList}\indexTT{setFromList}~S = \bigcup \{\mbox{\it scc}~v \mathrel{|} v\in V\};
+\]
+\item secondly, that these components are in reverse topological order,
+i.e.\ if $\mbox{\tt a}\preceq \mbox{\tt b}$ then \mbox{\tt b} occurs before \mbox{\tt a} in the
+sequence $S$.
+\end{itemize}
+\end{exercise}
+
+\subsection{A dependency analysis}
+
+We can now perform a dependency analysis on the program. Whenever we
+come across a \mbox{\tt let(rec)}\indexTT{let(rec)} block we must split it into strongly connected
+components.  In the case of \mbox{\tt let}\indexTT{let}, this is simple; there are no
+dependencies so we simply separate the list of definitions into a
+singleton list for each definition.
+
+The dependency analysis is performed by the function \mbox{\tt dependency}\indexTT{dependency}.
+This uses information from a prior pass of \mbox{\tt freeVars}\indexTT{freeVars} to rearrange
+\mbox{\tt let(rec)}\indexTT{let(rec)}s; this information is then used by the auxiliary function
+\mbox{\tt depends}\indexTT{depends}.
+\begin{verbatim}
+> dependency :: CoreProgram -> CoreProgram
+> dependency =  depends . freeVars
+\end{verbatim}
+\indexDTT{dependency}%
+\indexDTT{dependency}%
+\begin{verbatim}
+> runD = pprint . dependency . parse
+\end{verbatim}
+\indexDTT{runD}%
+\begin{verbatim}
+> depends :: AnnProgram Name (Set Name) -> CoreProgram
+> depends prog = [(name,args, depends_e rhs) | (name, args, rhs) <- prog]
+\end{verbatim}
+\indexDTT{depends}%
+\indexDTT{depends}%
+The work is done by \mbox{\tt depends{\char'137}e}, whose only interesting case is
+that for \mbox{\tt let(rec)}\indexTT{let(rec)}.
+\begin{verbatim}
+> depends_e :: AnnExpr Name (Set Name) -> CoreExpr
+> depends_e (free, ANum n)          = ENum n
+> depends_e (free, AConstr t a)     = EConstr t a
+> depends_e (free, AVar v)          = EVar v
+> depends_e (free, AAp e1 e2)       = EAp (depends_e e1) (depends_e e2)
+> depends_e (free, ACase body alts) = ECase (depends_e body)
+>                                           [ (tag, args, depends_e e)
+>                                           | (tag, args, e) <- alts
+>                                           ]
+> depends_e (free, ALam ns body)    = ELam ns (depends_e body)
+\end{verbatim}
+In the case of \mbox{\tt letrec}\indexTT{letrec}s we must construct the dependency graph, and
+then apply the \mbox{\tt scc}\indexTT{scc} function to determine the way to split the
+definitions. If \mbox{\tt defnGroups}\indexTT{defnGroups} is $[d_1,\,d_2,\,\ldots,\,d_n]$ -- and we
+are processing a \mbox{\tt letrec}\indexTT{letrec} -- then the \mbox{\tt letrec}\indexTT{letrec} will be transformed to:
+\[
+ \mbox{\tt letrec}\indexTT{letrec}~d_1~\mbox{\tt in}~\mbox{\tt letrec}\indexTT{letrec}~d_2~\mbox{\tt in}~\ldots ~\mbox{\tt letrec}\indexTT{letrec}~d_n~\mbox{\tt in}~ \mbox{\tt body}\indexTT{body}.
+\]
+\begin{verbatim}
+> depends_e (free, ALet is_rec defns body)
+>  = foldr (mkDependLet is_rec) (depends_e body) defnGroups
+>    where
+>    binders    = bindersOf defns
+\end{verbatim}
+\par
+The set of variables that we are interested in is derived from the
+\mbox{\tt binders}\indexTT{binders}, and is called the \mbox{\tt binderSet}\indexTT{binderSet}.
+\begin{verbatim}
+>    binderSet | is_rec    = setFromList binders
+>              | otherwise = setEmpty
+\end{verbatim}
+\par
+From this we can construct the \mbox{\tt edges}\indexTT{edges} of the dependency graph.
+\begin{verbatim}
+>    edges      = [(n, f) | (n, (free, e)) <- defns,
+>                           f <- setToList (setIntersection free binderSet)]
+\end{verbatim}
+And thus the functions \mbox{\tt ins}\indexTT{ins} and \mbox{\tt outs}\indexTT{outs} required by the strongly
+connected component algorithm.
+\begin{verbatim}
+>    ins  v     = [u | (u,w) <- edges, v==w]
+>    outs v     = [w | (u,w) <- edges, v==u]
+\end{verbatim}
+The resulting list of sets is converted into a list of lists, called
+\mbox{\tt components}\indexTT{components}.
+\begin{verbatim}
+>    components = map setToList (scc ins outs binders)
+\end{verbatim}
+\par
+We construct the \mbox{\tt defnGroups}\indexTT{defnGroups} by looking up the expression bound to
+each binder in the original definitions, \mbox{\tt defns}\indexTT{defns}:
+\begin{verbatim}
+>    defnGroups = [ [ (n, aLookup defns n (error "defnGroups"))
+>                   | n <- ns]
+>                 | ns <- components
+>                 ]
+\end{verbatim}
+\par
+Finally, to join together each group in \mbox{\tt defnGroups}\indexTT{defnGroups}, we define \mbox{\tt mkDependLet}\indexTT{mkDependLet},
+which recursively does dependency analysis on each right-hand side, and
+then builds the results into a \mbox{\tt let(rec)}\indexTT{let(rec)} expression:
+A simple definition is:
+\begin{verbatim}
+> mkDependLet is_rec dfs e = ELet is_rec [(n, depends_e e) | (n,e) <- dfs] e
+\end{verbatim}
+\indexDTT{mkDependLet}%
+\begin{exercise}\label{ll:X:elet}
+In addition to the definition groups from non-recursive \mbox{\tt let}\indexTT{let}s we
+sometimes get non-recursive definitions arising in \mbox{\tt letrec}\indexTT{letrec}'s. This
+is the case for \mbox{\tt y} in the example we have used.
+
+Redefine \mbox{\tt mkDependLet}\indexTT{mkDependLet} to make such bindings with a \mbox{\tt let}\indexTT{let} and not a \mbox{\tt letrec}\indexTT{letrec}.
+Hint: use the free-variable information present in the right-hand sides of
+the definitions passed to \mbox{\tt mkDependLet}\indexTT{mkDependLet}.
+\end{exercise}
+
+\section{Conclusion}
+
+It is interesting to compare our approach to full laziness
+with Bird's very nice paper
+\cite{Bird} which addresses a similar
+problem.  Bird's objective is to give a formal development of an
+efficient fully lazy lambda lifter, by successive transformation of an
+initial specification.  The resulting algorithm is rather complex, and
+would be hard to write down directly, thus fully justifying the effort
+of a formal development.
+
+In contrast, we have expressed our algorithm as a composition of a
+number of very simple phases, each of which can readily be specified
+and written down directly.  The resulting program has a
+constant-factor inefficiency, because it makes many traversals of the
+expression.  This is easily removed by folding together successive
+passes into a single function, eliminating the intermediate data
+structure.  Unlike Bird's transformations, this is a straightforward
+process.
+
+Our approach has the major advantage that is is {\em modular}.
+For example:
+\begin{itemize}
+\item
+We were able to reuse existing functions on several occasions
+(\mbox{\tt freeVars}\indexTT{freeVars}, \mbox{\tt rename}\indexTT{rename}, \mbox{\tt collectSCs}\indexTT{collectSCs} and so on).
+\item
+The multi-pass approach means that each pass has a well-defined, simple
+purpose, which makes it easier to modify.
+For example, we modified the \mbox{\tt identifyMFEs}\indexTT{identifyMFEs} algorithm to be more
+selective about where full laziness is introduced
+(Section~\ref{sect:redundant}).
+\item
+We could use the major phases in various combinations to
+`snap together' a variety of transformations.
+For example, we could choose whether or not to do dependency analysis
+and
+full laziness, and which lambda lifter to use, simply by composing
+the appropriate functions at the top level.
+\end{itemize}
+The main disadvantage of our approach is that we are unable to take
+advantage of one optimisation suggested by Hughes, namely ordering the
+parameters to a supercombinator to reduce the number of MFEs.  The
+reason for this is that the optimisation absolutely requires that
+lambda lifting be entwined with the process of MFE identification,
+while we have carefully separated these activities!  Happily for us,
+the larger MFEs created by this optimisation are always partial
+applications, which should probably {\em not\/} be identified as MFEs
+because no work is shared thereby (Section \ref{sect:redundant}).  Even so,
+matters might not have fallen out so fortuitously, and our separation
+of concerns has certainly made some sorts of transformation rather
+difficult.
+
+\theendnotes
+
+% end of chap06

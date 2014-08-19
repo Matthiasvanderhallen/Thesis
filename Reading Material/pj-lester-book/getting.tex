@@ -1,0 +1,68 @@
+% Information about getting the source files.
+% This is in a separate file because it is included in both the
+% main book and the installation guide
+
+You can get all the source code for this book,
+by network file transfer (FTP) from the
+several sites.  In each case, you need only get the file
+$$
+\mbox{\tt pjlester-}n\mbox{\tt .}m\mbox{\tt .tar.Z}
+$$
+where $n\mbox{\tt .}m$ is the current version number of the book. There is always
+only one such file, but the $n\mbox{\tt .}m$ may vary as we correct errors and
+otherwise improve the material.  Once you have got the file, run the command
+$$
+\mbox{\tt zcat\ pjlester-}n\mbox{\tt .}m\mbox{\tt .tar.Z\ |\ tar\ xf\ -}
+$$
+and then read or print the \mbox{\tt README}\indexTT{README} file, and the DVI file \mbox{\tt installation.dvi}.
+If you don't have \mbox{\tt zcat}\indexTT{zcat}, do the following instead:
+$$
+\begin{array}{l}
+\mbox{\tt uncompress\ pjlester-}n\mbox{\tt .}m\mbox{\tt .tar.Z} \\
+\mbox{\tt tar\ xf\ pjlester-}n\mbox{\tt .}m\mbox{\tt .tar}
+\end{array}
+$$
+
+The sites where the sources are held are as follows.
+\begin{center}
+\begin{tabular}{|llll|}
+\hline
+Site    & Host name               & Host address & Directory \\
+\hline
+Glasgow & \mbox{\tt ftp.dcs.glasgow.ac.uk} & 130.209.240.50 & \mbox{\tt pub/pj-lester-book}\\
+Yale    & \mbox{\tt nebula.cs.yale.edu}    & 128.36.13.1 & \mbox{\tt pub/pj-lester-book}  \\
+Chalmers& \mbox{\tt animal.cs.chalmers.se} & 129.16.2.27 & \mbox{\tt pub/pj-lester-book} \\
+\hline
+\end{tabular}
+\end{center}
+Log in as \mbox{\tt anonymous}\indexTT{anonymous}, and use your electronic mail address
+as password.
+Here is a sample Internet FTP session:
+\begin{verbatim}
+    % ftp nebula.cs.yale.edu
+    Connected to NEBULA.SYSTEMSZ.CS.YALE.EDU.
+    220 nebula FTP server (SunOS 4.0) ready.
+    Name (nebula.cs.yale.edu:guestftp): anonymous
+    331 Guest login ok, send ident as password.
+    Password: simonpj@dcs.glasgow.ac.uk
+    230 Guest login ok, access restrictions apply.
+    ftp> type binary
+    200 Type set to I.
+    ftp> cd pub/pj-lester-book
+    250 CWD command successful.
+    ftp> get pjlester-1.2.tar.Z
+    <messages about a successful transfer would come here>
+    ftp> bye
+\end{verbatim}
+Within the UK, you may get the above file from
+\mbox{\tt uk.ac.glasgow.dcs} by anonymous UK NIFTP 
+(binary mode; user: \mbox{\tt guest}\indexTT{guest}; password: your e-mail address);
+request:
+$$
+\mbox{\tt <FP>/pj-lester-book/}filename
+$$
+A typical command you might use on at least some Unix machines is:
+\begin{verbatim}
+  cpf -b '<FP>/pj-lester-book/pjlester-1.2.tar.Z@uk.ac.glasgow.dcs' 
+         pjlester-1.2.tar.Z
+\end{verbatim}

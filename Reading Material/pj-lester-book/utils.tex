@@ -1,0 +1,442 @@
+% $Date: 91/09/10 14:49:21 $
+% $Revision: 1.14 $
+% (c) 1991 Simon Peyton Jones & David Lester.
+\chapter{Utilities module}
+\label{sect:utils}
+
+This appendix gives definitions for various useful types and functions
+used throughout the book.
+\begin{verbatim}
+> module Utils where
+\end{verbatim}
+\indexDTT{module}%
+\begin{verbatim}
+> -- The following definitions are used to make some synonyms for routines
+> -- in the Gofer prelude to be more Miranda compatible
+> shownum n = show n
+> hd :: [a] -> a
+> hd  = head                        -- in Gofer standard prelude
+> tl :: [a] -> [a]
+> tl  = tail                        -- in Gofer standard prelude
+> zip2 :: [a] -> [b] -> [(a,b)]
+> zip2  = zip                       -- in Gofer standard prelude
+> -- can't do anything about # = length, since # not binary.
+\end{verbatim}
+\indexDTT{shownum}%
+\indexDTT{zip2}%
+\indexDTT{zip2}%
+\section{The heap type}
+\label{sect:heap}
+
+The abstract data types \mbox{\tt heap}\indexTT{heap} and \mbox{\tt addr}\indexTT{addr} are used to represent the
+GHarbage-collected heap\index{heap} of nodes\index{node}
+for each of our implementations.
+
+\subsection{Specification}
+
+A \mbox{\tt heap}\indexTT{heap} of \mbox{\tt *} is a collection of \stressD{objects} of type \mbox{\tt *}, each
+identified by a
+unique {\em address\/} of type \mbox{\tt addr}\indexTT{addr}.
+The following operations are provided:
+\begin{verbatim}
+> hInitial :: Heap a
+> hAlloc   :: Heap a -> a -> (Heap a, Addr)
+> hUpdate  :: Heap a -> Addr -> a -> Heap a
+> hFree    :: Heap a -> Addr -> Heap a
+\end{verbatim}
+\indexDTT{hInitial}%
+\indexDTT{hAlloc}%
+\indexDTT{hUpdate}%
+\indexDTT{hFree}%
+\mbox{\tt hInitial}\indexTT{hInitial} returns an initialised empty heap.
+\mbox{\tt hAlloc}\indexTT{hAlloc} takes a heap and an object, and returns a new heap and an address;
+the new heap is exactly the same as the old one, except that
+the specified object is found at the address returned.
+\mbox{\tt hUpdate}\indexTT{hUpdate} takes a heap, an address and an object;
+it returns a new heap in which the address is now
+associated with the object.
+\mbox{\tt hFree}\indexTT{hFree} takes a heap and an address and returns a new heap with
+the specified object removed.
+\begin{verbatim}
+> hLookup  :: Heap a -> Addr -> a
+> hAddresses :: Heap a -> [Addr]
+> hSize    :: Heap a -> Int
+\end{verbatim}
+\indexDTT{hLookup}%
+\indexDTT{hAddresses}%
+\indexDTT{hSize}%
+\mbox{\tt hLookup}\indexTT{hLookup} takes a heap and an address and returns the
+object associated with that address.
+\mbox{\tt hAddresses}\indexTT{hAddresses} returns the addresses of all the objects in the heap.
+\mbox{\tt hSize}\indexTT{hSize} returns the number of objects in the heap.
+\begin{verbatim}
+> hNull      :: Addr
+> hIsnull    :: Addr -> Bool
+\end{verbatim}
+\indexDTT{hNull}%
+\indexDTT{hIsnull}%
+\mbox{\tt hNull}\indexTT{hNull} is an address guaranteed to differ from every address returned
+by \mbox{\tt hAlloc}\indexTT{hAlloc}; \mbox{\tt hIsnull}\indexTT{hIsnull} tells whether an address is this distinguished
+value.
+
+Finally, we add a show function so that addresses can be printed easily.
+\begin{verbatim}
+> showaddr :: Addr -> [Char]
+\end{verbatim}
+\indexDTT{showaddr}%
+By giving it the name \mbox{\tt show}\indexTT{show} followed by the name of the type (\mbox{\tt addr}\indexTT{addr}),
+we inform Miranda that when Miranda's built-in \mbox{\tt show}\indexTT{show} function encounters
+an object of type \mbox{\tt addr}\indexTT{addr}, it should use \mbox{\tt showaddr}\indexTT{showaddr} to convert it to a list
+of characters.
+
+\subsection{Representation}
+
+The heap is represented as a triple, containing:
+\begin{itemize}
+\item the number of objects in the heap;
+\item a list of unused addresses;
+\item an association list mapping addresses to objects.
+\end{itemize}
+Addresses are represented as numbers.
+\begin{verbatim}
+> type Heap a = (Int, [Int], [(Int, a)])
+> type Addr   = Int
+\end{verbatim}
+\indexDTT{type}%
+\indexDTT{type}%
+\par
+We implement the operations in a (fairly) obvious manner.
+\begin{verbatim}
+> hInitial                             = (0,      [1..],  [])
+> hAlloc  (size, (next:free), cts) n   = ((size+1, free,   (next,n) : cts),next)
+> hUpdate (size, free,        cts) a n = (size,   free,   (a,n) : remove cts a)
+> hFree   (size, free,        cts) a   = (size-1, a:free, remove cts a)
+\end{verbatim}
+\indexDTT{hInitial}%
+\indexDTT{hAlloc}%
+\indexDTT{hUpdate}%
+\indexDTT{hFree}%
+\begin{verbatim}
+> hLookup (size,free,cts) a
+>  = aLookup cts a (error ("can't find node " ++ showaddr a ++ " in heap"))
+>
+> hAddresses (size, free, cts) = [addr | (addr, node) <- cts]
+>
+> hSize (size, free, cts) = size
+\end{verbatim}
+\indexDTT{hLookup}%
+\indexDTT{hAddresses}%
+\indexDTT{hSize}%
+\begin{verbatim}
+> hNull    = 0
+> hIsnull a = a == 0
+> showaddr a = "#" ++ shownum a         -- Print # to identify addresses
+\end{verbatim}
+\indexDTT{hNull}%
+\indexDTT{hIsnull}%
+\indexDTT{showaddr}%
+\par
+The auxiliary function \mbox{\tt remove}\indexTT{remove} removes an item from a heap contents:
+\begin{verbatim}
+> remove :: [(Int,a)] -> Int -> [(Int,a)]
+> remove [] a = error ("Attempt to update or free nonexistent address #" ++
+>                      shownum a)
+> remove ((a',n):cts) a | a == a' = cts
+>                       | a /= a' = (a',n) : remove cts a
+\end{verbatim}
+\indexDTT{remove}%
+\indexDTT{remove}%
+\indexDTT{remove}%
+\section{The association list type}
+\label{sect:assoc}
+
+An \stressD{association list} associates {\em keys\/} to {\em values}.
+It is represented by a list of (key,value) pairs, using a type synonym.
+It is not an abstract type
+because it turns out to be so convenient to use list-manipulation
+operations on it.
+\begin{verbatim}
+> type ASSOC a b = [(a,b)]
+\end{verbatim}
+\indexDTT{type}%
+You can use one association list, $e_1$, to extend another, $e_2$,
+using ordinary list append, thus $e_1\ \mbox{\tt ++}\ e_2$.
+A lookup in this extended environment
+will search $e_1$ first and then $e_2$.
+
+GHiven a key, $k$, you can find the associated value using \mbox{\tt aLookup}\indexTT{aLookup}.
+
+
+The call $\mbox{\tt aLookup}\indexTT{aLookup}~alist~key~default$ searches the association list
+$alist$ starting from the head of the list;
+if it finds a $(key,val)$ pair it returns $val$,
+otherwise it returns $default$.
+\begin{verbatim}
+> aLookup []         k' def           = def
+> aLookup ((k,v):bs) k' def | k == k' = v
+>                           | k /= k' = aLookup bs k' def
+\end{verbatim}
+\indexDTT{aLookup}%
+\indexDTT{aLookup}%
+\par
+The functions \mbox{\tt aDomain}\indexTT{aDomain} and \mbox{\tt aRange}\indexTT{aRange} find the range and domain of the
+association list, respectively:
+\begin{verbatim}
+> aDomain :: ASSOC a b -> [a]
+> aDomain alist = [key | (key,val) <- alist]
+>
+> aRange :: ASSOC a b -> [b]
+> aRange  alist = [val | (key,val) <- alist]
+\end{verbatim}
+\indexDTT{aDomain}%
+\indexDTT{aDomain}%
+\indexDTT{aRange}%
+\indexDTT{aRange}%
+\mbox{\tt aEmpty}\indexTT{aEmpty} is the empty association list:
+\begin{verbatim}
+> aEmpty = []
+\end{verbatim}
+\indexDTT{aEmpty}%
+
+\section{Generating unique names}
+
+In Chapter~\ref{sect:lambda-lift} we need to generate unique
+names\index{unique names}
+for newly generated supercombinators.  The abstract data type \mbox{\tt nameSupply}\indexTT{nameSupply}
+acts as a supply of unique names.
+\begin{verbatim}
+> getName  :: NameSupply -> [Char]   -> (NameSupply, [Char])
+> getNames :: NameSupply -> [[Char]] -> (NameSupply, [[Char]])
+> initialNameSupply :: NameSupply
+\end{verbatim}
+\indexDTT{getName}%
+\indexDTT{getNames}%
+\indexDTT{initialNameSupply}%
+There are three operations.  \mbox{\tt getName}\indexTT{getName} takes a name supply and a prefix
+string, and returns a depleted name supply together with a string which is
+a new unique name; this string has the specified prefix.  \mbox{\tt getNames}\indexTT{getNames} does the
+same thing for a list of prefixes.  Finally, \mbox{\tt initialNameSupply}\indexTT{initialNameSupply} is the
+initial, undepleted name supply.
+
+\subsection{Representation}
+
+A name supply is represented by a single integer.
+\begin{verbatim}
+> type NameSupply = Int
+> initialNameSupply = 0
+> getName name_supply prefix = (name_supply+1, makeName prefix name_supply)
+> getNames name_supply prefixes
+>  = (name_supply + length prefixes, zipWith makeName prefixes [name_supply..])
+\end{verbatim}
+\indexDTT{type}%
+\indexDTT{initialNameSupply}%
+\indexDTT{getName}%
+\indexDTT{getNames}%
+\begin{verbatim}
+> makeName prefix ns = prefix ++ "_" ++ shownum ns
+\end{verbatim}
+\indexDTT{makeName}%
+\section{Sets}
+
+\label{sect:set}
+
+The abstract data type of sets\index{sets} has the following signature.
+\begin{verbatim}
+> setFromList     :: (Ord a) => [a]     -> Set a
+> setToList       :: (Ord a) => Set a   -> [a]
+> setUnion        :: (Ord a) => Set a   -> Set a -> Set a
+> setIntersection :: (Ord a) => Set a   -> Set a -> Set a
+> setSubtraction  :: (Ord a) => Set a   -> Set a -> Set a
+> setElementOf    :: (Ord a) => a       -> Set a -> Bool
+> setEmpty        :: (Ord a) => Set a
+> setIsEmpty      :: (Ord a) => Set a   -> Bool
+> setSingleton    :: (Ord a) => a       -> Set a
+> setUnionList    :: (Ord a) => [Set a] -> Set a
+\end{verbatim}
+\indexDTT{setFromList}%
+\indexDTT{setToList}%
+\indexDTT{setUnion}%
+\indexDTT{setIntersection}%
+\indexDTT{setSubtraction}%
+\indexDTT{setElementOf}%
+\indexDTT{setEmpty}%
+\indexDTT{setIsEmpty}%
+\indexDTT{setSingleton}%
+\indexDTT{setUnionList}%
+\subsection{Representation}
+
+In this implementation, sets are represented by {\em ordered\/} lists.
+\begin{verbatim}
+> type Set a = [a]           -- Ordered by the sort function
+\end{verbatim}
+\indexDTT{type}%
+The implementation of the operations is straightforward.
+\begin{verbatim}
+> setEmpty = []
+> setIsEmpty s = null s
+> setSingleton x = [x]
+\end{verbatim}
+\indexDTT{setEmpty}%
+\indexDTT{setIsEmpty}%
+\indexDTT{setSingleton}%
+\begin{verbatim}
+> setFromList = rmdup . sort
+>                   where rmdup []       = []
+>                         rmdup [x]      = [x]
+>                         rmdup (x:y:xs) | x == y = rmdup (y:xs)
+>                                        | x /= y = x: rmdup (y:xs)
+\end{verbatim}
+\indexDTT{setFromList}%
+\begin{verbatim}
+> setToList xs = xs
+\end{verbatim}
+\indexDTT{setToList}%
+\begin{verbatim}
+> setUnion []     []            = []
+> setUnion []     (b:bs)        = (b:bs)
+> setUnion (a:as) []            = (a:as)
+> setUnion (a:as) (b:bs) | a <  b  = a: setUnion as (b:bs)
+>                        | a == b  = a: setUnion as bs
+>                        | a >  b  = b: setUnion (a:as) bs
+\end{verbatim}
+\indexDTT{setUnion}%
+\indexDTT{setUnion}%
+\indexDTT{setUnion}%
+\indexDTT{setUnion}%
+\begin{verbatim}
+> setIntersection []     []     = []
+> setIntersection []     (b:bs) = []
+> setIntersection (a:as) []     = []
+> setIntersection (a:as) (b:bs) | a <  b = setIntersection as (b:bs)
+>                               | a == b = a: setIntersection as bs
+>                               | a >  b = setIntersection (a:as) bs
+\end{verbatim}
+\indexDTT{setIntersection}%
+\indexDTT{setIntersection}%
+\indexDTT{setIntersection}%
+\indexDTT{setIntersection}%
+\begin{verbatim}
+> setSubtraction []     []      = []
+> setSubtraction []     (b:bs)  = []
+> setSubtraction (a:as) []      = (a:as)
+> setSubtraction (a:as) (b:bs) | a <  b  = a: setSubtraction as (b:bs)
+>                              | a == b  = setSubtraction as bs
+>                              | a > b   = setSubtraction (a:as) bs
+\end{verbatim}
+\indexDTT{setSubtraction}%
+\indexDTT{setSubtraction}%
+\indexDTT{setSubtraction}%
+\indexDTT{setSubtraction}%
+\begin{verbatim}
+> setElementOf x []            = False
+> setElementOf x (y:ys)        = x==y || (x>y && setElementOf x ys)
+\end{verbatim}
+\indexDTT{setElementOf}%
+\indexDTT{setElementOf}%
+\begin{verbatim}
+> setUnionList = foldll setUnion setEmpty
+\end{verbatim}
+\indexDTT{setUnionList}%
+% \section{Bags}
+%
+% The abstract data type of bags\index{bags} has the following signature.
+%
+% > abstype bag *
+% > with bagUnion     :: bag * -> bag * -> bag *
+% >      bagInsert    :: *     -> bag * -> bag *
+% >      bagToList    :: bag * -> [*]
+% >      bagFromList  :: [*]   -> bag *
+% >      bagSingleton :: *     -> bag *
+% >      bagEmpty     :: bag *
+%
+% \subsection{Representation}
+%
+% In this implementation, bags are represented by {\em unordered\/} lists.
+%
+% > bag * == [*]
+%
+% The implementation of the operations is straightforward.
+%
+% > bagUnion as bs = as ++ bs
+% > bagInsert a as = a:as
+% > bagToList xs   = xs
+% > bagFromList xs = xs
+% > bagSingleton x = [x]
+% > bagEmpty       = []
+%
+\section{Other useful function definitions}
+\label{sect:util-funs}
+
+The definitions of \mbox{\tt fst}\indexTT{fst} and \mbox{\tt snd}\indexTT{snd} are present in later versions of
+Miranda, but not earlier ones.  We always use \mbox{\tt first}\indexTT{first} and \mbox{\tt second}\indexTT{second}
+instead to avoid compatibility problems.
+\begin{verbatim}
+> first (a,b) = a
+> second (a,b) = b
+\end{verbatim}
+\indexDTT{first}%
+\indexDTT{second}%
+The function \mbox{\tt zipWith}\indexTT{zipWith} zips together two lists, combining corresponding
+elements with a given function.  The resulting list is as long as the shorter
+of the two input lists.
+\begin{verbatim}
+> -- zipWith is defined in standard prelude
+\end{verbatim}
+\par
+The definition of \mbox{\tt foldl}\indexTT{foldl} differs between different versions of Miranda, so
+we avoid the problem by writing our own function \mbox{\tt foldll}\indexTT{foldll}, which does the
+following:
+GHiven a dyadic function
+$\otimes$, a value $b$ and a list $xs\ =\ [x_1,...,x_n]$,
+$\mbox{\tt foldll}\indexTT{foldll}~ \otimes~ b~ xs$
+computes
+$( \ldots ((b~ \otimes~ x_1)~ \otimes~ x_2)~ \otimes~ \ldots x_n)$.
+Section~\ref{sect:foldl-example} contains a
+simple example of \mbox{\tt foldll}\indexTT{foldll} in action, together with a picture.
+\begin{verbatim}
+> foldll :: (a -> b -> a) -> a -> [b] -> a
+> foldll = foldl                       -- in Gofer standard prelude.
+\end{verbatim}
+\indexDTT{foldll}%
+\indexDTT{foldll}%
+\par
+Finally, the function \mbox{\tt mapAccuml}\indexTT{mapAccuml} is a rather useful combination of \mbox{\tt map}\indexTT{map}
+and \mbox{\tt foldll}\indexTT{foldll}.
+It is given a function, an accumulator\index{accumulator} and a list.
+For each element of the list it applies the function to the current
+accumulator and that list element, which gives a new value of the accumulator
+and a new list element.  The result of \mbox{\tt mapAccuml}\indexTT{mapAccuml} is the final value of
+the accumulator, and the list of all the results.  The `\mbox{\tt l}' in the
+function name says that the accumulator is passed along from left to
+right.
+Section~\ref{sect:mapAccuml-example} has an example of \mbox{\tt mapAccuml}\indexTT{mapAccuml} in
+action, together with a picture.
+\begin{verbatim}
+> mapAccuml :: (a -> b -> (a, c)) -- Function of accumulator and element
+>                                 --   input list, returning new
+>                                 --   accumulator and element of result list
+>              -> a               -- Initial accumulator
+>              -> [b]             -- Input list
+>              -> (a, [c])        -- Final accumulator and result list
+>
+> mapAccuml f acc []     = (acc, [])
+> mapAccuml f acc (x:xs) = (acc2, x':xs')
+>                          where (acc1, x')  = f acc x
+>                                (acc2, xs') = mapAccuml f acc1 xs
+\end{verbatim}
+\indexDTT{mapAccuml}%
+\indexDTT{mapAccuml}%
+\indexDTT{mapAccuml}%
+
+
+\begin{verbatim}
+> sort [] = []
+> sort [x] = [x]
+> sort (x:xs) = [ y | y <- xs, y < x] ++ x : [ y | y <- xs, y >= x ]
+\end{verbatim}
+\indexDTT{sort}%
+\indexDTT{sort}%
+\indexDTT{sort}%
+\begin{verbatim}
+> space n = take n (repeat ' ')
+\end{verbatim}

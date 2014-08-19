@@ -1,0 +1,2795 @@
+% $Date: 91/09/10 14:48:43 $
+% $Revision: 1.9 $
+% (c) 1991 Simon Peyton Jones & David Lester.
+\begin{verbatim}
+> module Template where
+> import Language
+> import Utils
+\end{verbatim}
+\indexDTT{module}%
+\indexDTT{import}%
+\indexDTT{import}%
+\chapter{Template instantiation}
+\label{sect:template}
+
+This chapter introduces the simplest possible implementation of
+a functional language: a graph reducer based
+on \stressD{template instantiation}.
+
+The complete source code for an initial version (Mark 1) is given, followed
+by a series of improvements and variations on the basic design.
+We begin with a review of graph reduction and template instantiation.
+
+\section{A review of template instantiation}
+
+We begin with a brief overview of template instantiation.
+This material is covered in more detail in
+Chapters 11 and 12 of \cite{PJBook}.
+
+We recall the following key facts:
+\begin{itemize}
+\item
+A functional program is `executed' by {\em evaluating an expression}.
+\item
+The expression is represented by a {\em graph}\indexD{graph}.
+\item
+Evaluation takes place by carrying out a sequence of
+\stressD{reductions}.
+\item
+A reduction replaces (or {\em updates\/}\index{updates})
+a \stressD{reducible expression}
+ in the graph
+by its reduced form. The term `reducible expression' is often
+abbreviated to `redex'\index{redex}.
+\item
+Evaluation is complete when there are no more redexes; we say that the
+expression is in \stressD{normal form}.
+\item
+At any time there may be more than one redex in the expression being
+evaluated, so there is a choice about which one to reduce next.
+Fortunately, whatever reduction sequence we choose, we will always get the
+same answer (that is, normal form).  There is one caveat: some reduction
+sequences may fail to terminate.
+\index{termination}
+\item
+However, if
+any choice of redexes makes evaluation terminate, then the policy of
+always selecting the outermost redex will also do so.
+This choice of reduction order is called
+\stressD{normal order reduction}, and it is the one we will always use.
+\end{itemize}
+
+\begin{together}
+Thus the process of evaluation can be described as follows:
+\begin{verbatim}
+        until there are no more redexes
+                select the outermost redex
+                reduce it
+                update the (root of the) redex with the result
+        end
+\end{verbatim}
+\end{together}
+
+\subsection{An example}
+
+As an example, consider the following Core-language program:
+\begin{verbatim}
+        square x = x * x ;
+        main = square (square 3)
+\end{verbatim}
+The program consists of a set of definitions, called {\em supercombinators\/};
+\mbox{\tt square}\indexTT{square} and \mbox{\tt main}\indexTT{main} are both supercombinators\indexD{supercombinator}.
+By convention, the expression to be evaluated is the supercombinator \mbox{\tt main}\indexTT{main}.
+Hence, to begin with the expression to be evaluated is represented by the
+following rather trivial tree
+(remember that a tree is just a special sort of graph):
+\begin{verbatim}
+        main
+\end{verbatim}
+Now, since \mbox{\tt main}\indexTT{main} has no arguments, it itself is a redex, so we replace it
+by its body:
+\begin{verbatim}
+        main            reduces to      @
+                                       / \
+                                 square   @
+                                         / \
+                                   square   3
+\end{verbatim}
+Applications are represented by {\tt @} signs in these pictures and all
+subsequent ones.
+
+Now the outermost redex is the outer application of \mbox{\tt square}\indexTT{square}.
+To reduce a function application we replace the redex with
+an instance of the body of the function, substituting a pointer to the
+argument for each occurrence of the formal parameter, thus:
+\begin{verbatim}
+                @!      reduces to      @!
+               / \                     / \
+         square   @                   @   \
+                 / \                 / \___@
+           square   3               *     / \
+                                    square   3
+\end{verbatim}
+The root of the redex, which is overwritten with the result, is marked with
+a \mbox{\tt !}.
+Notice that the inner \mbox{\tt square\ 3} redex has become shared, so that
+the tree has become a graph.
+
+In the definition of \mbox{\tt square}\indexTT{square} the expression \mbox{\tt x*x} (in which the \mbox{\tt *} is
+written infix) is just short for \mbox{\tt ((*\ x)\ x)}, the application of \mbox{\tt *} to
+two arguments. We use {\em currying\/} to write functions of several
+arguments in terms of one-argument applications: \mbox{\tt *} is a function
+which, when applied to an argument \mbox{\tt p}, gives a function which, when
+applied to another argument \mbox{\tt q}, returns the product of \mbox{\tt p} and \mbox{\tt q}.
+
+Now the only redex is the inner application of \mbox{\tt square}\indexTT{square} to \mbox{\tt 3}.  The
+application of \mbox{\tt *} is not reducible because \mbox{\tt *} requires its arguments to
+be evaluated.
+The inner application is reduced like this:
+\begin{verbatim}
+                @       reduces to      @
+               / \                     / \
+              @   \                   @   \
+             / \___@!                / \___@
+            *     / \               *     / \
+            square   3                   @   \
+                                        / \___3
+                                       *
+\end{verbatim}
+There is still only one redex, the inner multiplication.  We replace
+the redex with the result of the multiplication, \mbox{\tt 9}:
+\begin{verbatim}
+                @       reduces to      @
+               / \                     / \
+              @   \                   @   \
+             / \___@!                / \___9
+            *     / \               *
+                 @   \
+                / \___3
+               *
+\end{verbatim}
+
+Notice that by physically updating the root of the redex with the
+result, both arguments of the outer multiplication `see' the result
+of the inner multiplication.
+The final reduction is simple:
+\begin{verbatim}
+                @       reduces to      81
+               / \
+              @   \
+             / \___9
+            *
+\end{verbatim}
+
+\subsection{The three steps}
+
+As we saw earlier, graph reduction consists of repeating the following
+three steps until a normal form is reached:
+\begin{enumerate}
+\item
+Find the next redex.
+\item
+Reduce it.
+\item
+Update the (root of the) redex with the result.
+\end{enumerate}
+As can be seen from the example in the previous section,
+there are two sorts of redex, which are
+reduced in different ways:
+\begin{description}
+\item[Supercombinators.]
+If the outermost function application is a supercombinator application,
+then it is certainly also a redex, and it can be reduced as described
+below (Section~\ref{sect:templ:supercomb-review}).
+\item[Built-in primitives.]
+If the outermost function application is the application of a built-in
+primitive\index{primitives}%
+, then the application may or may not be a redex, depending on
+whether the arguments are evaluated.
+If not, then the arguments must be evaluated.
+This is done using exactly the same process: repeatedly find the outermost
+redex of the argument and reduce it.
+Once this is done, we can return to the reduction of the outer application.
+\end{description}
+
+\subsection{Unwinding the spine to find the next redex}
+
+The first step of the reduction cycle is to find the site of the next
+reduction to be performed;
+that is, the outermost reducible function application.
+It is easy to find the outermost function application (though it may
+not be reducible) as follows:
+\begin{enumerate}
+\item
+Follow the
+left branch of the application nodes, starting at the root, until you
+get to a supercombinator or built-in primitive.
+This left-branching chain of application nodes is called the {\em spine\/}
+of the expression, and this process is called {\em unwinding\/}\index{unwind}
+the spine.
+Typically a {\em stack\/}\index{stack} is used to remember
+the addresses of the nodes encountered on the way down.
+\item
+Now, check how many arguments the supercombinator or primitive
+takes and go back up
+that number of application nodes; you have now found the root of the
+outermost function application.
+\end{enumerate}
+For example, in the expression \mbox{\tt (f\ E1\ E2\ E3)}, where \mbox{\tt f} takes two arguments,
+say, the outermost function application is \mbox{\tt (f\ E1\ E2)}.  The expression and
+stack would look like this:
+\begin{verbatim}
+         Stack
+      -----------
+        |  ---|-------> @
+        -------        / \
+        |  ---|-----> @!  E3
+        -------      / \
+        |  ---|---> @   E2
+        -------    / \
+        |  ---|-> f   E1
+        -------
+\end{verbatim}
+The (root of the) outermost function application is marked with a \mbox{\tt !}.
+
+If the result of an evaluation could be a partial
+application\index{partial applications}, as would be the case if \mbox{\tt f} took
+four arguments instead of two, then step 2 above needs to be preceded
+by a check there are enough application nodes in the spine.  If not,
+the expression has reached {\em weak head normal form\/} (WHNF).
+\indexD{weak head normal form}
+The
+sub-expressions \mbox{\tt E1}, \mbox{\tt E2} and \mbox{\tt E3} might still contain redexes, but
+most evaluators will stop when they reach WHNF rather than trying to
+reduce the sub-expressions also.  If the program has been type-checked,
+and the result is guaranteed to be a number, say, or a list, then this
+underflow check\index{stack underflow check}
+can be omitted.
+
+Notice that we have only found the root of the outermost {\em function
+application}.  It may or may not be a {\em redex\/} as well.  If the function
+is a supercombinator, then it will certainly be a redex, but if it is
+a primitive, such as \mbox{\tt +}, then it depends on whether its arguments are
+evaluated.  If they are, we have found the outermost redex.  If not, we have
+more work to do.
+
+If a primitive\index{primitives}
+requires the value of a currently unevaluated argument,
+we must
+evaluate the argument before the primitive reduction can proceed.
+To do this, we must put the current stack on one
+side, and begin with a new stack to reduce the argument, in the same
+way as before.  This was the situation in the example of the previous section
+when we reached the stage
+\begin{verbatim}
+                @
+               / \
+              @   \
+             / \___@
+            *     / \
+            square   3
+\end{verbatim}
+
+We need to evaluate the argument \mbox{\tt (square\ 3)} on a new
+stack.  During this evaluation, we might again encounter a primitive
+with an unevaluated argument, so we would need to start a new evaluation
+again.  We need to keep track of all the `old' stacks, so that we come
+back to them in the right order.  This is conveniently done by keeping
+a stack of stacks, called the {\em dump}.  When we need to evaluate an
+argument, we push the current stack onto the dump\index{dump}%
+; when we have finished
+an evaluation we pop the old stack off the dump.
+
+Of course, in a real implementation we would not copy whole stacks!
+Since the `new' stack will be finished with before the `old' one is again
+required, the `new' one could be built
+physically on top of the `old' one.
+The dump stack would then just keep track of where the boundary between
+`new' and `old' was.  Conceptually, though, the dump is a stack of stacks,
+and we will model it in this way.
+
+\subsection{Supercombinator redexes}
+\label{sect:templ:supercomb-review}
+
+A supercombinator redex is reduced by substituting the arguments into
+its body.  More precisely:
+\begin{important}
+{\em Supercombinator reduction}.  A supercombinator redex is reduced
+by replacing the
+redex with an instance of the
+supercombinator body, substituting pointers to the actual arguments for
+corresponding occurrences of the formal parameters.
+Notice that the arguments are
+not copied; rather, by the device of using pointers
+to them, they are shared.\index{instantiation}
+\end{important}
+
+A supercombinator body may contain \mbox{\tt let}\indexTT{let} and \mbox{\tt letrec}\indexTT{letrec} expressions.
+For example:
+\begin{verbatim}
+        f x = let y = x*x
+              in y+y
+\end{verbatim}
+\mbox{\tt let}\indexTT{let} and \mbox{\tt letrec}\indexTT{letrec} expressions are treated as {\em textual descriptions of
+a graph}.  Here, for example, is a possible use of the definition of \mbox{\tt f}:
+\begin{verbatim}
+        @       reduces to      @
+       / \                     / \
+      f   3                   @   \
+                             / \___@y
+                            +     / \
+                                 @   \
+                                / \___3
+                               *
+\end{verbatim}
+The \mbox{\tt let}\indexTT{let} expression defines a sub-expression \mbox{\tt x*x}, which is named \mbox{\tt y}.
+The body of the \mbox{\tt let}\indexTT{let} expression, \mbox{\tt y+y}, uses pointers to the sub-expression
+in place of \mbox{\tt y}.  Thus ordinary expressions describe trees; \mbox{\tt let}\indexTT{let} expressions
+describe acyclic graphs; and \mbox{\tt letrec}\indexTT{letrec} expressions describe cyclic
+graphs.
+
+\subsection{Updates}
+\label{sect:templ:update-review}
+
+After performing a reduction, we must update the root of the redex with
+the result, so that if the redex is shared (as it was in the example
+\mbox{\tt (square\ (square\ 3))}) the reduction is only done once.
+This updating is the essence of {\em lazy
+evaluation}.
+A redex may not be evaluated at all but, if it is evaluated, the
+update ensures that the cost of doing so is incurred at most once.
+\index{updates}
+
+Omitting the updates does not cause any errors; it will just mean that
+some expressions may be evaluated more than once, which is inefficient.
+
+There is one case that requires a little care when performing updates.
+Consider the program
+\begin{verbatim}
+        id x = x
+        f p = (id p) * p
+        main = f (sqrt 4)
+\end{verbatim}
+After the \mbox{\tt f} reduction has taken place, the graph looks like this:
+\begin{verbatim}
+                @
+               / \
+              @   \
+             / \   \
+            *   @   \
+               / \___@
+             id     / \
+                sqrt   4
+\end{verbatim}
+We assume \mbox{\tt sqrt}\indexTT{sqrt} is a built-in primitive for taking square roots.
+Now, suppose that the next redex selected is the first argument of the \mbox{\tt *},
+namely the application of \mbox{\tt id}.
+(It might equally well be the second argument of \mbox{\tt *}, since neither argument
+is in normal form, but we will suppose it is the first.)
+What should we overwrite the root of the redex with after performing the
+\mbox{\tt id} reduction?  {\em We should certainly not overwrite it with a
+copy of the \mbox{\tt (sqrt\ 4)} application node,
+because then \mbox{\tt (sqrt\ 4)} would be evaluated twice!}
+
+The easiest way out of this dilemma is to add a new sort of graph node,
+an {\em indirection node}\index{indirections},
+which will be depicted as a \mbox{\tt {\char'43}} sign.  An
+indirection node can be used to update the root of a redex to point to
+the result of the reduction:
+\begin{verbatim}
+                @       reduces to      @
+               / \                     / \
+              @   \                   @   \
+             / \   \                 / \   \
+            *   @   \               *   #   \
+               / \___@                   \___@
+             id     / \                     / \
+                sqrt   4                sqrt   4
+\end{verbatim}
+Section 12.4 of \cite{PJBook} contains further discussion of the
+issues involved in updates.
+
+\subsection{Constant applicative forms\advanced}
+\label{sect:caf}
+
+Some supercombinators have no arguments; they are called {\em constant
+applicative forms}, or CAFs.
+\index{CAF}
+For example, \mbox{\tt fac20}\indexTT{fac20} is a CAF:
+\begin{verbatim}
+        fac20 = factorial 20
+\end{verbatim}
+The interesting thing about CAFs is that {\em the supercombinator itself
+is a redex}.  We do not want to instantiate a new copy of \mbox{\tt factorial\ 20}
+whenever \mbox{\tt fac20}\indexTT{fac20} is called, because that would mean repeating the
+computation of \mbox{\tt factorial\ 20}.  Rather, the supercombinator \mbox{\tt fac20}\indexTT{fac20} is
+the root of the \mbox{\tt fac20}\indexTT{fac20}-reduction, and should be overwritten with the
+result of instantiating its body.
+
+The practical consequence is that supercombinators should be represented
+by graph nodes, in order that they can be updated in the usual way.
+We will see this happening in practice in each of our implementations.
+
+This concludes our review of graph reduction.
+
+\section{State transition systems}
+
+We now turn our attention to implementing graph reduction.
+We will describe each of our implementations using a
+{\em state transition system}.
+In this section we introduce state transition systems.
+
+A state transition system
+\index{state transition system} is a notation for describing the
+behaviour of a sequential machine.
+At any time, the machine is in some {\em state}, beginning with a specified
+{\em initial state}.
+If the machine's state {\em matches\/} one of the
+{\em state transition rules}, the rule {\em fires\/} and specifies a
+new state for the machine.
+When no state transition rule matches, execution halts.
+If more than one rule matches, then one is chosen arbitrarily to fire; the
+machine is then {\em non-deterministic}.  All our machines will be
+deterministic.
+
+Here is a simple example of a state transition system used to
+specify a (rather inefficient) multiplication machine.  The state is a
+quadruple $(n,m,d,t)$.  The numbers to be multiplied are $n$ and $m$, and
+the running total is $t$, and
+the machine is initialised to the state $(n,m,0,0)$.
+
+The operation of the machine is specified by two transition rules.
+The $d$ component is
+repeatedly decremented towards zero while simultaneously incrementing $t$,
+as specified by the first rule:
+\begin{flushleft}
+\qquad $\begin{array}{|lllll|}
+\hline
+                & n & m & d & t         \\
+\Longrightarrow & n & m & d-1 & t+1     \\
+                & \multicolumn{4}{l|}{\mbox{where}~d>0}  \\
+\hline
+\end{array}$
+\end{flushleft}
+We always write transition rules with each component of the new state
+directly underneath the same component of the old state, so that it is
+easy to see which components have changed.
+
+When $d$ reaches zero it is initialised again to $n$, and $m$ is decremented,
+until $m$ reaches zero.  This is specified by the second rule:
+\begin{flushleft}
+\qquad $\begin{array}{|lllll|}
+\hline
+                & n & m & 0 & t         \\
+\Longrightarrow & n & m-1 & n & t       \\
+                & \multicolumn{4}{l|}{\mbox{where}~m>0} \\
+\hline
+\end{array}$
+\end{flushleft}
+The machine terminates when no rule applies.  At this point it will be
+in a state $(n,0,0,t)$, where $t$ is the product of $n$ and $m$ from the
+initial state.
+
+\begin{exercise}
+Run the machine by hand
+starting with initial state $(2,3,0,0)$, specifying
+which rule fires at each step.  Verify that the final state is $(2,0,0,6)$.
+\end{exercise}
+
+\begin{exercise}
+An invariant\index{invariant} of a sequence of states is a predicate
+which is true of all of the states.  Find an invariant which expresses
+the relationship between the initial value of $n$ and $m$ (call them
+$N$ and $M$), and the current values of $m$, $d$ and $t$.  Hence {\em
+prove\/} the conjecture that the machine performs multiplication.  To do
+the proof you need to show that
+\begin{enumerate}
+\item
+The invariant is true for the initial state.
+\item
+If the invariant is true for a particular state, then it is
+true for its successor state.
+\item
+Given the invariant and the termination condition ($m=d=0$),
+then $t = N*M$.
+\item
+The machine terminates.
+\end{enumerate}
+\end{exercise}
+
+State transition systems are convenient for our purposes, because:
+\begin{itemize}
+\item
+They are sufficiently {\em abstract\/} that we do not get tangled up in very
+low-level details.
+\item
+They are sufficiently {\em concrete\/} that we can be sure we are
+not `cheating' by hiding a lot of complexity in the rules.
+\item
+We can transliterate a state transition system directly into Miranda
+to give an executable implementation of the system.
+\end{itemize}
+
+To illustrate the last point, we will transliterate the multiplication
+machine into Miranda.  We begin by giving a type synonym to define the
+type of a state in this machine:
+\begin{verbatim}
+> type MultState = (Int, Int, Int, Int)     -- (n, m, d, t)
+\end{verbatim}
+\indexDTT{type}%
+Next, the function \mbox{\tt evalMult}\indexTT{evalMult} takes a state and
+returns the list consisting of that state followed by all
+the states which follow it:
+\begin{verbatim}
+> evalMult :: MultState -> [MultState]
+> evalMult state = if multFinal state 
+>                    then [state]
+>                    else state : evalMult (stepMult state)
+\end{verbatim}
+\indexDTT{evalMult}%
+\indexDTT{evalMult}%
+The function \mbox{\tt stepMult}\indexTT{stepMult} takes a non-final state and returns the next state.
+There is one equation for \mbox{\tt stepMult}\indexTT{stepMult} for each transition rule:
+\begin{verbatim}
+> stepMult (n, m, d, t) | d > 0  = (n, m,   d-1, t+1)
+> stepMult (n, m, d, t) | d == 0 = (n, m-1, n,   t)
+\end{verbatim}
+\indexDTT{stepMult}%
+\indexDTT{stepMult}%
+The function \mbox{\tt multFinal}\indexTT{multFinal} takes a state and
+tests whether the state is a final state:
+\begin{verbatim}
+> multFinal :: MultState -> Bool
+\end{verbatim}
+\indexDTT{multFinal}%
+\begin{exercise}
+Define the function \mbox{\tt multFinal}\indexTT{multFinal}, and run the resulting machine on
+the initial state $(2,3,0,0)$, checking that the last state of the result
+list is $(2,0,0,6)$.  You may find the standard function \mbox{\tt layn}\indexTT{layn} is useful
+to help lay out the results more legibly.
+\end{exercise}
+
+\section{Mark 1: A minimal template instantiation graph reducer}
+\index{template instantiation machine!Mark 1}
+
+We are now ready to begin the definition of a rather simple graph reducer.
+Even though it is simple, it contains many of the parts
+that more sophisticated graph reducers have, so it takes a few pages
+to explain.
+
+\subsection{Transition rules for graph reduction}
+\label{sect:templ:transition-rules}
+
+The state of the template instantiation graph reduction machine
+is a quadruple
+\[
+\mbox{\em (stack, dump, heap, globals)}
+\]
+or {\em(s,d,h,f)\/} for short.
+\begin{itemize}
+\item
+The {\em stack\/} is a stack of {\em addresses}, each of which
+identifies a {\em node\/} in the heap.
+These nodes form the spine of the expression being
+evaluated.
+The notation $a_1:s$ denotes a stack whose top
+element is $a_1$ and the rest of which is $s$.
+\item
+The {\em dump\/}\index{dump} records the state of the spine stack
+\index{spine stack}
+prior to
+the evaluation of an argument of a strict primitive.
+The dump will not be used at all in the Mark 1 machine, but it will
+be useful for subsequent versions.
+\item
+The {\em heap\/}\index{heap} is a collection of tagged {\em nodes}\index{node}.
+The notation $h[a:node]$ means that
+in the heap $h$
+the address $a$ refers to the node $node$.
+\item
+For each supercombinator (and later for each primitive),
+{\em globals\/}\index{global}
+gives the address of heap node representing the supercombinator
+(or primitive).
+\end{itemize}
+
+A heap node can take one of three forms (for our most primitive machine):
+\begin{itemize}
+\item
+$\mbox{\tt NAp}\indexTT{NAp}~a_1~a_2$ represents
+the application of the node whose address is $a_1$ to that
+whose address is $a_2$.
+\item
+$\mbox{\tt NSupercomb}\indexTT{NSupercomb}~args~body$ represents a supercombinator
+with arguments $args$ and body $body$.
+\item
+$\mbox{\tt NNum}\indexTT{NNum}~n$ represents the number $n$.
+\end{itemize}
+
+There are only two state transition rules for this primitive
+template instantiation machine.  The first one describes how to
+unwind\index{unwind}
+a single application node onto the spine stack:
+\tirule{
+        \tistate{a:s}{d}{h[a:\mbox{\tt NAp}\indexTT{NAp}~ a_1~ a_2]}{f}
+}{
+        \tistate{a_1:a:s}{d}{h}{f}
+}
+\label{rule:unwind}
+(The heap component of the second line of this rule still includes the
+mapping of address $a$ to $\mbox{\tt NAp}\indexTT{NAp}~a_1~a_2$, but we do not write it out
+again, to save clutter.)
+Repeated application of this rule will unwind the entire spine of
+the expression onto the stack, until the node on top of the stack
+is no longer a \mbox{\tt NAp}\indexTT{NAp} node.
+
+The second rule describes how to perform a
+supercombinator reduction.\index{supercombinator!reduction}
+\tirulew{
+        \tistate{a_0:a_1:\ldots:a_n:s}{d}
+                {h[a_0:\mbox{\tt NSupercomb}\indexTT{NSupercomb}~ [x_1,\ldots,x_n]~body]}
+                {f}
+}{
+        \tistate{a_r:s}{d}{h'}{f}
+}{
+        (h',a_r) = instantiate~ body~ h~
+                        f[x_1 \mapsto a_1,~ \ldots,~ x_n \mapsto a_n]
+}
+\label{rule:sc1}
+Most of the interest in this rule is hidden inside the
+function $instantiate$.  Its arguments are:
+\begin{itemize}
+\item
+the expression to instantiate,
+\item
+a heap,
+\item
+the global mapping of names to heap addresses, $f$, augmented
+by the mapping of argument names to their addresses obtained from the
+stack.
+\end{itemize}
+It returns a new heap and the address of the (root of the) newly constructed
+instance.
+Such a powerful operation is
+really at variance with the spirit of state transition systems,
+where each step is meant to be a simple atomic action, but that is the
+nature of the template instantiation machine.
+The implementations of later chapters will all have truly atomic actions!
+
+Notice that the root of the redex is not itself affected by this rule;
+it is merely replaced on the stack by the root of the result.
+In other words, these rules describe a tree-reduction machine,
+which does {\em not\/} update\index{updates}
+the root of the redex, rather
+than a graph-reduction
+machine.
+We will improve on this later in Section \ref{sect:templ:update}.
+
+\subsection{Structure of the implementation}
+
+Now that we have a specification of our machine, we are ready
+to embark on its implementation.
+
+Since we are writing the implementation in a functional language,
+we must write a function \mbox{\tt run}\indexTT{run}, say,
+to do the job.  What should its type be?
+It should take a filename, run the program therein, and print
+out the results, which might be either the final result or some kind
+of execution trace.
+So the type of \mbox{\tt run}\indexTT{run} is given by the following type signature:
+\begin{verbatim}
+> runProg :: [Char] -> [Char]      -- name changed to not conflict
+\end{verbatim}
+\indexDTT{runProg}%
+\par
+Now we can think about how \mbox{\tt run}\indexTT{run} might be built up.  Running a program
+consists of four stages:
+\begin{enumerate}
+\item
+Parse the program from the expression found in a specified file.
+The \mbox{\tt parse}\indexTT{parse} function takes a filename and returns the parsed program.
+\begin{verbatim}
+>    parse :: [Char] -> CoreProgram
+\end{verbatim}
+\item
+Translate the program
+into a form suitable for execution.  The \mbox{\tt compile}\indexTT{compile} function,
+which performs this task, takes a program and
+produces the initial state of the template instantiation machine:
+\begin{verbatim}
+> compile :: CoreProgram -> TiState
+\end{verbatim}
+\indexDTT{compile}%
+\mbox{\tt tiState}\indexTT{tiState} is the type of the state of the template instantiation machine.
+(The prefix `\mbox{\tt ti}' is short for template instantiation.)
+\item
+Execute the program, by performing repeated state transitions until
+a final state is reached.  The result is a list of all the states passed
+through; from this we can subsequently
+either extract the final state, or get a trace
+of all the states.
+For the present we will restrict ourselves to programs which return
+a number as their result, so we call this execution function \mbox{\tt eval}\indexTT{eval}.
+\begin{verbatim}
+> eval :: TiState -> [TiState]
+\end{verbatim}
+\indexDTT{eval}%
+\item
+Format the results for printing.  This is done by the function \mbox{\tt showResults}\indexTT{showResults},
+which selects which information to print, and formats it into a
+list of characters.
+\begin{verbatim}
+> showResults :: [TiState] -> [Char]
+\end{verbatim}
+\indexDTT{showResults}%
+\end{enumerate}
+The function \mbox{\tt run}\indexTT{run} is just the composition of these four functions:
+\begin{verbatim}
+> runProg = showResults . eval . compile . parse  -- "run": name conflict
+\end{verbatim}
+\indexDTT{runProg}%
+We will devote a subsection to each of these phases.
+
+
+\subsection{The parser}
+
+The source language, including the \mbox{\tt parse}\indexTT{parse} function,
+is defined in a separate module \mbox{\tt language}\indexTT{language}, defined
+in Chapter~\ref{sect:language}.
+We make it available using the
+\mbox{\tt {\char'45}include} directive to import the module:
+\begin{verbatim}
+> -- import Language
+\end{verbatim}
+\subsection{The compiler}
+
+In this section we define the \mbox{\tt compile}\indexTT{compile} function.  We will need
+the data types and functions defined in the \mbox{\tt utils}\indexTT{utils} module, so we
+use \mbox{\tt {\char'45}include} to make it available.
+\begin{verbatim}
+> -- import Utils
+\end{verbatim}
+Now we need to consider the representation of the data types the
+compiler manipulates.
+
+\subsubsection{Data types}
+
+The compiler produces the initial state of the machine, which has
+type \mbox{\tt tiState}\indexTT{tiState}, so the next thing to do is to define how machine states
+are represented, using a type synonym\index{type synonym}:
+\begin{verbatim}
+> type TiState = (TiStack, TiDump, TiHeap, TiGlobals, TiStats)
+\end{verbatim}
+\indexDTT{type}%
+The state of the machine is a quintuple whose first four components correspond
+exactly to those given in Section~\ref{sect:templ:transition-rules}, and whose
+fifth component is used to accumulate statistics.
+
+Next, we need to consider the representation of each of these components.
+
+\begin{itemize}
+\item
+The {\em spine stack\/}\index{spine stack}
+is just a stack of {\em heap addresses\/}:
+\begin{verbatim}
+> type TiStack = [Addr]
+\end{verbatim}
+\indexDTT{type}%
+We choose to represent the stack as a list.  The elements of the stack
+are members of the abstract data type \mbox{\tt addr}\indexTT{addr} defined in the \mbox{\tt utils}\indexTT{utils}
+module (Appendix~\ref{sect:heap}).
+They represent heap addresses, and by making them abstract we ensure that
+we can only use the operations provided on them by the \mbox{\tt utils}\indexTT{utils} module.
+Thus it is impossible for us to add one to an address, say, by mistake.
+
+\item
+The {\em dump\/} is
+not required until Section~\ref{sect:templ:primitives}, but we make it
+part of the state already because adding it later would require many tiresome
+alterations to the state transition rules.  For now we give it a trivial
+type definition, consisting of just a single constructor with no arguments.
+\begin{verbatim}
+> data TiDump = DummyTiDump
+> initialTiDump = DummyTiDump
+\end{verbatim}
+\indexDTT{data}%
+\indexDTT{initialTiDump}%
+\item
+The {\em heap\/} is represented by the \mbox{\tt heap}\indexTT{heap} abstract data type defined in
+the \mbox{\tt utils}\indexTT{utils} module.  We have to say what the heap contains, namely objects
+of type \mbox{\tt node}\indexTT{node} (yet to be defined):
+\begin{verbatim}
+> type TiHeap = Heap Node
+\end{verbatim}
+\indexDTT{type}%
+Heap \mbox{\tt node}\indexTT{node}s are represented by the following algebraic data type
+declaration, which corresponds to the list of possibilities given in
+Section~\ref{sect:templ:transition-rules}:
+\begin{verbatim}
+> data Node = NAp Addr Addr                     -- Application
+>             | NSupercomb Name [Name] CoreExpr -- Supercombinator
+>             | NNum Int                        -- A number
+\end{verbatim}
+\indexDTT{data}%
+\indexDTT{NSupercomb}%
+\indexDTT{NNum}%
+The only difference is that we have added an extra field of type
+\mbox{\tt name}\indexTT{name} to the \mbox{\tt NSupercomb}\indexTT{NSupercomb} constructor, which is used to hold the name
+of the supercombinator.  This is used only for documentation and
+debugging purposes.
+
+\item
+The {\em globals\/} component associates each
+supercombinator name with
+the address of a heap node containing its definition:
+\begin{verbatim}
+> type TiGlobals = ASSOC Name Addr
+\end{verbatim}
+\indexDTT{type}%
+The \mbox{\tt assoc}\indexTT{assoc} type is defined in the \mbox{\tt utils}\indexTT{utils} module, along with its
+operations (Appendix~\ref{sect:assoc}).
+It is actually defined there as a type synonym (not an abstract
+data type) because it is so convenient to be able to manipulate associations
+using the built-in syntax for lists.  There is a tension here between
+abstraction and ease of programming.
+
+\item
+The \mbox{\tt tiStats}\indexTT{tiStats} component of the state is not mentioned in the
+transition rules, but we will use it to collect run-time performance
+statistics\index{statistics} on what the machine does.
+So that we can easily change what statistics are collected,
+we will make it an abstract type.  To begin with, we will record only
+the number of steps taken:
+\begin{verbatim}
+> tiStatInitial  :: TiStats
+> tiStatIncSteps :: TiStats -> TiStats
+> tiStatGetSteps :: TiStats -> Int
+\end{verbatim}
+\indexDTT{tiStatInitial}%
+\indexDTT{tiStatIncSteps}%
+\indexDTT{tiStatGetSteps}%
+The implementation is rather simple:
+\begin{verbatim}
+> type TiStats = Int
+> tiStatInitial    = 0
+> tiStatIncSteps s = s+1
+> tiStatGetSteps s = s
+\end{verbatim}
+\indexDTT{type}%
+\indexDTT{tiStatInitial}%
+\indexDTT{tiStatIncSteps}%
+\indexDTT{tiStatGetSteps}%
+A useful function \mbox{\tt applyToStats}\indexTT{applyToStats} applies a given function to the
+statistics\index{statistics}
+component of the state:
+\begin{verbatim}
+> applyToStats :: (TiStats -> TiStats) -> TiState -> TiState
+> applyToStats stats_fun (stack, dump, heap, sc_defs, stats)
+>  = (stack, dump, heap, sc_defs, stats_fun stats)
+\end{verbatim}
+\indexDTT{applyToStats}%
+\indexDTT{applyToStats}%
+\end{itemize}
+This completes our definition of the data types involved.
+
+\subsubsection{The compiler itself}
+\label{sect:ti:compiler}
+\label{sect:mapAccuml-example}
+
+The business of the compiler is to take a program, and from
+it create the initial state of the machine:
+\begin{verbatim}
+> compile program
+>  = (initial_stack, initialTiDump, initial_heap, globals, tiStatInitial)
+>    where
+>    sc_defs = program ++ preludeDefs ++ extraPreludeDefs
+>
+>    (initial_heap, globals) = buildInitialHeap sc_defs
+>
+>    initial_stack = [address_of_main]
+>    address_of_main = aLookup globals "main" (error "main is not defined")
+\end{verbatim}
+\indexDTT{compile}%
+\par
+Let us consider each of the definitions in the \mbox{\tt where}\indexTT{where} clause in turn.
+The first, \mbox{\tt sc{\char'137}defs}, is just a list
+of all the supercombinator definitions involved in the program.
+Recall that \mbox{\tt preludeDefs}\indexTT{preludeDefs} was defined in Section~\ref{sect:prelude}
+to be the list of standard supercombinator definitions which
+are always included in every program.  \mbox{\tt extraPreludeDefs}\indexTT{extraPreludeDefs} is a list of
+any further standard functions we may want to add; for the present it is
+empty:
+\begin{verbatim}
+> extraPreludeDefs = []
+\end{verbatim}
+\indexDTT{extraPreludeDefs}%
+\par
+The second definition uses an auxiliary function, \mbox{\tt buildInitialHeap}\indexTT{buildInitialHeap}, to
+construct an initial heap containing an \mbox{\tt NSupercomb}\indexTT{NSupercomb} node for
+each supercombinator, together with an association list \mbox{\tt globals}\indexTT{globals} which
+maps each supercombinator name onto the address of its node.
+
+Lastly, \mbox{\tt initial{\char'137}stack} is defined to contain just one item, the address
+of the node for the supercombinator \mbox{\tt main}\indexTT{main}, obtained from \mbox{\tt globals}\indexTT{globals}.
+
+Now we need to consider the definition of \mbox{\tt buildInitialHeap}\indexTT{buildInitialHeap},
+which is a little
+tricky.  We need to do something for each element of the list \mbox{\tt sc{\char'137}defs},
+but what makes it awkward is that the `something' involves heap allocation.
+Since each heap allocation produces a new heap, we need to find a way of
+passing the heap along from one element of \mbox{\tt sc{\char'137}defs} to the next.
+This process starts with the empty heap, \mbox{\tt hInitial}\indexTT{hInitial}
+(Appendix~\ref{sect:heap}).
+
+We encapsulate this idea in a higher-order function\index{higher-order function}
+\mbox{\tt mapAccuml}\indexTT{mapAccuml}, which
+we will use quite a lot in this book.  \mbox{\tt mapAccuml}\indexTT{mapAccuml} takes three
+arguments: $f$, the `processing function'; $acc$, the
+`accumulator'; and a list $[x_1, \ldots, x_n]$.  It takes each
+element of the input list, and applies $f$ to it and the current
+accumulator\index{accumulator}.  $f$ returns a pair of results, an
+element of the result list and a new value for the accumulator.
+\mbox{\tt mapAccuml}\indexTT{mapAccuml} passes the accumulator along from one call of $f$ to the
+next, and eventually returns a pair of results: $acc'$, the final
+value of the accumulator; and the result list $[y_1, \ldots, y_n]$.
+Figure~\ref{fig:mapAccuml} illustrates this plumbing.  The definition
+of \mbox{\tt mapAccuml}\indexTT{mapAccuml} is given in Appendix~\ref{sect:util-funs}.
+\begin{figure} %\centering
+\input{map_acc.tex}
+\caption{A picture of $\mbox{\tt mapAccuml}\indexTT{mapAccuml}~f~acc~[x_1,\ldots,x_n]$}
+\label{fig:mapAccuml}
+\end{figure}
+
+In our case, the `accumulator' is the heap, with initial value
+\mbox{\tt hInitial}\indexTT{hInitial}.  The list $[x_1,\ldots,x_n]$ is the supercombinator
+definitions, \mbox{\tt sc{\char'137}defs}, while the result list $[y_1, \ldots, y_n]$ is
+the association of supercombinator names and addresses, \mbox{\tt sc{\char'137}addrs}.
+Here, then, is the definition of \mbox{\tt buildInitialHeap}\indexTT{buildInitialHeap}.
+\begin{verbatim}
+> buildInitialHeap :: [CoreScDefn] -> (TiHeap, TiGlobals)
+> buildInitialHeap sc_defs = mapAccuml allocateSc hInitial sc_defs
+\end{verbatim}
+\indexDTT{buildInitialHeap}%
+\indexDTT{buildInitialHeap}%
+\par
+The `processing function', which we will call \mbox{\tt allocateSC}\indexTT{allocateSC},
+allocates a single supercombinator, returning a new heap and a member
+of the \mbox{\tt sc{\char'137}addrs} association list.
+\begin{verbatim}
+> allocateSc :: TiHeap -> CoreScDefn -> (TiHeap, (Name, Addr))
+> allocateSc heap (name, args, body)
+>  = (heap', (name, addr))
+>    where
+>    (heap', addr) = hAlloc heap (NSupercomb name args body)
+\end{verbatim}
+\indexDTT{allocateSc}%
+\indexDTT{allocateSc}%
+That completes the definition of the compiler. Next, we turn our attention
+to the evaluator.
+
+\subsection{The evaluator\index{evaluator}}
+
+The evaluator \mbox{\tt eval}\indexTT{eval} takes an initial machine state,
+and runs the machine one step at a time, returning the list of
+all states it has been through.
+
+\mbox{\tt eval}\indexTT{eval} always returns the current state as the first element of its
+result.  If the current state is a final state, no further states are
+returned; otherwise, \mbox{\tt eval}\indexTT{eval} is applied recursively to the next state.
+The latter is obtained by
+taking a single step (using \mbox{\tt step}\indexTT{step}), and then calling \mbox{\tt doAdmin}\indexTT{doAdmin} to
+do any administrative work required between steps.
+\begin{verbatim}
+> eval state = state : rest_states
+>              where
+>              rest_states | tiFinal state = []
+>                          | otherwise = eval next_state
+>              next_state  = doAdmin (step state)
+\end{verbatim}
+\indexDTT{eval}%
+\begin{verbatim}
+> doAdmin :: TiState -> TiState
+> doAdmin state = applyToStats tiStatIncSteps state
+\end{verbatim}
+\indexDTT{doAdmin}%
+\indexDTT{doAdmin}%
+\subsubsection{Testing for a final state}
+
+The function \mbox{\tt tiFinal}\indexTT{tiFinal} detects the final state\index{final state}.
+We are only finished if the stack contains a single object, and it is
+either a number or a data object.
+\begin{verbatim}
+> tiFinal :: TiState -> Bool
+>
+> tiFinal ([sole_addr], dump, heap, globals, stats)
+>  = isDataNode (hLookup heap sole_addr)
+>
+> tiFinal ([], dump, heap, globals, stats) = error "Empty stack!"
+> tiFinal state = False              -- Stack contains more than one item
+\end{verbatim}
+\indexDTT{tiFinal}%
+\indexDTT{tiFinal}%
+\indexDTT{tiFinal}%
+\indexDTT{tiFinal}%
+Notice that the stack element is an address, which we need to look up in
+the heap before we can check whether it is a number or not.
+We should also produce a sensible error message if the stack should be empty
+(which should never happen).
+
+Finally, we can define \mbox{\tt isDataNode}\indexTT{isDataNode}:
+\begin{verbatim}
+> isDataNode :: Node -> Bool
+> isDataNode (NNum n) = True
+> isDataNode node     = False
+\end{verbatim}
+\indexDTT{isDataNode}%
+\indexDTT{isDataNode}%
+\indexDTT{isDataNode}%
+\subsubsection{Taking a step}
+
+The function \mbox{\tt step}\indexTT{step} maps one state into its successor:
+\begin{verbatim}
+> step :: TiState -> TiState
+\end{verbatim}
+\indexDTT{step}%
+It has to do case analysis on the node on top
+of the spine stack\index{spine stack}, so it extracts
+this node from the heap,
+and uses \mbox{\tt dispatch}\indexTT{dispatch} to call an appropriate function to
+do the hard work for each form of node.
+\begin{verbatim}
+> step state
+>  = dispatch (hLookup heap (hd stack))
+>    where
+>    (stack, dump, heap, globals, stats) = state
+>
+>    dispatch (NNum n)                  = numStep state n
+>    dispatch (NAp a1 a2)               = apStep  state a1 a2
+>    dispatch (NSupercomb sc args body) = scStep  state sc args body
+\end{verbatim}
+\indexDTT{step}%
+\par
+We can deal with the cases for numbers and applications with very little
+trouble.
+It is an error for there to be a number
+on top of the stack, since
+a number should never be applied as a function.
+(If it was the only object on the stack, execution will have been halted
+by \mbox{\tt tiFinal}\indexTT{tiFinal}.)
+\begin{verbatim}
+> numStep :: TiState -> Int -> TiState
+> numStep state n = error "Number applied as a function!"
+\end{verbatim}
+\indexDTT{numStep}%
+\indexDTT{numStep}%
+Dealing with an application node is described by the unwind\index{unwind}
+rule
+(\ruleref{rule:unwind}),
+which can be translated directly into Miranda:
+\begin{verbatim}
+> apStep :: TiState -> Addr -> Addr -> TiState
+> apStep (stack, dump, heap, globals, stats) a1 a2
+>  = (a1 : stack, dump, heap, globals, stats)
+\end{verbatim}
+\indexDTT{apStep}%
+\indexDTT{apStep}%
+
+\subsubsection{Applying a supercombinator}
+\label{instantiate}
+
+To apply a supercombinator, we must
+instantiate its body,
+binding the argument names to the argument addresses found
+in the stack (\Ruleref{rule:sc1}).
+Then we discard the arguments from the stack, including
+the root of the redex, and push the (root of the) result of the
+reduction onto the stack instead.
+(Remember, in this first version of the machine we are not performing updates.)
+\label{page:sc-step}
+\begin{verbatim}
+> scStep   :: TiState -> Name -> [Name] -> CoreExpr -> TiState
+> scStep (stack, dump, heap, globals, stats) sc_name arg_names body
+>  = (new_stack, dump, new_heap, globals, stats)
+>    where
+>    new_stack = result_addr : (drop (length arg_names+1) stack)
+>
+>    (new_heap, result_addr) = instantiate body heap env
+>    env = arg_bindings ++ globals
+>    arg_bindings = zip2 arg_names (getargs heap stack)
+\end{verbatim}
+\indexDTT{scStep}%
+\indexDTT{scStep}%
+\par
+In order to apply supercombinators and primitives, we need an
+auxiliary function.
+The function \mbox{\tt getArgs}\indexTT{getArgs} takes a stack (which must consist
+of a supercombinator on top of a stack of application nodes),
+and returns a list formed from the argument of each of the application nodes
+on the stack.
+\begin{verbatim}
+> -- now getargs since getArgs conflicts with Gofer standard.prelude
+> getargs :: TiHeap -> TiStack -> [Addr]
+> getargs heap (sc:stack)
+>  = map get_arg stack
+>    where get_arg addr = arg  where (NAp fun arg) = hLookup heap addr
+\end{verbatim}
+\indexDTT{getargs}%
+\indexDTT{getargs}%
+\par
+The \mbox{\tt instantiate}\indexTT{instantiate} function takes an expression, a heap and
+an environment associating
+names with addresses.\index{instantiation}\index{template instantiation}
+It creates an instance of the expression in the heap, and
+returns the new heap and address of the root of the instance.
+The environment is used by \mbox{\tt instantiate}\indexTT{instantiate}
+to specify the addresses to be substituted for supercombinators and
+local variables.
+\begin{verbatim}
+> instantiate :: CoreExpr              -- Body of supercombinator
+>                -> TiHeap             -- Heap before instantiation
+>                -> ASSOC Name Addr    -- Association of names to addresses
+>                -> (TiHeap, Addr)     -- Heap after instantiation, and
+>                                      -- address of root of instance
+\end{verbatim}
+\indexDTT{instantiate}%
+\par
+\label{page:instantiate}
+The case for numbers is quite straightforward.
+\begin{verbatim}
+> instantiate (ENum n) heap env = hAlloc heap (NNum n)
+\end{verbatim}
+\indexDTT{instantiate}%
+\par
+The case for applications is also simple; just instantiate the
+two branches, and build the application node.
+Notice how we `thread' the heap though the recursive calls to \mbox{\tt instantiate}\indexTT{instantiate}.
+That is, the first call to instantiate is given a heap and produces a new
+heap; the latter is given to the second call to instantiate, which produces
+yet another heap; the latter is the heap in which the new application node
+is allocated, producing a final heap which is returned to the caller.
+\begin{verbatim}
+> instantiate (EAp e1 e2) heap env
+>  = hAlloc heap2 (NAp a1 a2) where (heap1, a1) = instantiate e1 heap  env
+>                                   (heap2, a2) = instantiate e2 heap1 env
+\end{verbatim}
+\indexDTT{instantiate}%
+\par
+For variables, we simply look up the name in the environment
+we are given, producing a suitable error message if we do not find
+a binding for it.
+\begin{verbatim}
+> instantiate (EVar v) heap env
+>  = (heap, aLookup env v (error ("Undefined name " ++ show v)))
+\end{verbatim}
+\indexDTT{instantiate}%
+\mbox{\tt aLookup}\indexTT{aLookup}, which is defined in Appendix~\ref{sect:assoc}, looks up
+a variable in an association list, but returns its third argument if the
+lookup fails.
+
+We postpone the question of instantiating
+constructors and \mbox{\tt let(rec)}\indexTT{let(rec)} expressions
+by calling auxiliary functions \mbox{\tt instantiateConstr}\indexTT{instantiateConstr} and \mbox{\tt instantiateLet}\indexTT{instantiateLet},
+which each give errors for the present; later we will
+replace them with operational definitions.  Lastly, the template machine is
+unable to handle \mbox{\tt case}\indexTT{case} expressions at all, as we will see.
+\begin{verbatim}
+> instantiate (EConstr tag arity) heap env
+>               = instantiateConstr tag arity heap env
+> instantiate (ELet isrec defs body) heap env
+>               = instantiateLet isrec defs body heap env
+> instantiate (ECase e alts) heap env = error "Can't instantiate case exprs"
+\end{verbatim}
+\indexDTT{instantiate}%
+\indexDTT{instantiate}%
+\indexDTT{instantiate}%
+\begin{verbatim}
+> instantiateConstr tag arity heap env
+>            = error "Can't instantiate constructors yet"
+> instantiateLet isrec defs body heap env
+>            = error "Can't instantiate let(rec)s yet"
+\end{verbatim}
+\indexDTT{instantiateConstr}%
+\indexDTT{instantiateLet}%
+\subsection{Formatting the results}
+
+The output from \mbox{\tt eval}\indexTT{eval} is a list of states, which are rather
+voluminous if printed in their entirety.
+Furthermore, since the heaps and stacks are abstract objects, Miranda
+will not print them at all.
+So the \mbox{\tt showResults}\indexTT{showResults} function formats the output for us, using the
+\mbox{\tt iseq}\indexTT{iseq} data type introduced in Section~\ref{sect:pretty}.
+\begin{verbatim}
+> showResults states
+>  = iDisplay (iConcat [ iLayn (map showState states),
+>                      showStats (last states)
+>           ])
+\end{verbatim}
+\indexDTT{showResults}%
+We display the state just by showing the contents of the stack.  It is
+too tiresome to print the heap in its entirety after each step, so
+we will content ourselves with printing the contents of nodes referred to
+directly from the stack.  The other components of the state do not change,
+so we will not print them either.
+\begin{verbatim}
+> showState :: TiState -> Iseq
+> showState (stack, dump, heap, globals, stats)
+>  = iConcat [ showStack heap stack, iNewline ]
+\end{verbatim}
+\indexDTT{showState}%
+\indexDTT{showState}%
+\par
+We display the stack, topmost element first, by displaying the address on
+the stack, and the contents of the node to which it points.  Most of these
+nodes are application nodes, and for each of these we
+also display the contents of its argument node.
+\begin{verbatim}
+> showStack :: TiHeap -> TiStack -> Iseq
+> showStack heap stack
+>  = iConcat [
+>        iStr "Stk [",
+>        iIndent (iInterleave iNewline (map show_stack_item stack)),
+>        iStr " ]"
+>    ]
+>    where
+>    show_stack_item addr
+>     = iConcat [ showFWAddr addr, iStr ": ",
+>                 showStkNode heap (hLookup heap addr)
+>       ]
+\end{verbatim}
+\indexDTT{showStack}%
+\indexDTT{showStack}%
+\begin{verbatim}
+> showStkNode :: TiHeap -> Node -> Iseq
+> showStkNode heap (NAp fun_addr arg_addr)
+>  = iConcat [   iStr "NAp ", showFWAddr fun_addr,
+>                iStr " ", showFWAddr arg_addr, iStr " (",
+>                showNode (hLookup heap arg_addr), iStr ")"
+>    ]
+> showStkNode heap node = showNode node
+\end{verbatim}
+\indexDTT{showStkNode}%
+\indexDTT{showStkNode}%
+\indexDTT{showStkNode}%
+\par
+\mbox{\tt showNode}\indexTT{showNode} displays the value of a \mbox{\tt node}\indexTT{node}.
+It prints only the name stored
+inside \mbox{\tt NSupercomb}\indexTT{NSupercomb} nodes, rather than printing the
+complete value; indeed this is the only reason the name is stored inside
+these nodes.
+\begin{verbatim}
+> showNode :: Node -> Iseq
+> showNode (NAp a1 a2) = iConcat [ iStr "NAp ", showAddr a1,
+>                                  iStr " ",    showAddr a2
+>                        ]
+> showNode (NSupercomb name args body) = iStr ("NSupercomb " ++ name)
+> showNode (NNum n) = (iStr "NNum ") `iAppend` (iNum n)
+\end{verbatim}
+\indexDTT{showNode}%
+\indexDTT{showNode}%
+\indexDTT{showNode}%
+\indexDTT{showNode}%
+\begin{verbatim}
+> showAddr :: Addr -> Iseq
+> showAddr addr = iStr (show addr)
+>
+> showFWAddr :: Addr -> Iseq    -- Show address in field of width 4
+> showFWAddr addr = iStr (space (4 -  length str) ++ str)
+>                   where
+>                   str = show addr
+\end{verbatim}
+\indexDTT{showAddr}%
+\indexDTT{showAddr}%
+\indexDTT{showFWAddr}%
+\indexDTT{showFWAddr}%
+\par
+\mbox{\tt showStats}\indexTT{showStats} is responsible for printing out the accumulated statistics:
+\begin{verbatim}
+> showStats :: TiState -> Iseq
+> showStats (stack, dump, heap, globals, stats)
+>  = iConcat [ iNewline, iNewline, iStr "Total number of steps = ",
+>              iNum (tiStatGetSteps stats)
+>    ]
+\end{verbatim}
+\indexDTT{showStats}%
+\indexDTT{showStats}%
+%\subsection{Exercises}
+
+\begin{exercise}
+\label{ex:templ:test}
+Test the implementation given so far.  Here is a suitable test program:
+\begin{verbatim}
+        main = S K K 3
+\end{verbatim}
+The result should be the number 3.
+Invent a couple more test programs and check that they work.
+Remember, we have not yet defined any arithmetic operations!
+\end{exercise}
+
+\begin{exercise}
+Modify \mbox{\tt showState}\indexTT{showState} so that it prints out the entire contents of the heap.
+(Hint: use \mbox{\tt hAddresses}\indexTT{hAddresses} to discover the addresses of all the nodes in the
+heap.)
+In this way you can see how the heap evolves from one step to the next.
+\end{exercise}
+
+\begin{exercise}
+\mbox{\tt scStep}\indexTT{scStep} will fail
+if the supercombinator or
+primitive is applied to too few arguments.  Add a suitable
+check and error message to \mbox{\tt scStep}\indexTT{scStep} to detect this case.
+\end{exercise}
+
+\begin{exercise}
+\label{ex:templ:stats}
+Modify your interpreter to collect more execution statistics.
+For example, you could accumulate:
+\begin{itemize}
+\item
+The number of reductions, perhaps split into supercombinator
+reductions and primitive reductions.
+\item
+The number of each kind of heap operation, especially allocations.
+The most convenient way to do this is to modify the \mbox{\tt heap}\indexTT{heap} abstract
+data type to accumulate this information itself, though this only
+works for heap operations which return a new heap as part of the
+result.
+\item
+The maximum stack depth.
+\end{itemize}
+\end{exercise}
+\begin{exercise}
+In the definition of \mbox{\tt scStep}\indexTT{scStep}, the environment \mbox{\tt env}\indexTT{env} which is passed to
+\mbox{\tt instantiate}\indexTT{instantiate} is defined as
+\begin{verbatim}
+        env = arg_bindings ++ globals
+\end{verbatim}
+What difference would it make if the arguments to \mbox{\tt ++} were reversed?
+\end{exercise}
+\begin{exercise}
+\label{ex:templ:eval}
+(Slightly tricky.)
+You might think that the following definition for \mbox{\tt eval}\indexTT{eval} would be more
+obvious than the one given:
+\begin{verbatim}
+        eval state = [state],                   tiFinal state
+                   = state : eval next_state,   otherwise
+\end{verbatim}
+(where \mbox{\tt next{\char'137}state} is defined as before).
+Why is this an inferior definition?  (Hint: think about what
+would happen if all the states were being formatted by \mbox{\tt showResults}\indexTT{showResults}, and
+some error occurred when evaluating \mbox{\tt tiFinal\ state}, such as an attempt
+to access a non-existent heap node.
+Would the state which caused the error be printed?  If not, why not?)
+\end{exercise}
+
+\section{Mark 2: \mbox{\tt let(rec)}\indexTT{let(rec)} expressions}
+\index{template instantiation machine!Mark 2}
+\index{let expressions@\mbox{\tt let}\indexTT{let} expressions!in template-instantiation machine}
+\index{letrec expressions@\mbox{\tt letrec}\indexTT{letrec} expressions!in template-instantiation machine}
+
+Our first enhancement is to make the machine capable of
+dealing with \mbox{\tt let}\indexTT{let} and \mbox{\tt letrec}\indexTT{letrec} expressions.
+As discussed in Section~\ref{sect:templ:supercomb-review}, the bodies
+of supercombinators may contain \mbox{\tt let(rec)}\indexTT{let(rec)} expressions, which are
+regarded as textual descriptions of a graph.
+
+It follows that the only change we have to make to our implementation is to
+enhance \mbox{\tt instantiate}\indexTT{instantiate}, so that it has an equation for the \mbox{\tt ELet}\indexTT{ELet} constructor.
+
+\begin{exercise}
+\label{ex:inst-let}
+Add an equation to \mbox{\tt instantiate}\indexTT{instantiate} for {\em non-recursive\/}
+\mbox{\tt let}\indexTT{let} expressions.
+What you will need to do to instantiate \mbox{\mbox{\tt (ELet\ nonRecursive\ defs\ body)}}
+is:
+\begin{enumerate}
+\item
+instantiate the
+right-hand side of each of the definitions in \mbox{\tt defs}\indexTT{defs};
+\item
+augment the
+environment to bind the names in \mbox{\tt defs}\indexTT{defs} to the addresses of the
+newly constructed instances;
+\item
+call \mbox{\tt instantiate}\indexTT{instantiate} passing the augmented
+environment and the expression \mbox{\tt body}\indexTT{body}.
+\end{enumerate}
+\end{exercise}
+This still only takes care of \mbox{\tt let}\indexTT{let} expressions.
+The result of instantiating a \mbox{\tt letrec}\indexTT{letrec} expression is a {\em cyclic\/} graph,
+whereas \mbox{\tt let}\indexTT{let} expressions give rise to acyclic graphs.
+
+\begin{exercise}
+\label{ex:inst-letrec}
+Copy your equation for the non-recursive \mbox{\tt ELet}\indexTT{ELet} of \mbox{\tt instantiate}\indexTT{instantiate},
+and modify
+it to work for the recursive case (or modify your definition
+to deal with both).
+
+(Hint: do everything exactly as in the \mbox{\tt let}\indexTT{let} case, except that in
+Step 1 pass the {\em augmented\/} environment (constructed in
+Step 2) to \mbox{\tt instantiate}\indexTT{instantiate}, instead of the {\em existing\/} environment.)
+\end{exercise}
+
+The hint in this exercise
+seems curious, because it requires the name-to-address bindings produced in
+Step 2 to be used as an input to Step 1.
+If you try this in Miranda it all works perfectly because,
+as in any non-strict functional language, the inputs to a function do
+not have to be evaluated before the function is called.
+In a real implementation we would have to do this trick `by hand',
+by working out the addresses at which each of the (root) nodes in
+the \mbox{\tt letrec}\indexTT{letrec} will be allocated, augmenting the environment to
+reflect this information, and then instantiating the right-hand sides.
+
+Here is a test program, to see if your implementation works:
+\begin{verbatim}
+    pair x y f = f x y ;
+    fst p = p K ;
+    snd p = p K1 ;
+    f x y = letrec
+                a = pair x b ;
+                b = pair y a
+            in
+            fst (snd (snd (snd a))) ;
+    main = f 3 4
+\end{verbatim}
+The result should be 4.
+Can you figure out how this program works?  (All will be revealed in
+Section~\ref{sect:template:data-str-hof}.)
+
+\begin{exercise}
+Consider the program
+\begin{verbatim}
+    main = letrec f = f x in f
+\end{verbatim}
+What happens if you run this program?  Could this problem ever arise
+in a strongly typed language such as Miranda?
+\end{exercise}
+
+\section{Mark 3: Adding updating}
+\label{sect:templ:update}
+\index{template instantiation machine!Mark 3}
+\index{updates!in template-instantiation machine}
+
+So far our reduction machine does not perform any
+updates,
+so shared sub-expressions may be evaluated many times.
+As explained in Section~\ref{sect:templ:update-review}
+the easiest way to fix the problem is to update the root of the
+redex with an indirection\index{indirections} node pointing to the result.
+
+We can express this by modifying the state transition rule (\ref{rule:sc1})
+for supercombinator redexes:
+\tirulew{
+        \tistate{a_0:a_1:\ldots:a_n:s}{d}
+                {h[a_0:\mbox{\tt NSupercomb}\indexTT{NSupercomb}~ [x_1,\ldots,x_n]~body]}
+                {f}
+}{
+        \tistate{a_r:s}{d}{h'[a_n:\mbox{\tt NInd}\indexTT{NInd}~a_r]}{f}
+}{
+        (h',a_r) = instantiate~ body~ h~
+                        f[x_1 \mapsto a_1,~ \ldots,~ x_n \mapsto a_n]
+}
+\label{rule:sc2}
+The difference is that the heap $h'$ returned by the
+$instantiate$ function is further modified by overwriting the node $a_n$
+(the root of the redex) with an indirection to $a_r$ (the root of the result,
+returned by $instantiate$).  Notice that if the supercombinator is
+a CAF\index{CAF}
+(see Section~\ref{sect:caf}), then $n=0$ and the node to be modified is
+the supercombinator node itself.
+
+One further modification is required.  Since we may now encounter
+indirections\index{indirections}
+during unwinding\index{unwind}
+the spine, we need to add a new rule to cope with this case:
+\tirule{
+        \tistate{a:s}{d}{h[a:\mbox{\tt NInd}\indexTT{NInd}~ a_1]}{f}
+}{
+        \tistate{a_1:s}{d}{h}{f}
+}
+\label{rule:unwind-ind}
+The address of the indirection node\index{indirections},
+$a$, is removed from the stack, just
+as if it had never been there.
+
+There are several things we need to do to implement these new rules:
+\begin{itemize}
+\item
+Add a new node constructor, \mbox{\tt NInd}\indexTT{NInd}, to the \mbox{\tt node}\indexTT{node} data type.
+This gives the following revised definition:
+\begin{verbatim}
+> data Node = NAp Addr Addr                      -- Application
+>            | NSupercomb Name [Name] CoreExpr   -- Supercombinator
+>            | NNum Int                          -- Number
+>            | NInd Addr                         -- Indirection
+\end{verbatim}
+\indexDTT{data}%
+\indexDTT{NSupercomb}%
+\indexDTT{NNum}%
+\indexDTT{NInd}%
+We need to add a new equation to \mbox{\tt showNode}\indexTT{showNode} to take account of this
+extra constructor.
+\item
+Modify \mbox{\tt scStep}\indexTT{scStep} to use \mbox{\tt hUpdate}\indexTT{hUpdate} to
+update the root of the redex with an indirection
+to the result (\ruleref{rule:sc2}).
+\item
+Add an equation to the definition of \mbox{\tt dispatch}\indexTT{dispatch} to cope with indirections
+(\ruleref{rule:unwind-ind}).
+\end{itemize}
+
+\begin{exercise}
+Make the modifications to perform updates with indirection nodes.
+Try out the effect of your changes by running the following program
+on both the Mark 1 and Mark 3 versions of your reduction machine:
+\begin{verbatim}
+        id x = x ;
+        main = twice twice id 3
+\end{verbatim}
+(Recall that \mbox{\tt twice}\indexTT{twice} is defined in \mbox{\tt preludeDefs}\indexTT{preludeDefs}
+-- Section~\ref{sect:prelude}.)
+Try to figure out what would happen by reducing it by hand first.
+What happens if you define \mbox{\tt main}\indexTT{main} to be \mbox{\tt twice\ twice\ twice\ id\ 3}?
+\end{exercise}
+
+\subsection{Reducing the number of indirections\index{indirections!reducing occurrences of}}
+\label{sect:templ:inst-and-upd}
+
+Often we will be updating the root of the redex with an indirection
+to a node newly created by \mbox{\tt instantiate}\indexTT{instantiate} (or, as we shall see, by a
+primitive).
+Under these circumstances, rather than use an indirection,
+it would be safe to build the root node of the result directly on top
+of the root of the redex.  Because the root of the result is newly created,
+no sharing can be lost by doing this, and it saves building (and subsequently
+traversing) an extra indirection node.
+
+We can do this by defining a new instantiation function, 
+\mbox{\tt instantiateAndUpdate}\indexTT{instantiateAndUpdate},
+which is just like
+\mbox{\tt instantiate}\indexTT{instantiate} except that it takes an extra argument,
+the address of the node to be updated with the result, and it does
+not return the address of the resulting graph.
+\begin{verbatim}
+> instantiateAndUpdate 
+>     :: CoreExpr             -- Body of supercombinator
+>        -> Addr              -- Address of node to update
+>        -> TiHeap            -- Heap before instantiation
+>        -> ASSOC Name Addr   -- Associate parameters to addresses
+>        -> TiHeap            -- Heap after instantiation
+\end{verbatim}
+\indexDTT{instantiateAndUpdate}%
+\par
+Here, for example, is the definition of \mbox{\tt instantiateAndUpdate}\indexTT{instantiateAndUpdate} in the
+case
+when the expression is an application:
+\begin{verbatim}
+> instantiateAndUpdate (EAp e1 e2) upd_addr heap env
+>  = hUpdate heap2 upd_addr (NAp a1 a2)
+>    where
+>    (heap1, a1) = instantiate e1 heap  env
+>    (heap2, a2) = instantiate e2 heap1 env
+\end{verbatim}
+\indexDTT{instantiateAndUpdate}%
+Notice that the recursive instantiations are still performed by the old
+\mbox{\tt instantiate}\indexTT{instantiate}; only the root node needs to be updated.
+\begin{exercise}
+Complete the definition of \mbox{\tt instantiateAndUpdate}\indexTT{instantiateAndUpdate}. The following
+points need a little care:
+\begin{itemize}
+\item
+When the expression to be instantiated is a simple variable,
+you will still need to use an indirection.
+Why?
+\item
+Think carefully about the recursive instantiations in the equations for
+\mbox{\tt let(rec)}\indexTT{let(rec)} expressions.
+\end{itemize}
+
+Modify \mbox{\tt scStep}\indexTT{scStep}
+to call \mbox{\tt instantiateAndUpdate}\indexTT{instantiateAndUpdate} instead of \mbox{\tt instantiate}\indexTT{instantiate}, passing
+the root of the redex as the address of the node to be updated.
+Remove the update code from \mbox{\tt scStep}\indexTT{scStep} itself.
+
+Measure the effect of this modification on the number of reductions and
+the number of heap nodes allocated.
+\end{exercise}
+
+\section{Mark 4: Adding arithmetic}
+\label{sect:templ:primitives}
+\index{template instantiation machine!Mark 4}
+\index{arithmetic!in template-instantation machine}
+
+In this section we will add arithmetic primitives.
+This will involve using the dump for the first time.
+
+\subsection{Transition rules for arithmetic}
+\label{sect:templ:arithmetic}
+
+First of all we develop the state transition rules for
+arithmetic.
+We begin with negation, because it is a simple unary operation.
+The rules for other arithmetic operations are similar.
+Here is a plausible-looking rule when the argument is evaluated:
+\tirule{
+        \tistate{a:a_1:[]}{d}{h\left[
+                \begin{array}{l}
+                a:\mbox{\tt NPrim\ Neg} \\
+                a_1:\mbox{\tt NAp}\indexTT{NAp}~ a~ b \\
+                b:\mbox{\tt NNum}\indexTT{NNum}~ n
+                \end{array}
+        \right]}{f}
+}{
+        \tistate{a_1:[]}{d}{h[a_1:\mbox{\tt NNum}\indexTT{NNum}~ (-n)]}{f}
+}
+\label{rule:negate}
+Notice that the rule specifies that the stack should contain {\em only\/}
+the argument to the negation operator,
+because anything else would be a type error.
+
+Suppose that the argument is not evaluated: what should happen then?
+We need to evaluate the argument on a fresh stack (so that the evaluations
+do not get mixed up with each other) and,
+when this is complete, restore the old stack and try again.
+We need a way to keep track of the old stack, so we introduce the
+\stressD{dump} for the first time.
+The dump is just a stack of stacks.
+
+The \mbox{\tt Neg}\indexTT{Neg} rule to start an evaluation is like this:
+\tirule{
+        \tistate{a:a_1:[]}{d}{h\left[
+                \begin{array}{l}
+                a:\mbox{\tt NPrim\ Neg} \\
+                a_1:\mbox{\tt NAp}\indexTT{NAp}~ a~ b
+                \end{array}
+        \right]}{f}
+}{
+        \tistate{b:[]}{(a:a_1:[]):d}{h}{f}
+}
+\label{rule:negate-eval}
+This rule is used only if the previous one (which is a special case of
+this one, with the node at address $b$ being an \mbox{\tt NNum}\indexTT{NNum} node) does not apply.
+
+Once the evaluation is complete, we need a rule to restore the old
+stack:
+\tirule{
+        \tistate{a:[]}{s:d}{h[a:\mbox{\tt NNum}\indexTT{NNum}~ n]}{f}
+}{
+        \tistate{s}{d}{h}{f}
+}
+\label{rule:num-return}
+Once the old stack has been restored, the negation primitive\index{primitives}
+will be found on top of the stack again, but this time the argument
+will be in normal form.
+
+But we need to take care!  The argument will indeed have been
+reduced to normal form, but the root node of the argument will
+have been updated, {\em so it may now
+be an indirection node}.
+Hence, the first rule for \mbox{\tt Neg}\indexTT{Neg} will not see the \mbox{\tt NNum}\indexTT{NNum} node directly.
+(For example, consider the expression \mbox{\tt (negate\ (id\ 3))}.)
+
+The easiest way around this is to add an extra transition rule
+just before the rule which unwinds an application node (\ruleref{rule:unwind}).
+In the special case where the argument of the application is
+an indirection\index{indirections},
+the rule updates the application with a new one whose argument points past
+the indirection:
+\tirule{
+        \tistate{a:s}{d}{h\left[\begin{array}{l}
+                                a:\mbox{\tt NAp}\indexTT{NAp}~ a_1~ a_2 \\
+                                a_2: \mbox{\tt NInd}\indexTT{NInd}~ a_3
+                        \end{array}\right]}{f}
+}{
+        \tistate{a:s}{d}{h[a:\mbox{\tt NAp}\indexTT{NAp}~ a_1~ a_3]}{f}
+}
+\label{rule:unwind-indarg}
+In order to
+bring this rule into play, we need to modify \ruleref{rule:negate-eval}
+so that it unwinds anew from the root of the redex after the evaluation is
+completed:
+\tirule{
+        \tistate{a:a_1:[]}{d}{h\left[
+                \begin{array}{l}
+                a:\mbox{\tt NPrim\ Neg} \\
+                a_1:\mbox{\tt NAp}\indexTT{NAp}~ a~ b
+                \end{array}
+        \right]}{f}
+}{
+        \tistate{b:[]}{(a_1:[]):d}{h}{f}
+}
+\label{rule:negate-eval1}
+This is rather tiresome; the implementations developed in
+subsequent chapters will do a better job.
+
+\begin{exercise}
+Write the state transition rules for addition.
+(The other dyadic arithmetic operations are practically identical.)
+\end{exercise}
+
+\subsection{Implementing arithmetic}
+\label{sect:templ:primitives-impl}
+
+To implement arithmetic we need to make a number of changes.
+First, we need to redefine the type \mbox{\tt tiDump}\indexTT{tiDump} to be a stack of stacks, whose
+initial value is empty.\index{dump!in template-instantiation machine}
+\begin{verbatim}
+> type TiDump = [TiStack]
+> initialTiDump = []
+\end{verbatim}
+\indexDTT{type}%
+\indexDTT{initialTiDump}%
+Next, we need to add a new kind of heap node:
+\mbox{\tt NPrim\ n\ p} represents a primitive\index{primitives} whose name is \mbox{\tt n} and
+whose value is \mbox{\tt p}, where \mbox{\tt p} is of type \mbox{\tt primitive}\indexTT{primitive}.
+As in the case of \mbox{\tt NSupercomb}\indexTT{NSupercomb} nodes, the name is present in the
+\mbox{\tt NPrim}\indexTT{NPrim} node solely for debugging and documentation reasons.
+\begin{verbatim}
+> data Node = NAp Addr Addr                       -- Application
+>             | NSupercomb Name [Name] CoreExpr   -- Supercombinator
+>             | NNum Int                          -- Number
+>             | NInd Addr                         -- Indirection
+>             | NPrim Name Primitive              -- Primitive
+\end{verbatim}
+\indexDTT{data}%
+\indexDTT{NSupercomb}%
+\indexDTT{NNum}%
+\indexDTT{NInd}%
+\indexDTT{NPrim}%
+As usual, \mbox{\tt showNode}\indexTT{showNode} needs to be augmented as well, to display \mbox{\tt NPrim}\indexTT{NPrim} nodes.
+The transition rules given in the previous section suggest that
+the data type \mbox{\tt primitive}\indexTT{primitive} should be defined like this:
+\begin{verbatim}
+> data Primitive = Neg | Add | Sub | Mul | Div
+\end{verbatim}
+\indexDTT{data}%
+\indexDTT{Add}%
+\indexDTT{Sub}%
+\indexDTT{Mul}%
+\indexDTT{Div}%
+with one constructor for each desired primitive.
+
+Now, just as we needed to allocate an \mbox{\tt NSupercomb}\indexTT{NSupercomb} node in the
+initial
+heap for each supercombinator, so we need to allocate an \mbox{\tt NPrim}\indexTT{NPrim} node in
+the initial heap for each primitive.  Then we can add extra bindings
+to the
+$globals$ component of the machine state,
+which
+map the name of each primitive to the address of its node, just as we
+did for supercombinators.  We can do this easily by modifying the definition
+of \mbox{\tt buildInitialHeap}\indexTT{buildInitialHeap}, like this:
+\begin{verbatim}
+> buildInitialHeap :: [CoreScDefn] -> (TiHeap, TiGlobals)
+> buildInitialHeap sc_defs
+>  = (heap2, sc_addrs ++ prim_addrs)
+>    where
+>    (heap1, sc_addrs)   = mapAccuml allocateSc hInitial sc_defs
+>    (heap2, prim_addrs) = mapAccuml allocatePrim heap1 primitives
+\end{verbatim}
+\indexDTT{buildInitialHeap}%
+\indexDTT{buildInitialHeap}%
+\par
+We define an association
+list giving the mapping from variable names to primitives, thus:
+\begin{verbatim}
+> primitives :: ASSOC Name Primitive
+> primitives = [ ("negate", Neg),
+>                ("+", Add),   ("-", Sub),
+>                ("*", Mul),   ("/", Div)
+>              ]
+\end{verbatim}
+\indexDTT{primitives}%
+\indexDTT{primitives}%
+To add further primitives, just add more constructors to the
+\mbox{\tt primitive}\indexTT{primitive} type, and more elements to the \mbox{\tt primitives}\indexTT{primitives} association list.
+
+We can then define \mbox{\tt allocatePrim}\indexTT{allocatePrim}, very much as we defined \mbox{\tt allocateSc}\indexTT{allocateSc}:
+\begin{verbatim}
+> allocatePrim :: TiHeap -> (Name, Primitive) -> (TiHeap, (Name, Addr))
+> allocatePrim heap (name, prim)
+>  = (heap', (name, addr))
+>    where
+>    (heap', addr) = hAlloc heap (NPrim name prim)
+\end{verbatim}
+\indexDTT{allocatePrim}%
+\indexDTT{allocatePrim}%
+\par
+Next, we need to augment the \mbox{\tt dispatch}\indexTT{dispatch} function in \mbox{\tt step}\indexTT{step} to
+call \mbox{\tt primStep}\indexTT{primStep} when it finds a \mbox{\tt NPrim}\indexTT{NPrim} node.
+\mbox{\tt primStep}\indexTT{primStep} performs case analysis on the primitive being used,
+and then calls one of a family of
+auxiliary functions, \mbox{\tt primNeg}\indexTT{primNeg}, \mbox{\tt primAdd}\indexTT{primAdd} and so on, which actually
+perform the operation.  For the present we content ourselves with
+negation.
+\begin{verbatim}
+> primStep state Neg   = primNeg state
+\end{verbatim}
+\indexDTT{primStep}%
+\mbox{\tt primNeg}\indexTT{primNeg} needs to do the following:
+\begin{itemize}
+\item
+Use \mbox{\tt getArgs}\indexTT{getArgs} to extract
+the address of the argument from the stack, and \mbox{\tt hLookup}\indexTT{hLookup} to get the node
+pointed to by this address.
+\item
+Use the auxiliary function \mbox{\tt isDataNode}\indexTT{isDataNode} to
+check if the argument node is evaluated.
+
+\item
+If it is not evaluated, use \ruleref{rule:negate-eval1} to set up the new
+state ready to evaluate the argument.
+This involves pushing the current stack on the dump, and making a new stack
+whose only element is the argument to \mbox{\tt negate}\indexTT{negate}.
+
+\item
+If it is evaluated, use \mbox{\tt hUpdate}\indexTT{hUpdate} to overwrite
+the root of the redex with an \mbox{\tt NNum}\indexTT{NNum} node
+containing the result, and return, having modified the stack appropriately.
+\end{itemize}
+
+Next, we need to implement the new rules for unwinding and
+for numbers.
+The definition of \mbox{\tt numStep}\indexTT{numStep} must be changed
+to implement \ruleref{rule:num-return}.
+If the stack contains
+just one item, the address of an \mbox{\tt NNum\ node}, and the dump is non-empty,
+\mbox{\tt numStep}\indexTT{numStep} should pop the top element of the dump and make it into the new stack.
+If these conditions do not apply, it should signal an error.
+Similarly, the definition of \mbox{\tt apStep}\indexTT{apStep} must be changed to implement
+\ruleref{rule:unwind-indarg}.
+It can do this by checking for an indirection\index{indirections}
+in the argument, and using
+\mbox{\tt hUpdate}\indexTT{hUpdate} to update the heap if so.
+
+Lastly, we need to make a change to \mbox{\tt tiFinal}\indexTT{tiFinal}.  At present it halts execution
+when the stack contains a single \mbox{\tt NNum}\indexTT{NNum}; {\em but it must now only do this
+if the dump is empty}, otherwise the new \ruleref{rule:num-return} will never
+get a chance to execute!
+
+\begin{exercise}
+Implement all these changes to add negation,
+and test some programs involving negation.
+For example,
+\begin{verbatim}
+        main = negate 3
+\end{verbatim}
+or
+\begin{verbatim}
+        main = twice negate 3
+\end{verbatim}
+You should also test the following program, to show that the handling of
+indirections is working:
+\begin{verbatim}
+        main = negate (I 3)
+\end{verbatim}
+\end{exercise}
+
+The obvious extension now is to implement addition,
+subtraction and the other arithmetic primitives.
+If we rush ahead blindly
+we will find that all these dyadic arithmetic primitives have a rather
+stereotyped form; indeed they are identical except for the fact that at
+one point we use \mbox{\tt *} or \mbox{\tt /} rather than \mbox{\tt +}.
+
+To avoid this duplication, we can instead define a single generic function
+\mbox{\tt primArith}\indexTT{primArith} and pass to it the required operation
+as an argument, thus:
+\begin{verbatim}
+> primStep state Add = primArith state (+)
+> primStep state Sub = primArith state (-)
+> primStep state Mul = primArith state (*)
+> primStep state Div = primArith state (div)
+\end{verbatim}
+\indexDTT{primStep}%
+\indexDTT{primStep}%
+\indexDTT{primStep}%
+\indexDTT{primStep}%
+\begin{verbatim}
+> primArith :: TiState -> (Int -> Int -> Int) -> TiState
+\end{verbatim}
+\indexDTT{primArith}%
+This is a simple example of the way in which higher-order functions
+\index{higher-order function} can
+enable us to make programs more modular.
+
+\begin{exercise}
+Implement \mbox{\tt primArith}\indexTT{primArith}, and test your implementation.
+\end{exercise}
+
+
+\section{Mark 5: Structured data}
+\label{sect:templ:tidata}
+\index{template instantiation machine!Mark 5}
+\index{data structures!in template-instantiation machine}
+
+In this section we will add structured
+data types to our reduction machine.
+It would be nice to give an implementation for the \mbox{\tt case}\indexTT{case} expressions
+of our core language, but it turns out that it is rather hard to do
+so within the framework of a template instantiation machine.
+(Our later implementations will not have this problem.)
+Instead we will use a collection of built-in
+functions, such as \mbox{\tt if}, \mbox{\tt casePair}\indexTT{casePair} and
+\mbox{\tt caseList}\indexTT{caseList}, which allow us to manipulate certain structured types.  The
+template machine will remain unable to handle general structured objects.
+
+\begin{exercise}
+Why is it hard to introduce \mbox{\tt case}\indexTT{case} expressions into the template instantiation
+machine?  (Hint: think about what \mbox{\tt instantiate}\indexTT{instantiate} would do with a
+\mbox{\tt case}\indexTT{case} expression.)
+\end{exercise}
+
+\subsection{Building structured data}
+
+Structured data is built with the family of constructors $\mbox{\tt Pack{\char'173}}t,a\mbox{\tt {\char'175}}\indexTT{Pack}$
+where $t$ gives the tag\index{tag!of constructor} of the constructor, and $a$
+gives its arity\index{arity!of constructor}
+(Section ~\ref{sect:lang:constructors}),
+so we need a representation
+for these constructor functions in the graph.
+They are really a new form of primitive, so we can do this by adding
+a new constructor \mbox{\tt PrimConstr}\indexTT{PrimConstr} to the \mbox{\tt primitive}\indexTT{primitive} type.
+Now in the equation for \mbox{\tt instantiateConstr}\indexTT{instantiateConstr}, we can instantiate an
+expression $\mbox{\tt EConstr}\indexTT{EConstr}~ t~ a$ to the heap node
+$\mbox{\tt NPrim\ "Pack"}~ (\mbox{\tt PrimConstr}\indexTT{PrimConstr}~ t~ a)$.
+
+Next the question arises of how this primitive is implemented.  We need
+to add a case to \mbox{\tt primStep}\indexTT{primStep} to match the \mbox{\tt PrimConstr}\indexTT{PrimConstr} constructor,
+which calls a new auxiliary function \mbox{\tt primConstr}\indexTT{primConstr}.
+This should check that it is given enough arguments, and if so build
+a structured data object in the heap.
+
+To do this we need to add a new constructor, \mbox{\tt NData}\indexTT{NData}, to the
+\mbox{\tt node}\indexTT{node} type to represent structured data objects.
+The \mbox{\tt NData}\indexTT{NData} constructor contains the
+{\em tag\/}\index{tag!of constructor} of the object, and its
+{\em components}\index{components!of constructor}.
+\begin{verbatim}
+> data Node = NAp Addr Addr                     -- Application
+>           | NSupercomb Name [Name] CoreExpr   -- Supercombinator
+>           | NNum Int                          -- Number
+>           | NInd Addr                         -- Indirection
+>           | NPrim Name Primitive              -- Primitive
+>           | NData Int [Addr]                  -- Tag, list of components
+\end{verbatim}
+\indexDTT{data}%
+\indexDTT{NSupercomb}%
+\indexDTT{NNum}%
+\indexDTT{NInd}%
+\indexDTT{NPrim}%
+\indexDTT{NData}%
+\par
+We can now give the rule for $\mbox{\tt NPrim}\indexTT{NPrim}~ (\mbox{\tt PrimConstr}\indexTT{PrimConstr}~ t~ n)$:
+\tirule{
+        \tistate{a:a_1:\ldots:a_n:[]}{d}{h\left[
+                \begin{array}{l}
+                a:\mbox{\tt NPrim\ (PrimConstr\ }t~ n\mbox{\tt )} \\
+                a_1:\mbox{\tt NAp}\indexTT{NAp}~ a~ b_1 \\
+                \ldots \\
+                a_n:\mbox{\tt NAp}\indexTT{NAp}~ a_{n-1}~ b_n
+                \end{array}
+        \right]}{f}
+}{
+        \tistate{a_n:[]}{d}{h[a_n:\mbox{\tt NData}\indexTT{NData}~ t~ [b_1,\ldots,b_n]]}{f}
+}
+\label{rule:prim-constr}
+So much for building structured objects.  The next question is how to take them
+apart, which is expressed by \mbox{\tt case}\indexTT{case} expressions in the Core language.
+As already mentioned, it is hard to implement \mbox{\tt case}\indexTT{case} expressions directly,
+so we content ourselves with a few special cases, beginning with booleans.
+
+\subsection{Conditionals\index{conditional!in template-instantation machine}}
+\label{sect:templ:conditional}
+
+The boolean type\index{booleans}
+might be declared in Miranda like this:
+\begin{verbatim}
+        boolean ::= False | True
+\end{verbatim}
+There are two constructors, \mbox{\tt True}\indexTT{True} and \mbox{\tt False}\indexTT{False}.  Each
+has arity zero, and we arbitrarily assign a tag of one to \mbox{\tt False}\indexTT{False} and two
+to \mbox{\tt True}\indexTT{True}.  So we can give the following Core-language definitions:
+\begin{verbatim}
+        False = Pack{1,0}
+        True = Pack{2,0}
+\end{verbatim}
+
+Since we cannot have general \mbox{\tt case}\indexTT{case} expressions, it will suffice to add
+a conditional primitive,
+with the reduction rules:
+\begin{verbatim}
+        if Pack{2,0} t e = t
+        if Pack{1,0} t e = e
+\end{verbatim}
+Operationally, \mbox{\tt if} evaluates its first argument, which it expects to be a
+data object, examines its tag, and selects either its second or third argument
+depending on whether the tag is 2 (\mbox{\tt True}\indexTT{True}) or 1 (\mbox{\tt False}\indexTT{False}) respectively.
+
+\begin{exercise}
+Write the state transition rules for the conditional\index{conditional} primitive.
+You need three rules: two to perform the reduction if the boolean
+condition is already evaluated; and one to start evaluation if the
+condition is not evaluated, by pushing the old
+stack on the dump, and pushing the
+address of the condition on the new empty stack (cf. \ruleref{rule:negate-eval1}).
+You should find that you need to use an indirection in the update for
+the first two rules.
+
+One further rule is missing.  What is it?  (Hint: when evaluation
+of the condition is complete, how does the conditional get re-tried?)
+\end{exercise}
+
+Once you have \mbox{\tt if}, you can give Core-language definitions for
+the other boolean operators in terms of
+it and \mbox{\tt False}\indexTT{False} and \mbox{\tt True}\indexTT{True}.  For example:
+\begin{verbatim}
+        and x y = if x y False
+\end{verbatim}
+
+\begin{exercise}
+\label{ex:templ:prelude-bool}
+Give Core-language definitions for \mbox{\tt or}, \mbox{\tt xor}\indexTT{xor} and \mbox{\tt not}\indexTT{not}.
+Add all of these Core-language definitions to \mbox{\tt extraPreludeDefs}\indexTT{extraPreludeDefs}.
+\end{exercise}
+
+Finally, we need some way of comparing numeric values, which requires
+new primitives \mbox{\tt >}, \mbox{\tt >=} and so on.
+
+\subsection{Implementing structured data}
+
+Here is a list of the changes required to the implementation to add
+structured data objects, conditionals and comparison operations.
+\begin{itemize}
+\item
+Add the \mbox{\tt NData}\indexTT{NData} constructor to the \mbox{\tt node}\indexTT{node} data type.  Extend \mbox{\tt showNode}\indexTT{showNode} to
+display \mbox{\tt NData}\indexTT{NData} nodes.
+\item
+Add \mbox{\tt PrimConstr}\indexTT{PrimConstr}, \mbox{\tt If}, \mbox{\tt Greater}\indexTT{Greater}, \mbox{\tt GreaterEq}\indexTT{GreaterEq}, \mbox{\tt Less}\indexTT{Less}, \mbox{\tt LessEq}\indexTT{LessEq}, \mbox{\tt Eq}, \mbox{\tt NotEq}\indexTT{NotEq}
+to the \mbox{\tt primitive}\indexTT{primitive} type.
+For all except the first, add suitable pairs to the \mbox{\tt primitives}\indexTT{primitives} association
+list, so that the names of these primitives can be mapped to their
+values by \mbox{\tt instantiateVar}\indexTT{instantiateVar}.
+\item
+Add a definition for \mbox{\tt instantiateConstr}\indexTT{instantiateConstr} (and \mbox{\tt instantiateAndUpdateConstr}\indexTT{instantiateAndUpdateConstr}
+if necessary).
+\item
+The \mbox{\tt isDataNode}\indexTT{isDataNode} function should identify \mbox{\tt NData}\indexTT{NData} nodes as well as \mbox{\tt NNum}\indexTT{NNum} nodes.
+\item
+The \mbox{\tt dispatch}\indexTT{dispatch} code in \mbox{\tt step}\indexTT{step} needs an extra case for \mbox{\tt NData}\indexTT{NData} nodes, calling
+a new auxiliary function \mbox{\tt dataStep}\indexTT{dataStep}.
+\item
+Define \mbox{\tt dataStep}\indexTT{dataStep}; it is very similar to \mbox{\tt numStep}\indexTT{numStep}.
+\item
+Extend \mbox{\tt primStep}\indexTT{primStep} to cope with the new primitives \mbox{\tt PrimConstr}\indexTT{PrimConstr}, \mbox{\tt If}, \mbox{\tt Greater}\indexTT{Greater}
+and so on.
+For \mbox{\tt PrimConstr}\indexTT{PrimConstr} and \mbox{\tt If} it should call new auxiliary functions \mbox{\tt primConstr}\indexTT{primConstr}
+and \mbox{\tt primIf}\indexTT{primIf}.
+The comparison primitives can almost, but not quite, use \mbox{\tt primArith}\indexTT{primArith}.
+What we need is a slight generalisation of \mbox{\tt primArith}\indexTT{primArith}:
+\begin{verbatim}
+> primDyadic :: TiState -> (Node -> Node -> Node) -> TiState
+\end{verbatim}
+\indexDTT{primDyadic}%
+which takes a node-combining function instead of a number-combining one.
+It is simple to define \mbox{\tt primArith}\indexTT{primArith}, and a similar function \mbox{\tt primComp}\indexTT{primComp} for
+comparison primitives, in terms of \mbox{\tt primDyadic}\indexTT{primDyadic}; and to
+define \mbox{\tt primDyadic}\indexTT{primDyadic} by generalising the definition of \mbox{\tt primArith}\indexTT{primArith}.
+\end{itemize}
+
+\begin{exercise}
+Make all these changes.
+Now, at last, we can write sensible recursive functions, because we
+have a conditional to terminate the recursion.
+Try, for example, the factorial function
+\begin{verbatim}
+        fac n = if (n == 0) 1 (n * fac (n-1)) ;
+        main = fac 3
+\end{verbatim}
+\end{exercise}
+
+\subsection{Pairs}
+
+The constructors for booleans both have arity zero.  Next, we will
+add the data type of pairs\index{pairs}, which might be declared in Miranda like this:
+\begin{verbatim}
+        pair * ** ::= MkPair * **
+\end{verbatim}
+
+We can build pairs using the \mbox{\tt Pack{\char'173}1,2{\char'175}}\indexTT{Pack} constructor:
+\begin{verbatim}
+        MkPair = Pack{1,2}
+\end{verbatim}
+How about taking them apart, still without using \mbox{\tt case}\indexTT{case} expressions?
+For example, consider the following Core-language program involving
+a \mbox{\tt case}\indexTT{case} expression:
+\begin{verbatim}
+        f p = case p of
+                <1> a b -> b*a*a end
+\end{verbatim}
+Lacking \mbox{\tt case}\indexTT{case} expressions, we can translate it instead as follows:
+\begin{verbatim}
+        f p = casePair p f'
+        f' a b = b*a*a
+\end{verbatim}
+Here, \mbox{\tt f'} is an auxiliary function, and \mbox{\tt casePair}\indexTT{casePair} is a built-in primitive
+defined like this:
+\begin{verbatim}
+        casePair (Pack{1,2} a b) f = f a b
+\end{verbatim}
+
+Operationally, \mbox{\tt casePair}\indexTT{casePair} evaluates its first argument, which it expects to
+yield a pair; it then applies its second argument to the two components of
+the pair.
+You can implement this by adding yet another constructor \mbox{\tt PrimCasePair}\indexTT{PrimCasePair} to
+the \mbox{\tt primitive}\indexTT{primitive} type, and writing some more code to handle it.
+
+We can, for example, define \mbox{\tt fst}\indexTT{fst} and \mbox{\tt snd}\indexTT{snd} which extract the
+first and second components of a pair, with the following Core-language
+definitions:
+\begin{verbatim}
+        fst p = casePair p K
+        snd p = casePair p K1
+\end{verbatim}
+
+\begin{exercise}
+Write the state transition rules for \mbox{\tt casePair}\indexTT{casePair}.  As usual, you will need
+two rules: one to perform the reduction if the first argument is evaluated,
+and one to start its evaluation if not.
+
+Make the necessary changes to implement pairs, as described above.
+
+Test your implementation with the following program (and others of your own):
+\begin{verbatim}
+        main = fst (snd (fst (MkPair (MkPair 1 (MkPair 2 3)) 4)))
+\end{verbatim}
+\end{exercise}
+
+\subsection{Lists}
+
+Now that you have done pairs and booleans, lists should be easy.
+The list\index{lists} data type might be defined in Miranda like this:
+\begin{verbatim}
+        list * ::= Nil | Cons * (list *)
+\end{verbatim}
+We assign the tag 1 to \mbox{\tt Nil}\indexTT{Nil} and 2 to \mbox{\tt Cons}\indexTT{Cons}.
+
+The only question is what exactly
+the \mbox{\tt caseList}\indexTT{caseList} primitive, which takes a list apart, should do.
+We recall that the \mbox{\tt casePair}\indexTT{casePair} has one `continuation', a function which
+takes the components
+of the pair as its arguments.  \mbox{\tt if} has two `continuations', and selects one
+or other depending on the value of its first argument.
+So \mbox{\tt caseList}\indexTT{caseList} is just a combination of both these ideas:
+\begin{verbatim}
+        caseList Pack{1,0}        cn cc = cn
+        caseList (Pack{2,2} x xs) cn cc = cc x xs
+\end{verbatim}
+It takes three arguments, and evaluates the first one.  If it is an empty
+list (i.e.\ has a tag
+of 1 and no components) then \mbox{\tt caseList}\indexTT{caseList} simply selects its second argument \mbox{\tt cn}.
+Otherwise it must be a list cell (i.e.\ a tag of 2 and two components), and
+\mbox{\tt caseList}\indexTT{caseList} applies its third argument \mbox{\tt cc} to these components.
+
+For example, suppose we wanted to implement the \mbox{\tt length}\indexTT{length} function, which in
+Miranda would be written
+\begin{verbatim}
+        length [] = 0
+        length (x:xs) = 1 + length xs
+\end{verbatim}
+With the aid of \mbox{\tt caseList}\indexTT{caseList} we could write length like this:
+\begin{verbatim}
+        length xs = caseList xs 0 length'
+        length' x xs = 1 + length xs
+\end{verbatim}
+
+\begin{exercise}
+Write Core-language definitions for
+\mbox{\tt Cons}\indexTT{Cons}, \mbox{\tt Nil}\indexTT{Nil}, \mbox{\tt head}\indexTT{head} and
+\mbox{\tt tail}\indexTT{tail}. To define \mbox{\tt head}\indexTT{head} and \mbox{\tt tail}\indexTT{tail},
+you will need to introduce a new
+primitive \mbox{\tt abort}\indexTT{abort}, which is returned if you take the \mbox{\tt head}\indexTT{head} or \mbox{\tt tail}\indexTT{tail} of
+an empty list.
+\mbox{\tt abort}\indexTT{abort} can conveniently be implemented by
+calling Miranda's \mbox{\tt error}\indexTT{error} primitive to stop the program.
+\end{exercise}
+
+\begin{exercise}
+Write the state transition rules for \mbox{\tt caseList}\indexTT{caseList},
+implement it and \mbox{\tt abort}\indexTT{abort},
+and add definitions to \mbox{\tt preludeDefs}\indexTT{preludeDefs} for \mbox{\tt Cons}\indexTT{Cons}, \mbox{\tt Nil}\indexTT{Nil}, \mbox{\tt head}\indexTT{head} and
+\mbox{\tt tail}\indexTT{tail}.
+
+Write some programs to test your implementation.
+\end{exercise}
+
+You should now be able to write a suitable \mbox{\tt case}\indexTT{case} primitive for any
+structured data type you care to think of.
+\begin{exercise}
+What is the main disadvantage of taking apart structured data types
+with \mbox{\tt case}\indexTT{case} primitives,
+rather than implementing full \mbox{\tt case}\indexTT{case} expressions?
+\end{exercise}
+
+\subsection{Printing\index{printing} lists}
+\label{sect:templ:print-list}
+
+So far we have been implicitly assuming that the result of the
+whole program is a number.
+What would we have to do to allow a {\em list\/} of numbers to be the result?
+If this was the case, after evaluating \mbox{\tt main}\indexTT{main} for a while,
+we would eventually expect to find the address of a list object
+on top of the stack.
+If it is an empty list, the program terminates.
+If it is a \mbox{\tt Cons}\indexTT{Cons} cell, and
+its head is not evaluated we need to begin a recursive evaluation
+of its head; if the head is evaluated we need to print the head, and then
+repeat the whole exercise on the tail.
+
+As soon as we start to write state transition rules to describe this, we
+have to decide how to express the idea of `printing a number' in our state
+transition world.  The neatest solution is to add a new component
+to the state, called the {\em output}, and model `printing a number'
+by `appending a number to the output'.  We will also add two
+new primitives, \mbox{\tt Print}\indexTT{Print} and \mbox{\tt Stop}\indexTT{Stop}.
+
+The \mbox{\tt Stop}\indexTT{Stop} primitive is easy: it makes the stack empty.
+(\mbox{\tt tiFinal}\indexTT{tiFinal} will be altered to stop the machine when it sees an empty stack,
+rather than giving an error, which is what it does now.)
+\mbox{\tt Stop}\indexTT{Stop} expects the dump to be empty.
+\tiruleO{
+        \tistateO{o}{a:[]}{[]}{h[a:\mbox{\tt NPrim\ Stop}]}{f}
+}{
+        \tistateO{o}{[]}{[]}{h}{f}
+}
+\label{rule:stop}
+
+The \mbox{\tt Print}\indexTT{Print} primitive evaluates its first argument to an integer,
+and attaches its value
+to the output list; then it returns its second argument as its result.
+It also expects the dump to be empty.
+The first rule applies if the first argument is already evaluated:
+\tiruleO{
+        \tistateO{o}{a:a_1:a_2:[]}{[]}
+                {h\left[\begin{array}{l}
+                        a:\mbox{\tt NPrim\ Print} \\
+                        a_1:\mbox{\tt NAp}\indexTT{NAp}~a~b_1 \\
+                        a_2:\mbox{\tt NAp}\indexTT{NAp}~a_1~b_2 \\
+                        b_1:\mbox{\tt NNum}\indexTT{NNum}~n
+                \end{array}\right]}{f}
+}{
+        \tistateO{o \plusplus [n]}{b_2:[]}{[]}{h}{f}
+}
+\label{rule:print}
+
+\mbox{\tt Print}\indexTT{Print} is a rather weird supercombinator,
+because it has a side-effect
+on the output $o$.  \mbox{\tt Print}\indexTT{Print} must obviously be used with care!
+The second rule applies if \mbox{\tt Print}\indexTT{Print}'s first argument is not evaluated: it
+starts an evaluation in the usual way.
+\tiruleO{
+        \tistateO{o}{a:a_1:a_2:[]}{[]}
+                {h\left[\begin{array}{l}
+                        a:\mbox{\tt NPrim\ Print} \\
+                        a_1:\mbox{\tt NAp}\indexTT{NAp}~a~b_1 \\
+                        a_2:\mbox{\tt NAp}\indexTT{NAp}~a_1~b_2 \\
+                \end{array}\right]}{f}
+}{
+        \tistateO{o}{b_1:[]}{(a_2:[]):[]}{h}{f}
+}
+\label{rule:print-eval}
+
+Now, we define the following extra functions in \mbox{\tt extraPreludeDefs}\indexTT{extraPreludeDefs}:
+\begin{verbatim}
+        printList xs = caseList xs stop printCons
+        printCons h t = print h (printList t)
+\end{verbatim}
+where \mbox{\tt "print"} is bound by \mbox{\tt primitives}\indexTT{primitives} to the \mbox{\tt Print}\indexTT{Print} primitive,
+and \mbox{\tt "stop"} is bound to \mbox{\tt Stop}\indexTT{Stop}.
+
+Finally, we modify the \mbox{\tt compile}\indexTT{compile} function so that the stack initially contains
+the address of the expression \mbox{\tt (printList\ main)}.
+It should not take long to convince yourself that this does the right
+thing.
+
+\begin{exercise}
+Implement these changes, and test your implementation by writing a program
+which returns a list of numbers.
+\end{exercise}
+
+\section{Alternative implementations\advanced}
+
+These exercises explore some alternative implementations for things we have
+done.
+
+\subsection{An alternative representation for primitives}
+\label{sect:ti:alternative-data}
+
+Since {\em the only thing we ever
+do to a primitive is execute it}, we
+can play the following trick: instead of making \mbox{\tt primitive}\indexTT{primitive} be
+an enumeration type on which we perform case analysis, we could
+make it a {\em function\/} which takes a \mbox{\tt tiState}\indexTT{tiState} to a \mbox{\tt tiState}\indexTT{tiState}, like this:
+\begin{verbatim}
+>  Type Primitive = TiState -> TiState
+\end{verbatim}
+The constructors \mbox{\tt Add}\indexTT{Add}, \mbox{\tt Sub}\indexTT{Sub} and so on have vanished altogether.
+Now the `case analysis' done by \mbox{\tt primStep}\indexTT{primStep} is rather easy:
+just apply the function!
+Here are the revised definitions for \mbox{\tt primStep}\indexTT{primStep} and \mbox{\tt primitives}\indexTT{primitives}.
+\begin{verbatim}
+> primStep state prim = prim state
+> primitives = [ ("negate", primNeg),
+>               ("+", primArith (+)), ("-", primArith (-)),
+>               ("*", primArith (*)), ("/", primArith (/))
+>              ]
+\end{verbatim}
+\indexDTT{primStep}%
+\indexDTT{primitives}%
+This has a direct counterpart in real implementations: instead of
+storing a small integer tag in a \mbox{\tt NPrim}\indexTT{NPrim} node to distinguish among
+primitives, we store a code pointer, and jump to it to execute the
+primitive.
+
+\begin{exercise}
+Implement and test this change.
+\end{exercise}
+
+\subsection{An alternative representation of the dump\index{dump!alternative representation}}
+
+At present we have implemented the dump as a stack of stacks, but in
+a real implementation we would doubtless build the new stack directly
+on top of the old one.  The dump would then contain offsets from the
+base of the
+spine stack, telling where one sub-stack ends and the next begins.
+
+We can model this directly in our machine with the following type
+declaration:
+\begin{verbatim}
+> type TiDump = Stack Num
+\end{verbatim}
+\indexDTT{type}%
+\begin{exercise}
+Implement and test this change.  You will need to modify the equations
+that deal with beginning and ending an evaluation of an argument,
+and the definition of \mbox{\tt tiFinal}\indexTT{tiFinal}.
+\end{exercise}
+
+\subsection{An alternative representation for data values}
+\label{sect:template:data-str-hof}
+\index{data structures!as higher-order functions}
+
+There is another way to implement booleans\index{booleans!as higher-order functions}
+which is quite instructive.
+The reduction rules given in Section~\ref{sect:templ:conditional}
+for \mbox{\tt if} simply select one or other of
+the second or third arguments.
+Now, suppose that instead of representing a boolean value as a structured
+data object, we represented it as a {\em function,
+which selects one or other of its arguments}.  That is, \mbox{\tt True}\indexTT{True} and
+\mbox{\tt False}\indexTT{False} are redefined like this:
+\begin{verbatim}
+        True  t f = t
+        False t f = f
+\end{verbatim}
+Now boolean operators can be defined like this:
+\begin{verbatim}
+        if = I
+        and b1 b2 t f = b1 (b2 t f) f
+        or b1 b2 t f = b1 t (b2 t f)
+        not b t f = b f t
+\end{verbatim}
+These definitions can all be included in \mbox{\tt extraPreludeDefs}\indexTT{extraPreludeDefs}.
+Now the only primitives required are the arithmetic comparison operators!
+There is no need to define a primitive \mbox{\tt if}, or
+to add \mbox{\tt NData}\indexTT{NData} to the \mbox{\tt node}\indexTT{node} type.
+
+We can apply exactly the same trick for pairs\index{pairs}.  A pair is represented
+as a {\em function\/} which takes a single argument and applies it to the
+two components of the pair:
+\begin{verbatim}
+        pair a b f = f a b
+        casePair = I
+        fst p = p K
+        snd p = p K1
+\end{verbatim}
+The same trick works for lists\index{lists}, but now we need two `extra' arguments,
+one to use if the list is a \mbox{\tt Cons}\indexTT{Cons} cell, and the other to use if it is empty:
+\begin{verbatim}
+        cons a b cn cc = cc a b
+        nil      cn cc = cn
+        caseList = I
+\end{verbatim}
+
+\begin{exercise}
+Implement booleans, pairs and lists in this way, and measure
+their performance.
+What advantages and disadvantages
+can you see relative to the previous implementation?
+\end{exercise}
+
+\section{Garbage collection\index{garbage collection}\advanced}
+
+As execution proceeds, more and more nodes will be allocated in the
+heap, so the Miranda data structure representing the heap will become
+larger and larger.  Eventually, Miranda will run out of space.  This
+comes as no surprise, because it corresponds directly to real
+implementations.  As nodes are allocated, the heap becomes larger and
+larger, and eventually fills up.  We need to perform {\em garbage
+collection\/} to free up some space.
+
+More specifically, we need to define a function \mbox{\tt gc}, with type
+
+
+whose result state behaves exactly like its input state, except that
+it has a (hopefully) smaller heap.  This smaller heap contains all the
+nodes which are accessible from the other components of the machine
+state, directly or indirectly.  \mbox{\tt gc} makes the heap smaller by
+calling \mbox{\tt hFree}\indexTT{hFree} on the addresses of nodes which are no longer required
+(see Appendix~\ref{sect:heap} for a description of \mbox{\tt hFree}\indexTT{hFree}).
+
+The \mbox{\tt doAdmin}\indexTT{doAdmin} function can check the
+heap size (using \mbox{\tt hSize}\indexTT{hSize}) after each step, and call the garbage collector
+if it is larger than some given size.
+
+\subsection{Mark-scan collection}\index{mark-scan collection}
+
+To begin with, we will develop a {\em mark-scan collector}.
+This works in three phases:
+\begin{enumerate}
+\item
+The first phase identifies all the {\em roots\/}; that is,
+all the heap addresses contained in the machine state.  Where can such addresses
+be lurking?  We can easily find out by looking at the types involved in
+the machine state for occurrences of \mbox{\tt addr}\indexTT{addr}.  The answer is that addresses
+can occur in the stack, the dump and the globals.  So we need the following
+functions:
+\begin{verbatim}
+> findStackRoots  :: TiStack -> [Addr]
+> findDumpRoots   :: TiDump -> [Addr]
+> findGlobalRoots :: TiGlobals -> [Addr]
+\end{verbatim}
+\indexDTT{findStackRoots}%
+\indexDTT{findDumpRoots}%
+\indexDTT{findGlobalRoots}%
+\item
+In the {\em mark phase}, each node whose address is in the machine
+state is {\em marked}.  When a node is marked, all its descendants
+are also marked, and so on recursively.
+The \mbox{\tt markFrom}\indexTT{markFrom} function takes a heap and an address, and returns a new
+heap in which all the nodes accessible from the address have been marked.
+\begin{verbatim}
+> markFrom :: TiHeap -> Addr -> TiHeap
+\end{verbatim}
+\indexDTT{markFrom}%
+\item
+In the {\em scan phase}, all the nodes in the heap (whether marked or not)
+are examined.  Unmarked nodes are freed, and marked nodes are unmarked.
+\begin{verbatim}
+> scanHeap :: TiHeap -> TiHeap
+\end{verbatim}
+\indexDTT{scanHeap}%
+\end{enumerate}
+\begin{exercise}
+Write a definition for \mbox{\tt gc} in terms of \mbox{\tt findRoots}\indexTT{findRoots}, \mbox{\tt markFrom}\indexTT{markFrom} and \mbox{\tt scanHeap}\indexTT{scanHeap},
+and call it appropriately from \mbox{\tt doAdmin}\indexTT{doAdmin}.
+\end{exercise}
+\begin{exercise}
+Write a definition for \mbox{\tt findRoots}\indexTT{findRoots}.
+\end{exercise}
+
+Before we can implement \mbox{\tt markFrom}\indexTT{markFrom} and \mbox{\tt scanHeap}\indexTT{scanHeap} we need to
+have a way to {\em mark\/} a node.
+In a real implementation this
+is done by using a bit in the node to indicate
+whether or not the node is marked.
+We will model this by adding a new constructor, the \mbox{\tt node}\indexTT{node} type, as follows:
+\begin{verbatim}
+> data Node = NAp Addr Addr                     -- Application
+>           | NSupercomb Name [Name] CoreExpr   -- Supercombinator
+>           | NNum Int                          -- Number
+>           | NInd Addr                         -- Indirection
+>           | NPrim Name Primitive              -- Primitive
+>           | NData Int [Addr]                  -- Tag, list of components
+>           | NMarked Node                      -- Marked node
+\end{verbatim}
+\indexDTT{data}%
+\indexDTT{NSupercomb}%
+\indexDTT{NNum}%
+\indexDTT{NInd}%
+\indexDTT{NPrim}%
+\indexDTT{NData}%
+\indexDTT{NMarked}%
+\par
+The new kind of node is an \mbox{\tt NMarked}\indexTT{NMarked} node, and it contains inside it the \mbox{\tt node}\indexTT{node}
+which was there before the marking happened.
+The \mbox{\tt node}\indexTT{node} inside an \mbox{\tt NMarked}\indexTT{NMarked} node
+is never another \mbox{\tt NMarked}\indexTT{NMarked} node.
+
+Now we are ready to define \mbox{\tt markFrom}\indexTT{markFrom}.
+Given an address $a$ and a heap $h$, it does the following:
+\begin{enumerate}
+\item
+It looks up $a$ in $h$, giving a node $n$.  If it is already marked, \mbox{\tt markFrom}\indexTT{markFrom}
+returns immediately.  This is what prevents the marking process from going
+on forever when it encounters a cyclic structure in the heap.
+\item
+It marks the node by using \mbox{\tt hUpdate}\indexTT{hUpdate} to replace it with $\mbox{\tt NMarked}\indexTT{NMarked}~n$.
+\item
+It extracts any addresses from inside $n$ (there may be zero or more
+such addresses), and calls \mbox{\tt markFrom}\indexTT{markFrom} on each of them.
+\end{enumerate}
+All that remains is \mbox{\tt scanHeap}\indexTT{scanHeap}.   It uses \mbox{\tt hAddresses}\indexTT{hAddresses} to extract the list of
+all the addresses used in the heap, and examines each in turn.  If the node
+to which it refers is unmarked (that is, not an \mbox{\tt NMarked}\indexTT{NMarked} node), it calls
+\mbox{\tt hFree}\indexTT{hFree} to free the node.  Otherwise, it unmarks the node by
+using \mbox{\tt hUpdate}\indexTT{hUpdate} to replace it with the node found inside the
+\mbox{\tt NMarked}\indexTT{NMarked} constructor.
+\begin{exercise}
+Write definitions for \mbox{\tt markFrom}\indexTT{markFrom} and \mbox{\tt scanHeap}\indexTT{scanHeap}.
+\end{exercise}
+
+That completes the mark-scan garbage collector.
+
+Mark-scan is not the only way to perform garbage collection, and
+we now suggest some directions for further exploration.
+A brief survey of garbage-collection techniques can be found in
+Chapter 17 of \cite{PJBook}; a more comprehensive review is \cite{Cohen}.
+
+\subsection{Eliminating indirections}
+
+\begin{figure} %\centering
+\input{gc-ind.tex}
+\caption{Eliminating indirections during garbage collection}
+\label{fig:gc-ind}
+\end{figure}
+We begin with an optimisation to the collector we have just developed.
+During evaluation we may introduce indirection nodes, and it would be nice
+to eliminate them, by readjusting pointers as suggested in
+Figure~\ref{fig:gc-ind}.
+To do this, we need to change the functionality of \mbox{\tt markFrom}\indexTT{markFrom} a bit.
+It should now take an address and a heap, mark all the nodes accessible
+from the address, and return a new heap {\em together with a new address
+which should be used instead of the old one}.
+\begin{verbatim}
+> markFrom :: TiHeap -> Addr -> (TiHeap, Addr)
+\end{verbatim}
+\indexDTT{markFrom}%
+In the picture, calling
+\mbox{\tt markFrom}\indexTT{markFrom} with the address of node (a) should mark node (c) (but not node
+(b)), and return the address of node (c).
+
+How do we make use of the address returned by \mbox{\tt markFrom}\indexTT{markFrom}?
+It must be inserted in place
+of the address with which \mbox{\tt markFrom}\indexTT{markFrom} was called.  The easiest way to do
+this is to merge the first two phases, so that as each root is identified
+in the machine state,
+\mbox{\tt markFrom}\indexTT{markFrom} is called, and the returned address is used to replace the
+original root in the machine state.
+So we replace \mbox{\tt findStackRoots}\indexTT{findStackRoots} and its companions with:
+\begin{verbatim}
+> markFromStack   :: TiHeap -> TiStack   -> (TiHeap,TiStack)
+> markFromDump    :: TiHeap -> TiDump    -> (TiHeap,TiDump)
+> markFromGlobals :: TiHeap -> TiGlobals -> (TiHeap,TiGlobals)
+\end{verbatim}
+\indexDTT{markFromStack}%
+\indexDTT{markFromDump}%
+\indexDTT{markFromGlobals}%
+\begin{exercise}
+Implement the revised version of \mbox{\tt markFrom}\indexTT{markFrom}, making it `skip over'
+indirections without marking them, and update the addresses inside
+each node as it calls itself recursively.
+Then implement the other marking functions in terms of \mbox{\tt markFrom}\indexTT{markFrom},
+and glue them together
+with a new version of \mbox{\tt gc}.
+Measure the improvement, by comparing the heap sizes obtained with this
+new collector to the ones you obtained before.  (You can easily revert to
+the one before by removing the special handling of \mbox{\tt NInd}\indexTT{NInd} from
+\mbox{\tt markFrom}\indexTT{markFrom}.)
+\end{exercise}
+
+\subsection{Pointer reversal}\index{pointer reversal}
+
+If all the $N$ nodes in the heap happened to be linked together into a single
+long list, then \mbox{\tt markFrom}\indexTT{markFrom} would call itself recursively $N$ times.
+In a real implementation this would build up a stack which is as deep as the
+heap is large.  It is very tiresome to have to allocate a stack as large
+as the heap to account for a very unlikely situation!
+
+There is a neat trick called {\em pointer reversal},
+which can eliminate the stack by linking together the
+very nodes which are being marked \cite{PointerReversal}.
+The only extra requirement placed by the algorithm is that
+marked nodes need a few extra bits of state information.  We can express
+this by expanding the \mbox{\tt NMarked}\indexTT{NMarked} constructor somewhat:
+\begin{verbatim}
+> data Node = NAp Addr Addr                     -- Application
+>           | NSupercomb Name [Name] CoreExpr   -- Supercombinator
+>           | NNum Int                          -- Number
+>           | NInd Addr                         -- Indirection
+>           | NPrim Name Primitive              -- Primitive
+>           | NData Int [Addr]                  -- Tag, list of components
+>           | NMarked MarkState Node            -- Marked node
+\end{verbatim}
+\indexDTT{data}%
+\indexDTT{NSupercomb}%
+\indexDTT{NNum}%
+\indexDTT{NInd}%
+\indexDTT{NPrim}%
+\indexDTT{NData}%
+\indexDTT{NMarked}%
+\begin{verbatim}
+> data markState = Done         -- Marking on this node finished
+>                | Visits Int   -- Node visited n times so far
+\end{verbatim}
+\indexDTT{data}%
+\indexDTT{Visits}%
+The meaning of the constructors for \mbox{\tt markState}\indexTT{markState} will be explained shortly.
+
+\begin{figure} %\centering
+\input{gc}
+\caption{Marking a graph using pointer reversal}
+\label{fig:gc}
+\end{figure}
+We can describe the pointer-reversal
+algorithm with the aid of another (quite separate) state
+transition system.
+The state of the
+marking machine has three components $(f,b,h)$, the \stressD{forward pointer},
+the \stressD{backward pointer} and the heap.  Each call to \mbox{\tt markFrom}\indexTT{markFrom}
+initiates a new run of the machine.  When \mbox{\tt markFrom}\indexTT{markFrom} is called with
+address $a$ and heap $h_{init}$ the machine is started from the state
+\[
+(a,\mbox{\tt hNull}\indexTT{hNull},h_{init})
+\]
+(\mbox{\tt hNull}\indexTT{hNull} is a distinguished value of type \mbox{\tt addr}\indexTT{addr} which does not address any
+object in the heap, and which can be distinguished from ordinary addresses.)
+The machine terminates when it is in a state
+\[
+(f,~\mbox{\tt hNull}\indexTT{hNull},~ h[f:\mbox{\tt NMarked\ Done}~n])
+\]
+that is, when $f$ points to a marked node, and $b=\mbox{\tt hNull}\indexTT{hNull}$.
+(It is possible that the initial state is also a final state, if the
+node pointed to by $f$ is already marked.)
+
+We begin the transition rules by describing how the machine handles
+unmarked nodes.  \mbox{\tt NData}\indexTT{NData} nodes will be ignored for the present.
+First, we deal with the case of applications.  When we encounter an
+unmarked application, we `go down' into its first sub-graph,
+recording the old back-pointer in the first field of the \mbox{\tt NAp}\indexTT{NAp} node.
+The new forward-pointer addresses the first sub-graph, and the
+new back-pointer addresses the application node itself.
+The state information, \mbox{\tt Visits\ 1}, records the fact that the back-pointer
+is kept in the first field of the \mbox{\tt NAp}\indexTT{NAp} node.
+\gcrule{
+   \gcstate{f}{b}{h[f:\mbox{\tt NAp}\indexTT{NAp}~a_1~a_2]}
+}{
+   \gcstate{a_1}{f}{h[f:\mbox{\tt NMarked}\indexTT{NMarked}~ (\mbox{\tt Visits\ 1})~(\mbox{\tt NAp}\indexTT{NAp}~b~a_2)]}
+}
+This is illustrated in Figure~\ref{fig:gc}(a) and (b).  In this figure the
+marks are abbreviated to `\mbox{\tt V1}' for `\mbox{\tt Visits\ 1}', `\mbox{\tt V2}' for
+`\mbox{\tt Visits\ 2}' and `\mbox{\tt D}' for `\mbox{\tt Done}\indexTT{Done}'.  Notice the way that
+a chain of reversed pointers builds up in the application nodes which
+have been visited.
+
+The next rule says that unmarked \mbox{\tt NPrim}\indexTT{NPrim} nodes should be marked as completed,
+using the \mbox{\tt NMarked\ Done} constructor (Figure~\ref{fig:gc}(c)):
+\gcrule{
+   \gcstate{f}{b}{h[f:\mbox{\tt NPrim}\indexTT{NPrim}~p]}
+}{
+   \gcstate{f}{b}{h[f:\mbox{\tt NMarked\ Done}~(\mbox{\tt NPrim}\indexTT{NPrim}~p)]}
+}
+\mbox{\tt NSupercomb}\indexTT{NSupercomb} and \mbox{\tt NNum}\indexTT{NNum} nodes are treated similarly, since they
+do not contain any further addresses.
+
+So much for unmarked nodes.  When the machine finds that $f$ points to
+a marked node, it inspects the node which $b$ points to.  If it is \mbox{\tt hNull}\indexTT{hNull},
+the machine terminates.  Otherwise, it must be a
+marked \mbox{\tt NAp}\indexTT{NAp} node.  Let us deal first with the case where the
+state information is \mbox{\tt (Visits\ 1)}, saying that the node has been
+visited once. We have therefore completed marking the first sub-graph
+of the \mbox{\tt NAp}\indexTT{NAp} node, and should now mark the second, which we do by making
+$f$ point to it, leaving $b$ unchanged, moving the back-pointer saved
+in the node ($b'$) from the first field to the second, and changing the state
+information (Figure~\ref{fig:gc}(d)):
+\gcrule{
+   \gcstate{f}{b}
+        {h\left[\begin{array}[c]{l}
+                f:\mbox{\tt NMarked\ Done}~n \\
+                b:\mbox{\tt NMarked}\indexTT{NMarked}~(\mbox{\tt Visits\ 1})~(\mbox{\tt NAp}\indexTT{NAp}~b'~a_2)
+                \end{array}\right]}
+}{
+  \gcstate{a_2}{b}{h[b:\mbox{\tt NMarked}\indexTT{NMarked}~ (\mbox{\tt Visits\ 2})~(\mbox{\tt NAp}\indexTT{NAp}~f~b')]}
+}
+
+Some time later, the machine will complete marking the second sub-graph,
+in which case it can restore the node to its original form, and
+back up the chain of back-pointers one stage (Figure~\ref{fig:gc}(e)):
+\gcrule{
+   \gcstate{f}{b}
+        {h\left[\begin{array}[c]{l}
+                f:\mbox{\tt NMarked\ Done}~n \\
+                b:\mbox{\tt NMarked}\indexTT{NMarked}~ (\mbox{\tt Visits\ 2})~ (\mbox{\tt NAp}\indexTT{NAp}~a_1~b')
+                \end{array}\right]}
+}{
+  \gcstate{b}{b'}{h[b:\mbox{\tt NMarked\ Done}~ (\mbox{\tt NAp}\indexTT{NAp}~a_1~f)]}
+}
+
+Lastly, we deal with indirections\index{indirections}.  They are skipped over by
+changing $f$ but not $b$.  The heap is left unchanged, so the indirection itself
+is not marked.  When garbage collection is completed, all indirections will
+therefore be reclaimed.  As you can see, `shorting out' indirections during
+garbage collection is very easy with this marking algorithm.
+\gcrule{
+   \gcstate{f}{b}{h[f:\mbox{\tt NInd}\indexTT{NInd}~a]}
+}{
+   \gcstate{a}{b}{h}
+}
+
+That completes the state transitions for the pointer-reversal algorithm.
+\begin{exercise}
+Add rules for the \mbox{\tt NData}\indexTT{NData} node.
+\end{exercise}
+\begin{exercise}
+Implement the algorithm.  The main changes required are to the \mbox{\tt node}\indexTT{node} type
+and to the \mbox{\tt markFrom}\indexTT{markFrom} function.  \mbox{\tt scan}\indexTT{scan} needs to change in a trivial way,
+because the format of \mbox{\tt NMarked}\indexTT{NMarked} constructors has changed.
+\end{exercise}
+
+\subsection{Two-space garbage collection}\index{two-space garbage collection}
+
+Another very popular way of performing garbage collection is
+to copy all the live data from one heap to another, the so-called
+two-space collector invented by \cite{Fenichel} (see also
+\cite{Baker,Cheney}). The collector works in two stages:
+\begin{enumerate}
+\item
+All the nodes pointed to by the machine state (stack, dump, etc.)
+are \stressD{evacuated} from the old heap (called \stressD{from-space}) into
+the initially empty new heap (called \stressD{to-space}).
+A node is evacuated by allocating
+a copy of it in to-space, and overwriting the from-space copy with a
+\stressD{forwarding pointer} containing the to-space address of the new
+node.
+Like \mbox{\tt markFrom}\indexTT{markFrom}, the
+evacuation routine returns the to-space address of the new node, which
+is used to replace the old address in the machine state.
+\item
+Then all the nodes in to-space are scanned linearly, starting at the first,
+and each is \stressD{scavenged}.
+A node $n$ is scavenged by evacuating any nodes
+to which it points, replacing their addresses in $n$ with their new
+to-space addresses.
+Scanning stops when the scanning pointer catches up with the allocation
+pointer.
+\end{enumerate}
+
+To implement this, we have to add yet another variant of the \mbox{\tt node}\indexTT{node} type,
+this time with an \mbox{\tt NForward}\indexTT{NForward} constructor, which contains a single adddress
+(the to-space address).  (\mbox{\tt NMarked}\indexTT{NMarked} is not needed for this collector.)
+Instead of \mbox{\tt markFromStack}\indexTT{markFromStack} we need \mbox{\tt evacuateStack}\indexTT{evacuateStack} with type:
+\begin{verbatim}
+> evacuateStack :: TiHeap -> TiHeap -> TiStack -> (TiHeap, TiStack)
+\end{verbatim}
+\indexDTT{evacuateStack}%
+\par
+The call $(\mbox{\tt evacuateStack}\indexTT{evacuateStack}~fromheap~toheap~stk)$ evacuates all the
+nodes in $fromheap$ referred to from $stk$ into $toheap$, returning
+the new $toheap$ and the new $stk$.  Similar functions are required for
+the dump and globals.
+
+Lastly, we need a function
+\begin{verbatim}
+> scavengeHeap :: TiHeap -> TiHeap -> TiHeap
+\end{verbatim}
+\indexDTT{scavengeHeap}%
+where the call $(\mbox{\tt scavengeHeap}\indexTT{scavengeHeap}~fromheap~toheap)$ scavenges nodes in
+$toheap$, evacuating when necessary nodes from $fromheap$ into $toheap$.
+
+\begin{exercise}
+Implement this garbage collector.
+\end{exercise}
+
+% end of chapter 2

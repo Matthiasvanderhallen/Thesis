@@ -33,12 +33,13 @@ define %int @GenericClosureEvaluation(%int %closure.mask, i8* %arg){
 }
 
 define %int @main() {
-    %t.1 = call i8* @malloc(%int 24)
-    %t.2 = bitcast i8* %t.1 to {%int,%int,%int}*
-    %args.0 = insertvalue {%int, %int, %int} undef, %int 1, 0
-    %args.1 = insertvalue {%int, %int, %int} %args.0, %int 3, 1
-    %args.2 = insertvalue {%int, %int, %int} %args.1, %int 2, 2
-    store {%int, %int, %int} %args.2, {%int,%int,%int}* %t.2
+    %t.1 = call i8* @malloc(%int 26)
+    %t.2 = bitcast i8* %t.1 to {%int,%int,i1,%int}*
+    %args.0 = insertvalue {%int, %int, i1, %int} undef, %int 15, 0
+    %args.1 = insertvalue {%int, %int, i1, %int} %args.0, %int 16, 1
+    %args.2 = insertvalue {%int, %int, i1, %int} %args.1, %int 17, 3
+    %args.3 = insertvalue {%int, %int, i1, %int} %args.2, i1 6, 2
+    store {%int, %int, i1, %int} %args.3, {%int,%int, i1, %int}* %t.2
     
     %t = call %int @test(i8* %t.1)
     
@@ -48,13 +49,21 @@ define %int @main() {
 @.strval = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 
 define %int @test(i8* %vargs) {
-    %vargs.typed = bitcast i8* %vargs to {%int,%int,%int}*
-    %vargs.val = load {%int,%int,%int}* %vargs.typed
-    %v0 = extractvalue {%int,%int,%int} %vargs.val, 0
-    %v1 = extractvalue {%int,%int,%int} %vargs.val, 1
-    %v2 = extractvalue {%int,%int,%int} %vargs.val, 2
+    %vargs.typed = bitcast i8* %vargs to {%int,%int,i1,%int,%int}*
+    %vargs.val = load {%int,%int,i1, %int, %int}* %vargs.typed
+    %v0 = extractvalue {%int,%int, i1, %int, %int} %vargs.val, 0
+    %v1 = extractvalue {%int,%int, i1, %int, %int} %vargs.val, 1
+    %v2 = extractvalue {%int,%int, i1, %int, %int} %vargs.val, 2
+    %v3 = extractvalue {%int,%int, i1, %int, %int} %vargs.val, 3
+    %v4 = extractvalue {%int,%int, i1, %int, %int} %vargs.val, 4
 
-    call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %v2)
+    call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %v0)
+    call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %v1)
+    call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), i1 %v2)
+    call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %v3)
+    call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.strval, i32 0, i32 0), %int %v4)
+
+    call void @free(i8* %vargs)
 
     ret %int 1
 }

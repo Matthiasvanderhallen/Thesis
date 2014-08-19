@@ -1,0 +1,394 @@
+\batchmode
+\documentstyle[11pt,fpstyle]{report}
+
+\begin{document}
+
+\title{Installation guide\\
+for\\
+Implementing functional languages: a tutorial}
+\author{Simon L Peyton Jones \\ 
+        Department of Computing Science, University of Glasgow
+\and
+        and David R Lester \\
+         Department of Computer Science, University of Manchester\\
+         \copyright{} 1991}
+
+\maketitle
+
+\chapter{Introduction}
+
+This installation guide to ``Implementing functional languages: a tutorial''
+provides you with:
+\begin{itemize}
+\item
+Information about how to get the machine-readable version of the book.
+\item
+A detailed description of how all the files inter-relate, and how to 
+use them.
+\end{itemize}
+
+To use the material you will need the following programs: 
+\mbox{\tt expand}\indexTT{expand}, \mbox{\tt latex}\indexTT{latex}, \mbox{\tt makeindex}\indexTT{makeindex}\footnote{
+\mbox{\tt makeindex}\indexTT{makeindex} is part of the \LaTeX{} world; any good installation will have it.
+Its one true home is \mbox{\tt science.utah.edu:{\char'176}ftp/pub/tex/pub/makeindex}; I
+got ours from \mbox{\tt ucbarpa.berkeley.edu:{\char'176}ftp/pub}.  It's on the Unix \TeX{}
+tape in \mbox{\tt tex82/LateX/LateXmakeindex/src}.  The ``supplementary info''
+posting in \mbox{\tt comp.text.tex} says \mbox{\tt metsat.met.fsu.edu} is also an FTP site,
+and a Mac version is available from \mbox{\tt midway.uchicago.edu}.  The ``archie''
+server nearest you will probably tell you about a zillion other sites.
+
+The current version of \mbox{\tt makeindex}\indexTT{makeindex} is 2.11.
+}, \mbox{\tt perl}\indexTT{perl}\footnote{
+\mbox{\tt perl}\indexTT{perl} can be obtained from any \mbox{\tt comp.sources.unix} 
+archive.  These machines, at the very least,
+definitely have it available for anonymous FTP:
+\begin{tabular}{ll}
+\mbox{\tt ftp.uu.net}                    &       137.39.1.2 \\
+\mbox{\tt archive.cis.ohio-state.edu}    &       128.146.8.52 \\
+\mbox{\tt jpl-devvax.jpl.nasa.gov}       &       128.149.1.143 \\
+\mbox{\tt archive.cs.ruu.nl}             &       131.211.80.5
+\end{tabular}
+}, \mbox{\tt lex}\indexTT{lex}, \mbox{\tt cc} 
+and Miranda\footnote{Miranda is a trademark of 
+Research Software Ltd.}.
+
+The \mbox{\tt Makefile}\indexTT{Makefile} uses a few non-standard features of \mbox{\tt make}\indexTT{make}, so use Sun \mbox{\tt make}\indexTT{make} or
+Gnu \mbox{\tt gmake}\indexTT{gmake}.
+
+\chapter{Getting up-to-date source code}
+
+In case you are reading a paper copy of this document, we begin by
+describing how to get hold of the machine-readable sources for the book,
+and how to keep them up to date.
+
+Once you have got the sources, read the \mbox{\tt README}\indexTT{README} file.  The version number
+of the sources you have is given in the \mbox{\tt Makefile}\indexTT{Makefile}.
+
+\section{Getting the sources}
+\input{getting.tex}
+
+\section{Getting the Tutor's Guide}
+
+The files comprising the Tutor's Guide 
+contain answers to many of the exercises, so they are not included in
+the distribution.
+
+To get them, send a letter on your departmental
+letterhead to Simon Peyton Jones, Department of Computing Science,
+University of Glasgow, G12 8QQ, UK.  (Or, if you are already in email contact,
+send him electronic mail.)
+
+\section{Updating the sources}
+
+From time to time we will doubtless fix errors and improve the distribution.
+As well as the main distribution file \mbox{\tt pjlester-}n\mbox{\tt .}m\mbox{\tt .tar.Z}, the
+distribution directory contains a collection of files named
+$$
+\mbox{\tt pjlester-}n\mbox{\tt .}m\mbox{\tt -}p\mbox{\tt .}q\mbox{\tt .diffs.Z}
+$$
+Each of these is a compressed file of differences between version $n\mbox{\tt .}m$ and
+version $p\mbox{\tt .}q$ of the book.  If you already have version $n\mbox{\tt .}m$, you can
+change it to version $p\mbox{\tt .}q$ as follows:
+\begin{itemize}
+\item
+\mbox{\tt cd} into the directory containing all the book sources.
+\item
+Run the following command:
+$$
+\mbox{\tt zcat\ pjlester-}n\mbox{\tt .}m\mbox{\tt -}p\mbox{\tt .}q\mbox{\tt .diffs.Z\ |\ patch\ -p1}
+$$
+\end{itemize}
+{\em Warning: this does not updated the (binary) file \mbox{\tt installation.dvi}.
+If you want the up-to-date version of this you must either get it
+from the current main distribution, or re-make it from installation.src.}
+
+You can find out what version number you have by looking in 
+the file \mbox{\tt Makefile}\indexTT{Makefile}.
+The \mbox{\tt patch}\indexTT{patch} program does this too, and will complain if you try to
+apply a set of diffs to the wrong version.
+
+The release history is given in the file \mbox{\tt Release-history}.
+
+\chapter{Source files and their format}
+
+All of the text for the two books is contained in the following files:
+\begin{center}
+\begin{tabular}{|lll|}
+\hline 
+Contents        & Student text          & Tutor's Guide \\
+\hline
+Root file       & \mbox{\tt student.src}         & \mbox{\tt tutor.src} \\
+Title           & \mbox{\tt title.src}           & \mbox{\tt title-tutor.src} \\
+Preface         & \mbox{\tt preface.src}         & \mbox{\tt preface-tutor.src} \\
+Chapter 1       & \mbox{\tt language.src}        & \mbox{\tt language-tutor.src} \\
+Chapter 2       & \mbox{\tt template.src}        & \mbox{\tt template-tutor.src} \\
+Chapter 3       & \mbox{\tt gm.src}              & \mbox{\tt gm-tutor.src} \\
+Chapter 4       & \mbox{\tt tim.src}             & \mbox{\tt tim-tutor.src} \\
+Chapter 5       & \mbox{\tt pargm.src}           & \mbox{\tt pargm-tutor.src} \\
+Chapter 6       & \mbox{\tt lambda.src}          & \mbox{\tt lambda-tutor.src} \\
+Appendix        & \mbox{\tt utils.src}           & \\
+Bibliography    & \mbox{\tt bibliography.src}    & \\
+Style file      & \multicolumn{2}{c}{\mbox{\tt fpstyle.sty}} \\
+\hline
+\end{tabular}
+\end{center}
+The root file in each case is what is given to \LaTeX{}, which then includes
+the others.
+All of these \mbox{\tt .src} files are what we call {\em literate source files}.
+From them we can mechanically construct:
+\begin{itemize}
+\item
+Any of several versions of the Miranda code 
+written in the text.
+\item
+Each of the two books, complete with a mechanically-generated index of
+the functions defined in the text.
+\end{itemize}
+We discuss these two in order.
+
+\section{Generating executable Miranda files}
+
+Lines of Miranda source code are distinguished in the \mbox{\tt .src} files
+by the ``inverse comment convention''; that is, lines of Miranda source
+code begin with a \mbox{\tt >} sign.
+
+Because Miranda understands the inverse comment convention,
+the \mbox{\tt .src} files are very nearly valid Miranda source files.  But not quite.
+In the text we develop a succession of versions of each implementation:
+Mark 1, Mark 2, and so on.
+There are two issues here.  Firstly, all of the Mark 1 code is in the
+student text, but much of the code for subsequent versions is in the form
+of exercises, and so does not appear in the student text.  The Tutor's Guide
+contains all the missing code for the subsequent versions.
+
+Secondly,
+in the text we often refine the definition of a particular data type
+or function.  As a result, the text may contain several definitions
+of a particular data type or function, which Miranda will reject.
+So we want to extract from the source file
+the code for Mark 1, say, or the code for Mark 3.
+This requires some way of indicating which version each line of code
+belongs to, for which we use the following convention:
+\begin{itemize}
+\item
+A line like this:
+\begin{verbatim}
+ > f x = x+1
+\end{verbatim}
+belongs to every version.
+\item
+A line like this
+\begin{verbatim}
+ 2> f x = x+1
+\end{verbatim}
+belongs to version 2 only.  Any single-digit version number can be used.
+\item
+A line like this
+\begin{verbatim}
+ 2-4> f x = x+1
+\end{verbatim}
+belongs to versions 2, 3 and 4.  Any pair of single-digit version numbers can
+be used.
+\item
+Finally, a line like this
+\begin{verbatim}
+ 2-> f x = x+1
+\end{verbatim}
+belongs to version 2 and every subsequent version.
+\end{itemize}
+Of course, this convention makes the scripts must be pre-processed before
+being given to Miranda.  
+
+\subsection{How to generate the Miranda sources}
+
+The \mbox{\tt Makefile}\indexTT{Makefile} knows how to generate each version of each machine, so
+all you have to do is say, for example, 
+\mbox{\tt make\ template3.m} to generate the Miranda
+source (\mbox{\tt template3.m}) for Mark 3 of the template-instantation machine.
+
+The targets \mbox{\tt language.m} and \mbox{\tt utils.m} (with no version numbers) generate
+the most advanced versions of the Core-language and Utilities 
+modules respecively.
+These two modules are used widely through the book and it is inconvenient
+to have to say \mbox{\tt language3.m}, for example.
+
+\subsection{How the \mbox{\tt Makefile}\indexTT{Makefile} does its work}
+
+The \mbox{\tt Makefile}\indexTT{Makefile} uses an \mbox{\tt awk}\indexTT{awk} script called \mbox{\tt make-version}, 
+which extracts a given version from the source file.  Its usage is as follows:
+$$
+\mbox{\tt make-version}~n
+$$
+takes a source file on its standard input, filters out any program lines
+which do not belong to version $n$, and puts the result on its standard output.
+For example
+\begin{verbatim}
+        cat template.src template-tutor.src | make-version 3 > template3.m
+\end{verbatim}
+makes version 3 of the template-instantiation machine, putting the result
+in \mbox{\tt template3.m}.  The student and tutor source files are concatenated
+so that the required code is included in the output.
+
+\subsection{Different versions of Miranda}
+
+All the Miranda code in the book should run on both Version 1 and Version 2
+Miranda.  We have taken the following actions to avoid compatibility problems:
+\begin{itemize}
+\item
+Guards are written without a keyword \mbox{\tt if}.  This is illegal in Version 1
+and optional in Version 2.  We always use a ``\mbox{\tt ,\ otherwise}'' guard on the
+final clause of a guarded set of equations; this is optional in Version 1
+but compulsory in Version 2.
+\item
+The definition of the standard function \mbox{\tt foldl}\indexTT{foldl} differs between Version 1 and
+Version 2.  In Appendix~\ref{sect:utils} we 
+define our own function \mbox{\tt foldll}\indexTT{foldll} (which is the same
+as Version 2's \mbox{\tt foldl}\indexTT{foldl}), and always use it instead of \mbox{\tt foldl}\indexTT{foldl}.
+\item
+Version 1 lacks the standard functions \mbox{\tt fst}\indexTT{fst} and \mbox{\tt snd}\indexTT{snd}.  We use 
+\mbox{\tt first}\indexTT{first} and \mbox{\tt second}\indexTT{second} instead, which are defined in 
+Appendix~\ref{sect:utils}.
+\item
+We do not use any of the new features introduced in Version 2, nor do
+we use strictness annotations and laws which were eliminated in Version 2.
+\end{itemize}
+
+\section{Typesetting the book}
+
+The \mbox{\tt .src} files are also very nearly \LaTeX{} source files, but again not quite.
+There are two differences: typewriter font text is written more compactly than
+in \LaTeX{}, and indexing is added automatically for Miranda functions.
+
+From this material you can typeset two books: the main textbook (\mbox{\tt student.dvi}),
+and the Tutor's Guide (\mbox{\tt tutor.dvi}).  Please do not make bulk copies of
+the former; we would prefer student to buy the book!
+
+\subsection{Running \LaTeX{}}
+
+\begin{enumerate}
+\item
+The distribution includes a typeset version of the installation guide (this
+document), namely \mbox{\tt installation.dvi}.  Still, if you want to re-make it, 
+say \mbox{\tt make\ installation.dvi}.
+\item
+To typeset the book, just say \mbox{\tt make}\indexTT{make}; the result should be in \mbox{\tt student.dvi}.  
+
+To get started, the file \mbox{\tt student.idx} should exist or the \mbox{\tt Makefile}\indexTT{Makefile} will
+complain.  So start by saying \mbox{\tt touch\ student.idx}.  (The distribution
+contains a null \mbox{\tt student.idx} for this very reason.)
+
+You'll get a lot of unresolved references and no index the first time; just 
+say \mbox{\tt make\ student.dvi} twice more, and everything should get resolved.  (\mbox{\tt make}\indexTT{make} will
+re-\LaTeX{} the book, because it spots that the index has altered.)
+
+{\bf Warning.}  You will need a big \LaTeX{} to typeset the book.
+\item
+To typeset the tutor's guide, say \mbox{\tt make\ tutor.dvi}.
+\end{enumerate}
+
+\subsection{Figures}
+
+The figures were drawn using the Fig program, whose output is in files
+with extension \mbox{\tt .fig}.  These are translated into \LaTeX{} by the \mbox{\tt fig2dev}\indexTT{fig2dev} 
+program.
+
+The release includes the \mbox{\tt .tex} files as well as the \mbox{\tt .fig} ones, 
+in case you havn't got \mbox{\tt fig2dev}\indexTT{fig2dev}.
+
+\subsection{Font selection}
+
+Newer \LaTeX{} installations use the New Font Selection Scheme (NFSS).
+Old versions don't.  There are a couple of places in the style file \mbox{\tt fpstyle.sty}
+where we've put in some conditional code which is meant to do the right thing
+regardless of which version you have.  This certainly works if you have NFSS, 
+but we can't guarantee it works if you don't.  This section tells you what
+we are trying to do, so you can get local help if you need it.
+
+There are two places font selection shows up:
+\begin{itemize}
+\item
+Like many others, we tell \LaTeX{} (or is it \TeX{}?) to make math italic letters appear
+as text italic.  
+This is a fine point.  It only makes a significant difference when
+the letter $f$ is used as part of a word in math italic,
+and even then everything is legible either way.
+
+\item
+The figures, whose \LaTeX{} code is generated by \mbox{\tt fig}\indexTT{fig}, include
+commands, such as \mbox{\tt {\char'134}ninrm} and \mbox{\tt {\char'134}sevtt}, which are meant to select a
+font (nine-point Roman and seven-point typewriter font respectively).
+This is done directly by NFSS, but \mbox{\tt fpstyle.sty} defines some macros for them
+if NFSS isn't there.
+\end{itemize}
+
+\subsection{Typewriter font material}
+
+The text contains a great deal of material in typewriter font, both inline
+in a paragraph, \mbox{\tt like}\indexTT{like} \mbox{\tt this}\indexTT{this}, and displayed as Miranda source
+
+ > like this
+
+Taking the Miranda source code first, it is already distinguished by 
+the inverse comment convention,
+so it would be very tiresome to have to surround it with
+\mbox{\tt {\char'134}begin{\char'173}verbatim{\char'175}} and \mbox{\tt {\char'134}end{\char'173}verbatim{\char'175}} \LaTeX{} commands as well.
+Furthermore, as described above, we have extended the inverse comment
+convention to describe versions.  But we do not want these version numbers
+to appear in the typeset text!  We have provided, therefore, a program
+called \mbox{\tt verbatim}\indexTT{verbatim} which removes the version-numbering, and adds \mbox{\tt begin}\indexTT{begin}/\mbox{\tt end}\indexTT{end}
+brackets around Miranda code.
+
+Returning to inline material, it makes source text quite illegible to keep
+writing material in typewriter font using the \mbox{\tt {\char'134}tt} command.  For example
+\begin{verbatim}
+        The variables {\tt a} and {\tt b} in function {\tt fun} are gone.
+\end{verbatim}
+Instead we write
+\begin{verbatim}
+        The variables @a@ and @b@ in function @fun@\indexTT{fun} are gone.
+\end{verbatim}
+and rely on \mbox{\tt verbatim}\indexTT{verbatim} to convert the {\tt @@} pairs
+into the appropriate use of \mbox{\tt {\char'134}tt}.  The improvement is even more striking
+in the case of mathematics.  Compare
+\begin{verbatim}
+        The function call $@mapAccuml@\indexTT{mapAccuml}~f~acc~xs$ works well
+\end{verbatim}
+with
+\begin{verbatim}
+        The function call $\mbox{\tt mapAccuml}~f~acc~xs$ works well
+\end{verbatim}
+The \mbox{\tt verbatim}\indexTT{verbatim} program, which is actually a \mbox{\tt lex}\indexTT{lex} script, takes input on
+its standard input, adds the extra \LaTeX{} commands described, and puts the
+output on its standard output.
+
+\subsection{Indexing}
+
+It is highly desirable to have a complete and correct index of all
+the Miranda functions defined in the book.  It would be time-consuming and
+error-prone to do so by hand, so we have automated the process.  The program
+\mbox{\tt add-index-entries} takes a source file on its standard input ({\em before}
+it has been passed through \mbox{\tt verbatim}\indexTT{verbatim}), and adds calls to the
+indexing macros \mbox{\tt {\char'134}indexDef} (for a defining use, underlined in the
+index) and \mbox{\tt {\char'134}indexUse} (for a non-defining use).
+These macros are defined in \mbox{\tt fpstyle.sty}.
+
+\mbox{\tt add-index-entries} chooses what to index as follows:
+\begin{description}
+\item[Function and type definitions.]
+It indexes as a definition
+any identifier which follows the \mbox{\tt >} of a program line
+(including one decorated with a version number), separated from the \mbox{\tt >}
+by a single space.
+\item[Constructor definitions.]
+It indexes as a definition any constructor name (starting with an upper-case
+letter) which follows \mbox{\tt ::=} or \mbox{\tt |}.
+\item
+It indexes as a use any identifier which appears between @@ signs in
+running text.
+\item
+Only identifiers which are at least three characters long are indexed.
+\end{description}
+
+\end{document}
+
+

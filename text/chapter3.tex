@@ -130,7 +130,7 @@ If this happened after copying the value of \lsttext{freevar} to \lsttext{b}, wh
 If the execution switch happens before this copying of \lsttext{freevar} into protected memory, then the result will be computed using the changed value of \lsttext{freevar}.
 
 In contrast, a version using  \lsttext{generateClosure2} never copies the value of \lsttext{freevar} into protected memory. 
-Therefore the result of the closure will allways be computed using the changed value of \lsttext{freevar}.
+Therefore the result of the closure will always be computed using the changed value of \lsttext{freevar}.
 \end{enumerate}
 \end{attack}
 
@@ -903,7 +903,7 @@ Of course the pointers that represent these functions can be manipulated by the 
 However, because contextually equivalent implementations of the functor must perform the same callbacks with the same arguments in the source language in the same order, their target language versions will always use the same pointers provided by the insecure frame, with the same parameters in the same order.
 As a result, the regular precautions, such as clearing registers, switching the stack and masking values that pass from secure code to the insecure context, are sufficient to ensure preservation of contextual equivalence of the functors in the target language. 
 
-Additionaly, when calling the code in insecure context, the real return address should be saved in secure memory, and the return address entry in the insecure stack should be modified to point to the returnback entry point~\cite{Agten:2012:SCM:2354412.2355247}.
+Additionally, when calling the code in insecure context, the real return address should be saved in secure memory, and the return address entry in the insecure stack should be modified to point to the returnback entry point~\cite{Agten:2012:SCM:2354412.2355247}.
 This returnback entry point is listed in the entry points of the \emph{SPM}.
 The returnback entry point retrieves the last real return address saved in memory, and jumps to this address.
 

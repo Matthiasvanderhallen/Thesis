@@ -23,7 +23,7 @@ case class Literal(value: String) extends MLToken //String Literal
 case class Program(val signatures:List[Signature], val structures:List[Structure])
 
 case class Translation(program:Program, var types:String, var entryPoints:String, var values:String, var firstPass:Boolean, var opaqueTypes:Int, var opaqueTypeMapping:Map[String,Int], var implMapping:List[(Int,Int)], var tyvarMapping:Map[Int,Type]) {
-  override def toString() = types + "\n" + values;
+  override def toString() = entryPoints + types + "\n" + values;
 
   def getImplTypeInt(search:Int):Int = {
     val result = implMapping.filter{case (search, _) => true; case _ => false}.head._2
@@ -370,7 +370,7 @@ object Main extends App{
     if(declaration){
       val argumentsAsInt = argTyvar.zip(argNames).map{x => "%int "+x._2+".in" + (if(x._1){", i2 " + x._2 + ".isMask"}else{""})}.mkString(", ")
 
-      value += s"define %int @$ident($argumentsAsInt){\n"
+      value += s"define %int @${ident}_stub($argumentsAsInt){\n"
       value += s"\t;Switch stack, move parameters, add entry point in spm\n"
 
       val argInformation = (fundef.variables, 1 to fundef.variables.length,(argTyvar,argTypeId,argTypeInt).zipped.toList).zipped.toList
@@ -437,6 +437,13 @@ object Main extends App{
                "\t\tunreachable\n"
 
       value += s"}\n\n"
+
+      val entrypoint = s"define %int @$ident($argumentsAsInt){\n"+
+                       s"\t %ret = tail call @${ident}_stub($argumentsAsInt) ; Tail call\n"+
+                       s"\t ret %ret\n" +
+                       s"}\n\n"
+
+      translation.entryPoints = translation.entryPoints.concat(entrypoint)
     }
 
     translation.values = translation.values.concat(value)
@@ -625,6 +632,13 @@ object Main extends App{
         value += s"\tret %int %ret\n"
       }
       value += s"}\n\n"
+
+      val entrypoint = s"define %int @$ident(){\n"+
+        s"\t %ret = tail call @${ident}_stub() ; Tail call\n"+
+        s"\t ret %ret\n" +
+        s"}\n\n"
+
+      translation.entryPoints = translation.entryPoints.concat(entrypoint)
     }
 
     translation.values = translation.values.concat(value)

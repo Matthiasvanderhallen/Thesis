@@ -9,19 +9,39 @@ A conclusion to the work is formulated as well in \myref{sec}{sec:Conclusion}
 Extensive work trying to preserve the security of a source languages when compiling exists.
 The idea of using full abstraction to formalize secure compilation is introduced by Abadi~\cite{Abadi}.
 
-Different techniques to achieve this were developed, for example using \emph{Adress Space Layout Randomisation} or ASLR.
+Different techniques to preserve security even in the low-level computing model were developed, for example the use of \emph{Adress Space Layout Randomization} or ASLR to \emph{prevent} reliable memory manipulation by an attacker.
+This technique randomly changes the arrangement of important program portions.
+For example, the location of the stack, heap and base of the executable might change location within a process's address space.
+This reduces the reliability of an attackers view of the process's address space, making it harder if not impossible for attackers to reliably jump to certain exploitable parts of the code, or to reliably overwrite a certain value in memory.
+
 % introduced by Abadi~\cite{AbadiASLR} as well.
 The idea of ASLR catched on, and ASLR saw implementations in common operating systems such as Windows Vista, OS X Mountain Lion and some Linux distributions. 
 The idea also raised scientific study, for example by Abadi and Plotkin~\cite{AbadiASLR} or Jagadeesan, et al.~\cite{Jagadeesan} and criticism~\cite{Shacham:2004:EAR:1030083.1030124,Strackx:2009:BMS:1519144.1519145}.
+\\
+Additionally, one can make use of stack canaries to try to \emph{detect manipulations} by an attacker. 
+This uses a random value, called a \emph{stack canary}. 
+This random value is placed in the memory, before any critical information, for example the \emph{return address}.
+The return address is a critical piece of information that helps to organize control flow when calling and returning from functions.
+Even if an attacker can somehow overwrite the return address in memory, for example using a buffer overflow\cite{OVSPaper}, it is likely that he will change the value of the stack canary as well.
+This is a detection technique, as the application can check the value of the stack canary against the known random value.
+If this value changed, then the attacker's manipulation is detected, and execution can be stopped.
+\\[1em]
+Other techniques work by providing \emph{isolation} of software components, and introducing security guarantees to memory access using access control.
+This way these isolated software components cannot be compromised by attacking other software components that it interacts with.
+In other words, isolation of software components compartmentalizes these software components, in a way that compromising is only possible on an individual compartment basis.
+This is the goal of secure compilation.
 
-Other techniques work by introducing security guarantees to memory access.
-For example, Agten et al.~\cite{Agten:2012:SCM:2354412.2355247} already provide a secure compilation scheme for an object based language, when access to memory is restricted based on the value of the program counter. This technique is called \emph{Program Counter Based Access Control}, or \emph{PCBAC}~\cite{PCBAC}.
+An example of such research can be found in Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}, who already provided a secure compilation scheme for an object based language, when access to memory is restricted based on the value of the program counter. This technique is called \emph{Program Counter Based Access Control}, or \emph{PCBAC}~\cite{PCBAC}.
 Later work by Patrignani et al.~\cite{Patrignani} introduced additional object oriented concepts to the fully abstract compilation scheme.
 
 The restricted access of memory can be implemented in hardware~\cite{Sancus,SGX} or using software~\cite{Fides,Salus}.
-This choice affects the size of the trusted computing base or \emph{TCB}.
-Even with fully abstract compilation, security issues in the TCB could lead to low-level attacks.
 A recent innovation in restricting access on a hardware level is Intel\textregistered Software Guard Extensions, or \emph{SGX}~\cite{SGX}.
+
+The choice between using software or hardware to provide restricted access to the memory is very important.
+For example, this choice affects the size of the trusted computing base or \emph{TCB}.
+The TCB of an application contains all components, whether they are hardware or software, on which the application can only place its trust to ensure correct execution.
+Even with fully abstract compilation, security issues in the TCB could lead to low-level attacks.
+Consequently, a good TCB is a small, and verifiable TCB.
 
 \section{Future Work}
 \label{sec:FutureWork}

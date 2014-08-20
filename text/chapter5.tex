@@ -47,15 +47,81 @@ The following section will detail how trace semantics can be used to prove compl
 
 \subsection{Trace Semantics}
 \label{sec:tracesemantics}
-Trace semantics~\cite{Rathke, Patrignani:TraceSemantics} describe the behavior of a component as a series of method calls and returns.
+Trace semantics~\cite{Rathke, Patrignani:TraceSemantics} for the low-level language describe the behavior of a program $\compiled{P}$ within a context $\compiled{O_C}$ as all interactions that happen between the context $\compiled{O_C}$ and the program $\compiled{P}$.
+Only the interaction between context $\compiled{O_C}$ and program $\compiled{P}$ is described: this means that trace semantics does \emph{not} capture any \emph{internal} operation.
+The interactions described correspond with any exchange of data or information between context $\compiled{O_C}$ and program $\compiled{P}$.
 
-Full abstraction proofs based on trace semantics, such as~\cite{Patrignani,Agten:2012:SCM:2354412.2355247}, first show that the operational semantics of the target-language are equivalent to the proposed trace semantics.
-As a consequence, the interaction of context objects $O_{c}$ with target-level objects $O_{1}$ and $O_{2}$ in the definition of contextual equivalence can be represented by traces $T_{1}$ \& $T_{2}$.
+Trace semantics produce a trace for a program $\compiled{P}$ executing within a context $\compiled{O_C}$.
+A trace is a sequence of \emph{labels} that correspond with the executed instructions.
+In order to restrict the description to the \emph{interaction} between program $\compiled{P}$ and context $\compiled{O_C}$, not all instructions are given a label.
+Instead, only the \lsttext{call} and \lsttext{ret} instruction are labeled.
+Trace semantics track whether the instruction was executed by program $\compiled{P}$ or by context $\compiled{O_C}$.
+A possible syntax~\cite{Patrignani:TraceSemantics} for traces could be the one given by \myref{fig}{fig:tracesemanticssyntax}.
+\newcommand{\fs}{\;\;\;}
+\vspace{-1.5em}
+{\setlength{\abovecaptionskip}{0pt}
+\begin{figure}[H]
+\begin{align*}
+\begin{aligned}
+\text{Trace\ } T\ ::=\ L\ |\ T\cdot L \fs & \fs L\ ::=\ a\ |\ \tau \fs & \fs a\ ::=\ g?\ |\ g! \fs & \fs g \::=\ \kw{call}\ p(\overline{v})\ |\ \kw{ret}\ v
+\end{aligned}
+\end{align*}
+\caption{Syntax for trace semantics\label{fig:tracesemanticssyntax}.}
+\end{figure}
+}
+\vspace{-1em}
+In this syntax, labels are defined to be actions $a$ or $\tau$, where an action $a$ is observable, and $\tau$ is not.
+It uses $!$ and $?$ to track whether the action was performed in program $\compiled{P}$ or context $\compiled{O_C}$, respectively.
+In a \lsttext{call}, $p$ represents the address that was called and $\overline{v}$ the values passed in registers.
+In a \lsttext{ret}, $v$ represents the value in the return register.
 
-If two target-level objects $\compiled{O_1}$ and $\compiled{O_2}$ are not contextually equivalent, their traces $T_1$ and $T_2$ must be different.
-The proof of fully abstract compilation then must show that if two source-level objects $O_1$,$O_2$ have different target-level traces $T_1$ and $T_2$, a source-level context object $O_C$ can be created from those two traces.
-This $O_C$ will be able to serve as a source-level object that differentiates between two objects $O_1$ and $O_2$.
-The existence of such an object effectively means the source-level objects $O_1$ and $O_2$ are not contextually equivalent, which concludes the completeness proof.
+Full abstraction proofs based on trace semantics, for example the ones given by Patrignani et al.~\cite{Patrignani,Patrignani:TraceSemantics} or Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}, first need to show that the operational semantics of the target language are fully abstract to the proposed low-level trace semantics.
+
+This is only the case if the trace semantics proposed in fact do capture \emph{all} exchange of information and interactions between context $\compiled{O_C}$ and program $\compiled{P}$.
+For the trace semantics with syntax given by \myref{fig}{fig:tracesemanticssyntax}, this is only true if the operational semantics prohibit the exchange of information between context $\compiled{O_C}$ and program $\compiled{P}$ through memory or registers other than the return value register.
+
+If the operational semantics do \emph{not} prohibit the exchange of information through memory or registers other than the return register, then the syntax of labels must be changed to a syntax that captures these channels of communication, as stated by Curien~\cite{Curien2007301} and worked out by Patrignani et al.~\cite{Patrignani:TraceSemantics}.
+\\[1em]
+If the trace semantics are fully abstract w.r.t the operational semantics, then the proof of full abstraction of the compilation scheme becomes easier.
+As traces then fully capture all the interaction of context object $\compiled{O_{c}}$ with a target-level object $\compiled{O_{1}}$, two target-level objects $\compiled{O_1}$ and $\compiled{O_2}$ are indistinguishable with respect to a context if and only if their traces $T_1$ and $T_2$ are the same.
+It follows that the existence of a context $\compiled{O_C}$ that can distinguish between $\compiled{O_1}$ and $\compiled{O_2}$, implies that they produce different traces $T_1$ and $T_2$ for this context $O_C$.
+
+As a consequence, the contrapositive statement of completeness can be rewritten formally as:
+\[
+     \text{Traces}_L(\compiled{O_1}) \neq  \text{Traces}_L(\compiled{O_2}) \implies O_{1} \not\simeq O_{2}
+\]
+
+Proving this statement is simpler than proving the unmodified contrapositive.
+A proof for this statement would for example consist of an algorithm that can create a high-level context $O_C$ that is able to distinguish $O_1$ from $O_2$ using their differing low-level traces $T_1$ and $T_2$.
+This context $O_C$, called the witness~\cite{Patrignani}, shows that $O_1$ and $O_2$ aren't contextually equivalent on the high-level.
+
+If an algorithm exists that for any such pair of traces can construe a high-level context $O_C$, then the existence of this algorithm proves full abstraction of the compilation scheme.
+
+\section{Conclusion}
+A proof of full abstraction of the compilation scheme can be achieved by proving a low-level trace semantics exists that is fully abstract with the operational semantics of the low-level language.
+The trace semantics must capture \emph{all exchange of information} or \emph{interactions} between the low-level program and its context.
+Curien~\cite{Curien2007301} stated that one can make sure the labels of trace semantics capture every interaction between program and context by either:
+\begin{itemize}
+\item making the labels more expressive, so that they can capture the additional channels of communication that can be used, besides the registers at calls and the return register at returns;
+\item modifying the operational semantics, so that they restrict the communication between context and program to those channels captured by the labels.
+\end{itemize}
+
+In this work, as well as that of Agten et al.~\cite{Agten:2012:SCM:2354412.2355247} and Patrignani et al.~\cite{Patrignani}, the compiler modifies the operational semantics so that it indeed limits the exchange of information in this way.
+
+
+
+
+%Trace semantics~\cite{Rathke, Patrignani:TraceSemantics} describe the behavior of a component as a series of method calls and returns.
+
+%Full abstraction proofs based on trace semantics, such as~\cite{Patrignani,Agten:2012:SCM:2354412.2355247}, first show that the operational semantics of the target-language are equivalent to the proposed trace semantics.
+%As a consequence, the interaction of context objects $O_{c}$ with target-level objects $O_{1}$ and $O_{2}$ in the definition of contextual equivalence can be represented by traces $T_{1}$ \& $T_{2}$.
+
+%If two target-level objects $\compiled{O_1}$ and $\compiled{O_2}$ are not contextually equivalent, their traces $T_1$ and $T_2$ must be different.
+%The proof of fully abstract compilation then must show that if two source-level objects $O_1$,$O_2$ have different target-level traces $T_1$ and $T_2$, a source-level context object $O_C$ can be created from those two traces.
+%This $O_C$ will be able to serve as a source-level object that differentiates between two objects $O_1$ and $O_2$.
+%The existence of such an object effectively means the source-level objects $O_1$ and $O_2$ are not contextually equivalent, which concludes the completeness proof.
+
+
 
 %\section{Informal Proof}
 %\label{sec:informalproof}

@@ -48,7 +48,7 @@ The following section will detail how trace semantics can be used to prove compl
 \subsection{Trace Semantics}
 \label{sec:tracesemantics}
 Trace semantics~\cite{Rathke, Patrignani:TraceSemantics} for the low-level language describe the behavior of a program $\compiled{P}$ within a context $\compiled{O_C}$ as all interactions that happen between the context $\compiled{O_C}$ and the program $\compiled{P}$.
-Only the interaction between context $\compiled{O_C}$ and program $\compiled{P}$ is described: this means that trace semantics does \emph{not} capture any \emph{internal} operation.
+Only the interaction between context $\compiled{O_C}$ and program $\compiled{P}$ is described: this means that trace semantics do \emph{not} capture any \emph{internal} operation.
 The interactions described correspond with any exchange of data or information between context $\compiled{O_C}$ and program $\compiled{P}$.
 
 Trace semantics produce a trace for a program $\compiled{P}$ executing within a context $\compiled{O_C}$.
@@ -77,7 +77,7 @@ In a \lsttext{ret}, $v$ represents the value in the return register.
 
 Full abstraction proofs based on trace semantics, for example the ones given by Patrignani et al.~\cite{Patrignani,Patrignani:TraceSemantics} or Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}, first need to show that the operational semantics of the target language are fully abstract to the proposed low-level trace semantics.
 
-This is only the case if the trace semantics proposed in fact do capture \emph{all} exchange of information and interactions between context $\compiled{O_C}$ and program $\compiled{P}$.
+This is only the case if the proposed trace semantics in fact do capture \emph{all} exchange of information and interactions between context $\compiled{O_C}$ and program $\compiled{P}$.
 For the trace semantics with syntax given by \myref{fig}{fig:tracesemanticssyntax}, this is only true if the operational semantics prohibit the exchange of information between context $\compiled{O_C}$ and program $\compiled{P}$ through memory or registers other than the return value register.
 
 If the operational semantics do \emph{not} prohibit the exchange of information through memory or registers other than the return register, then the syntax of labels must be changed to a syntax that captures these channels of communication, as stated by Curien~\cite{Curien2007301} and worked out by Patrignani et al.~\cite{Patrignani:TraceSemantics}.
@@ -113,7 +113,7 @@ In this work, as well as that of Agten et al.~\cite{Agten:2012:SCM:2354412.23552
 
 %Trace semantics~\cite{Rathke, Patrignani:TraceSemantics} describe the behavior of a component as a series of method calls and returns.
 
-%Full abstraction proofs based on trace semantics, such as~\cite{Patrignani,Agten:2012:SCM:2354412.2355247}, first show that the operational semantics of the target-language are equivalent to the proposed trace semantics.
+%Full abstraction proofs based on trace semantics, such as~\cite{Patrignani,Agten:2012:SCM:2354412.2355247}, first show that the operational semantics of the target language are equivalent to the proposed trace semantics.
 %As a consequence, the interaction of context objects $O_{c}$ with target-level objects $O_{1}$ and $O_{2}$ in the definition of contextual equivalence can be represented by traces $T_{1}$ \& $T_{2}$.
 
 %If two target-level objects $\compiled{O_1}$ and $\compiled{O_2}$ are not contextually equivalent, their traces $T_1$ and $T_2$ must be different.
@@ -129,7 +129,7 @@ In this work, as well as that of Agten et al.~\cite{Agten:2012:SCM:2354412.23552
 %This section gives a short and informal reasoning that suggests that the compilation scheme presented in \myref{sec}{sec:formalizedcompiler2} is fully abstract.
 %The argument is highly influenced by the formal proof technique described in \myref{sec}{sec:tracesemantics}.
 %\\[1em]
-%The first important step in a formal proof would be showing that the operational semantics of the target-language have an equivalent trace semantics.
+%The first important step in a formal proof would be showing that the operational semantics of the target language have an equivalent trace semantics.
 %The secure compilation ensures this by limiting the information passed between insecure context and secure code.
 %
 %This is achieved by clearing flags and registers~\cite{Agten:2012:SCM:2354412.2355247} when control flow passes from secure code to insecure context.

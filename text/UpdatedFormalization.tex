@@ -51,7 +51,7 @@ define void @±\cmath{FunId}±(%int %frame, i1 %ext, i8* %vargs){
    ; The initialize function will initialize the f-list, if it isn't initialized already.
    br i1 %ext label %External, label %Secure
    External:
-    ; The frame and metaframe can be built.
+    ; The frame and meta-frame can be built.
     ; Read the trimming list
     ; No checking is necessary.
     ; Add frame to the f-list.
@@ -59,7 +59,7 @@ define void @±\cmath{FunId}±(%int %frame, i1 %ext, i8* %vargs){
    Secure:
     ; Get memory location of frame through f-list
     ; Use meta information associated with the argument frame to typecheck functor application
-    ; build the frame. The metaframe can be built statically, because it uses only information provided by the signature.
+    ; build the frame. The meta-frame can be built statically, because it uses only information provided by the signature.
 }
 \end{lstlisting}
 
@@ -119,7 +119,7 @@ It is initialized with
 \begin{itemize}
 \item a reference to a list of pointers cast to int, representing the environment;
 \item a pointer to the function the $\lambda$-expression was translated to;
-\item and a one bit integer to indicate whether the closure was secure or insecure.
+\item and a single bit, called the security bit, to indicate whether the closure was secure or insecure.
 \end{itemize}
 
 \subsubsection{Applying closures}

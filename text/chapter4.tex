@@ -116,7 +116,7 @@ Furthermore, each definition in the body must be correctly typed, assuming the w
 A rule that types functor applications.
 This rule says that a functor application is well typed if the effective signature of the structure that was passed as an argument matches to the expected signature.
 Furthermore, it specifies that the structure is saved in the context.
-The output structures identifier maps to the result signature of the functor and the body of the functor after substituting all references to the argument structure.
+The output structure's identifier maps to the result signature of the functor and the body of the functor after substituting all references to the argument structure.
 \end{description}
 
 
@@ -214,7 +214,7 @@ This section adapts the secure compiler formalized in \myref{sec}{sec:formalizat
 The context within which compilation happens is considered to be unchanged from that described in \myref{sec}{sec:formalizedcompiler}.
 
 \subsection{Formalization}
-A few additional base types are defined, to represent frames, metaframes and closures. These types are the straightforward implementation of their representations as defined in \myref{chap}{chap:AdvancedConcepts}. 
+A few additional base types are defined, to represent frames, meta-frames and closures. These types are the straightforward implementation of their representations as defined in \myref{chap}{chap:AdvancedConcepts}. 
 \footnote{A frame saves a little more information than mentioned in \myref{chap}{chap:AdvancedConcepts}. Besides the name, target frame, trimming map and list of values, it also indicates whether the target frame is located in secure or insecure code, and has a map of the types that it defines to the integers $\tau_{int}$ that represent them in LLVM.}
 The type \lsttext{[0 x i8]*} is used to point to names and type \lsttext{\{\%int, [0 x $\ type$]\}*} is used for lists.
 \begin{lstlisting}[language={[x86masm]Assembler}]

@@ -81,7 +81,7 @@ The goal of \emph{secure compilation} is to provide compilation that preserves a
 Informally, the goal of secure compilation was formulated as compilation that preserves all high-level security guarantees in the low-level.
 Contextual equivalence allows us to formalize what exactly are the security guarantees offered by the high-level language.
 
-Contextual equivalence~\cite{Agten:2012:SCM:2354412.2355247} does this by introducing a equivalence relation $\simeq$ on programs or their components.
+Contextual equivalence~\cite{Agten:2012:SCM:2354412.2355247} does this by introducing an equivalence relation $\simeq$ on programs or their components.
 Two objects $O1$ and $O2$ are contextually equivalent if no third object $O_C$, called the \emph{context}, is able to distinguish between the two components when it is run together with one of the objects as a programming.
 The two objects are thus perfectly substitutable, as their outward behaviour is the same: they function as one and the same blackbox.
 
@@ -110,7 +110,7 @@ public void f(){
 \end{lstlisting}
 \end{minipage}
 
-Now that contextual equivalences ability to express the security guarantees of a language is established, secure compilation can be formalized by the notion of \emph{full abstraction}~\cite{Abadi}, or the preservation and reflection of contextual equivalence during the compilation process.
+Now that ability of contextual equivalence to express the security guarantees of a language is established, secure compilation can be formalized by the notion of \emph{full abstraction}~\cite{Abadi}, or the preservation and reflection of contextual equivalence throughout the compilation process.
 If $O_1$ is a high-level component and $\com{O_1}$ is its low-level result from compilation, full abstraction can be stated formally as:
 \[
  \forall O_1, O_2 : O_1 \simeq O_2 \iff \com{O_1} \simeq \com{O_2}

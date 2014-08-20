@@ -12,7 +12,7 @@ The idea of using full abstraction to formalize secure compilation is introduced
 Different techniques to preserve security even in the low-level computing model were developed, for example the use of \emph{Adress Space Layout Randomization} or ASLR to \emph{prevent} reliable memory manipulation by an attacker.
 This technique randomly changes the arrangement of important program portions.
 For example, the location of the stack, heap and base of the executable might change location within a process's address space.
-This reduces the reliability of an attackers view of the process's address space, making it harder if not impossible for attackers to reliably jump to certain exploitable parts of the code, or to reliably overwrite a certain value in memory.
+This reduces the reliability of an attacker's view of the process's address space, making it harder if not impossible for attackers to reliably jump to certain exploitable parts of the code, or to reliably overwrite a certain value in memory.
 
 % introduced by Abadi~\cite{AbadiASLR} as well.
 The idea of ASLR catched on, and ASLR saw implementations in common operating systems such as Windows Vista, OS X Mountain Lion and some Linux distributions. 
@@ -22,8 +22,8 @@ Additionally, one can make use of stack canaries to try to \emph{detect manipula
 This uses a random value, called a \emph{stack canary}. 
 This random value is placed in the memory, before any critical information, for example the \emph{return address}.
 The return address is a critical piece of information that helps to organize control flow when calling and returning from functions.
-Even if an attacker can somehow overwrite the return address in memory, for example using a buffer overflow\cite{OVSPaper}, it is likely that he will change the value of the stack canary as well.
-This is a detection technique, as the application can check the value of the stack canary against the known random value.
+Even if an attacker can somehow overwrite the return address in memory, for example using a buffer overflow\cite{OVSPaper}, it is likely that this will change the value of the stack canary as well.
+Stack canaries are a detection technique, as the application can check the value of the stack canary against the known random value.
 If this value changed, then the attacker's manipulation is detected, and execution can be stopped.
 \\[1em]
 Other techniques work by providing \emph{isolation} of software components, and introducing security guarantees to memory access using access control.

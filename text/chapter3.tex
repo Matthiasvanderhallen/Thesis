@@ -125,8 +125,8 @@ If no copying of free variables occurs, an attacker could set distinguish a modu
 This is achieved in \myref{lst}{code:CopyFreeVariables} by means of the callback function. 
 Even when no callbacks are available this type of attack remains possible. For example, in a more powerful language providing a multithreaded environment, this can be forced using a context switch.
 \item The context uses the fact that \lsttext{freevar} is saved in unprotected memory to change the value of \lsttext{freevar}. This not possible in the source language, but the target language provides no guarantees against modification of the unprotected memory.
-\item If the implementation of \lsttext{generateClosure1} was used, then the result of the closure application depends on when exactly execution was temporarily switched to the attackers context.
-If this happened after copying the value of \lsttext{freevar} to \lsttext{b}, which is saved in protected memory, then the result of the closure will not reflect the change of value of \lsttext{freevar} by the attackers context.
+\item If the implementation of \lsttext{generateClosure1} was used, then the result of the closure application depends on when exactly execution was temporarily switched to the attacker's context.
+If this happened after copying the value of \lsttext{freevar} to \lsttext{b}, which is saved in protected memory, then the result of the closure will not reflect the change of value of \lsttext{freevar} by the attacker's context.
 If the execution switch happens before this copying of \lsttext{freevar} into protected memory, then the result will be computed using the changed value of \lsttext{freevar}.
 
 In contrast, a version using  \lsttext{generateClosure2} never copies the value of \lsttext{freevar} into protected memory. 
@@ -149,11 +149,11 @@ Opaque types are not susceptible to the attack described above because they can 
 
 %To do: Remark that this is necessary for complex data in regular function calling as well.
 
-%To do: what if the free-variable IS a reference. Then we must follow the reference chain all the way?! No, we follow high-level semantics, and Ref's make MiniML storage aware. ≈If a Reference to storage is created by the attackers context, and this reference is passed as a parameter, it is okay for the attacker to change the value in the storage location, as long as the location remains the same. 
+%To do: what if the free-variable IS a reference. Then we must follow the reference chain all the way?! No, we follow high-level semantics, and Ref's make MiniML storage aware. ≈If a Reference to storage is created by the attacker's context, and this reference is passed as a parameter, it is okay for the attacker to change the value in the storage location, as long as the location remains the same. 
 
 \subsection{Insecure Free Variables For An Insecure Closure}
 
-This combination entails no interaction between the attackers context and the \emph{SPM} beyond the regular means of function calling.
+This combination entails no interaction between the attacker's context and the \emph{SPM} beyond the regular means of function calling.
 This means that it is not necessary to introduce security measures beyond those discussed in the previous chapters.
 How closures and their values are represented is only important to the extent to which implementation for this case and the other cases might be shared by tackling the problem in a generic way.
 
@@ -164,11 +164,11 @@ Instead, these values passed must be masked and represented in the insecure code
 These same measures are necessary when working with closures.
 As long as we obey these measures, and represent secure free variables in the referencing environment by their masking index, they are not susceptible to tampering, illegal disclosure or any other manipulation attacks.
 The only way to interact with these secure free variables is by passing them as parameters to functions within the \emph{SPM}.
-This shows that the added power of closures does not require any new security measures for this interaction between \emph{SPM} and the attackers context.
+This shows that the added power of closures does not require any new security measures for this interaction between \emph{SPM} and the attacker's context.
 
 %\to do{Should I move this subsection upwards, to right after the discussion of secure closures, or is it more logical to first explain all different free-variable/ closure security status combinations?}
 \subsection{Cross-boundary Passing Of A Secure Closure }
-Now that it is possible to have a secure closure as a first class value, it can be passed as an object across the boundary between \emph{SPM} and the attackers context.
+Now that it is possible to have a secure closure as a first class value, it can be passed as an object across the boundary between \emph{SPM} and the attacker's context.
 This section explores the security measures that must be taken when this occurs.
 If an \emph{SPM} would pass a closure generated inside its body to the untrusted code, the untrusted code could change the value of the function pointer and inspect or change the values saved in the referencing environment.
 
@@ -203,7 +203,7 @@ To allow insecure code to execute a closure, the \emph{SPM} offers one generic \
 \begin{enumerate}
 \item Take a masked index as a parameter
 \item Allow for an unspecified amount of other parameters to be passed as well, which will be relayed as parameters to the function represented by the closure.
-\item Copy the parameters provided by the attackers context in order to prevent \emph{call-by-value attacks} as shown in \myref{lst}{code:CopyFreeVariables}.
+\item Copy the parameters provided by the attacker's context in order to prevent \emph{call-by-value attacks} as shown in \myref{lst}{code:CopyFreeVariables}.
 \item Look up the masked index and retrieve the closure being referenced, i.e. the function pointer and the referencing environment containing the free variables.
 \item Jump to the function pointer providing copies of any parameters it might require, as well as the referencing environment.
 \item When execution of the closure is finished, the closure-evaluation entry point provides cleanup of the copied values and performs the tasks necessary for all entry points to the \emph{SPM} code such as register and flag emptying.
@@ -368,7 +368,7 @@ This structure would then be a part of insecure code, and of course one would ex
 \end{description}
 
 A possibly surprising conclusion is that this argument holds, regardless of whether the functor application was done within the secure code or within the insecure code.
-As a consequence, application of a functor inside the attackers context can result in the creation of an additional secure structure.
+As a consequence, application of a functor inside the attacker's context can result in the creation of an additional secure structure.
 
 \subsection{Compilation of Functors}
 \label{sec:FunctorCompilation}
@@ -427,7 +427,7 @@ This target representations are called \emph{frames}.
 
 These frames reside in the memory section corresponding to their security status, for example
 structures corresponding to the \emph{SPM} have their frame saved in the protected memory.
-This prevents tampering with the frames that correspond to secure structures by the attackers context, such as changing the pointers to the different structure members or changing their order.
+This prevents tampering with the frames that correspond to secure structures by the attacker's context, such as changing the pointers to the different structure members or changing their order.
 
 \subsubsection{The Structure of Frames \label{sec:StructureOfFrames}}
 Structures in MiniML are either defined using the \lsttext{struct} construct or are the result of functor applications to a structure (\myref{fig}{fig:FunctorGrammarExcerpt}).
@@ -482,7 +482,7 @@ Concluding, frames that represent the results of functor applications consist of
 \item Functor name
 \item A pointer to the frame of the argument structure
 \item The trimming map
-\item The list of pointers to the values and functions, sorted alphabetically.
+\item The list of pointers to the output structure's values and functions, sorted alphabetically.
 \end{enumerate}
 The frame representing \lsttext{StringDict} from \myref{lst}{code:DictionaryFunctor} is shown in \myref{fig}{fig:StringDictFrame}.
 
@@ -572,7 +572,7 @@ Their frames can be added dynamically using preprocessing code located inside th
 Since they are added by code inside the \emph{SPM}, they are guaranteed to be free from tampering.
 \item[Binding in insecure code:] The bindings in insecure code require more attention when processing.
 When the structure is defined using the \lsttext{struct} expression or the application of an insecure functor, the result will be an insecure structure, whose frame is allowed to be located in insecure memory.
-This means that the frame can be added dynamically using preprocessing code inside the attackers context without any further considerations.
+This means that the frame can be added dynamically using preprocessing code inside the attacker's context without any further considerations.
 
 When the structure is defined by the application of a secure functor, the result is a secure structure.
 This means that the frame must be saved in secure memory.
@@ -686,7 +686,7 @@ Then, the representation of two composite types is shown, arrays \lsttext{[]} in
     \end{subfigure}
 
 
-    \caption[Type Representations For Metaframes]{This figure shows the representation of all different types \label{fig:TypeRepresentations}}
+    \caption[Type Representations For Meta-frames]{This figure shows the representation of all different types \label{fig:TypeRepresentations}}
 \end{figure}
 
 \begin{figure}[htb]
@@ -710,7 +710,7 @@ Then, the representation of two composite types is shown, arrays \lsttext{[]} in
     \end{tabular}
     \caption{Value Definition\label{fig:ValueDefinitionsRepresentation}}
 \end{subfigure}
-\caption[Metaframe Elements]{The representation of type \textbf{(a)} and member definitions \textbf{(b)}.}
+\caption[Meta-frame Elements]{The representation of type \textbf{(a)} and member definitions \textbf{(b)}.}
 \end{figure}
 
 The representation of type definitions is shown in \myref{fig}{fig:TypeDefinitionsRepresentation}, and that of member definitions in \myref{fig}{fig:ValueDefinitionsRepresentation}.
@@ -748,7 +748,7 @@ When creating a meta-frame, any type used in the typing of a member is substitut
 \begin{description}
 \item[Handling where Expressions] 
 Only \lsttext{where} expressions of the template \lsttext{where type t = ArgStruct.t'} can not be processed at compile time.
-For these expressions, a compiler must produce the structural typing checks so that they check:%Todo: Nalezen, is dit duidelijk genoeg?
+For these expressions, the compiler must produce the structural typing checks so that they check:%Todo: Nalezen, is dit duidelijk genoeg?
 \begin{enumerate}
 \item That the implementation of type \lsttext{t} is in fact \lsttext{ArgStruct.t}.
 \item What the opaqueness and implementation of type \lsttext{ArgStruct.t} is, so that any reference to type \lsttext{t} or \lsttext{ArguStruct.t} can be substituted by its implementation.
@@ -760,8 +760,8 @@ Access to any member of a source language structure (i.e. one of its values or f
 In the source language, all members are either accessible across the security boundary or strictly accessible only within the same structure, so the same must hold for the target language.
 It is easy to make members accessible only from within the same structure: they are not given an entry within the list of member pointers, and their location is not made into an entry point for the \emph{SPM}.
 
-All other members are accessible across the security boundary. However, as frames are saved in the memory corresponding to its security status, the attackers context is not able to access frames corresponding to structures within the \emph{SPM} directly.
-Worse, the attackers context is not even allowed to know the exact location \cmath{loc_{frame}} of these secure frames.
+All other members are accessible across the security boundary. However, as frames are saved in the memory corresponding to its security status, the attacker's context is not able to access frames corresponding to structures within the \emph{SPM} directly.
+Worse, the attacker's context is not even allowed to know the exact location \cmath{loc_{frame}} of these secure frames.
 
 %To solve this, all $loc_{frame}$ are masked by inserting them into a list of frames, called the \emph{f-list}, in the order of their definitions.
 This is solved by inserting all \cmath{loc_{frame}} into the \emph{SPM}'s list of frames (\emph{f-list}) that was introduced in \myref{sec}{sec:DynamicalCreationOfFrames}. 

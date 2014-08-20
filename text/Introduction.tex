@@ -9,7 +9,7 @@ After a program's source code has been written, it is usually compiled to a targ
 This target language most often is substantially different from the source language.
 These differences are a direct consequence of the simplified computing model that high-level languages usually offer to the programmer.
 
-For example, high-level languages often hide the fact that values have to be represented using target-language concepts, saved in computer memory.
+For example, high-level languages often hide the fact that values have to be represented using target language concepts, saved in computer memory.
 Another concern hidden from the programmer is how the flow of control, i.e. determining the next command to be executed, is managed.
 In the high-level language, a function execution is an atomic operation that can only be executed as a whole, and never partially. This is less evident in the low-level language.
 The compilation process reintroduces these concerns.
@@ -53,7 +53,7 @@ These abstractions not only make it easier for the programmer to reason about th
 When a value or function is marked with an access modifier, any programmer rightly assumes these access rights are indeed enforced.
 A value marked \lstinline[language=Java]{private} can only be read of modified by certain parts of the code.
 In security terms these access modifiers provide \emph{confidentiality} and \emph{integrity}.
-Even formal verification tools to keep the software free from bugs assume the enforcements of these access rights.
+Even formal verification tools to keep the software free from bugs assume the enforcement of these access rights.
 
 The target language, however, does not always offer these abstractions.
 For example, when executing software, the values created by this software must be saved in memory, using a certain representation.
@@ -171,9 +171,9 @@ The following list gives a roadmap of how each chapter contributes to the thesis
 
 \begin{itemize}
 \item 
-\myref{chap}{chap:ACompilationExample} describes a first version of the \MiniML\ language, mimicking some of the basic functionality provided by the ML language and its module system, using an example: An implementations of a Caesar cipher.
+\myref{chap}{chap:ACompilationExample} describes a first version of the \MiniML\ language, mimicking some of the basic functionality provided by the ML language and its module system, using an example: An implementation of a Caesar cipher.
 
-It also describes the target-language, \LLVMIR, and shows how compilation from \MiniML\ to LLVM might normally occur.
+It also describes the target language, \LLVMIR, and shows how compilation from \MiniML\ to LLVM might normally occur.
 
 It concludes by describing the security issues that must be solved and shows how secure compilation would address these using the example.
 

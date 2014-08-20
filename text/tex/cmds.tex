@@ -96,27 +96,27 @@
 \newenvironment{proofsketch}{\trivlist\item[]\emph{Proof Sketch}.\xspace}{\unskip\nobreak\hskip 1em plus 1fil\nobreak$\Box$\parfillskip=0pt\endtrivlist}
 
 
-%%%%%%%%%%%%%%%%%%%%%%%% pictures
-\pgfdeclarelayer{background}
-\pgfdeclarelayer{back2}
-\pgfdeclarelayer{foreground}
-\pgfsetlayers{background,back2,main,foreground}
-
-\newcommand{\tikzpic}[1]{
-\begin{tikzpicture}[shorten >=1pt,auto,node distance=6mm,rounded corners]
-\tikzstyle{state} =[fill=white,minimum size=4pt]
-#1
-\end{tikzpicture}
-}
-\newcommand{\myfig}[3]{\begin{figure} [!h]
-#1
-\caption{\label{fig:#2}#3}
-\end{figure}}
-
-\newcommand{\myfigb}[3]{\begin{figure} [!b]
-#1
-\caption{\label{fig:#2}#3}
-\end{figure}}
+%%%%%%%%%%%%%%%%%%%%%%%%% pictures
+%\pgfdeclarelayer{background}
+%\pgfdeclarelayer{back2}
+%\pgfdeclarelayer{foreground}
+%\pgfsetlayers{background,back2,main,foreground}
+%
+%\newcommand{\tikzpic}[1]{
+%\begin{tikzpicture}[shorten >=1pt,auto,node distance=6mm,rounded corners]
+%\tikzstyle{state} =[fill=white,minimum size=4pt]
+%#1
+%\end{tikzpicture}
+%}
+%\newcommand{\myfig}[3]{\begin{figure} [!h]
+%#1
+%\caption{\label{fig:#2}#3}
+%\end{figure}}
+%
+%\newcommand{\myfigb}[3]{\begin{figure} [!b]
+%#1
+%\caption{\label{fig:#2}#3}
+%\end{figure}}
 
 %%%%%%%%%%%%%    Easier way to use references   
 \newcommand{\customref}[2]{\hyperref[#2]{#1~\ref*{#2}}}

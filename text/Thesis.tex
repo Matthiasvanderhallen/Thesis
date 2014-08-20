@@ -33,7 +33,7 @@ A formalization of this MiniML source language and the LLVM IR target language i
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
-\usepackage{todonotes}
+%\usepackage{todonotes}
 \usepackage{hyperref}
 \usepackage{listings}
 \usepackage{float}
@@ -133,16 +133,32 @@ Instead, they must be prevented by strengthening the compilation process in a wa
 Compilers that achieve this provide `secure compilation'.
 
 This work uses the notions of full abstraction and contextual equivalence to formalize the requirements for a secure compilation scheme, and shows how secure compilation can be achieved for MiniML, a subset of the ML language.
-As a prerequisite however, the secure compilation scheme assumes that the result of compilation runs on an architecture that provides program counter based access control, called a protected module platform.
+As a prerequisite however, the secure compilation scheme assumes that the result of compilation runs on an architecture that provides program counter based access control, called a protected module architecture.
 
 The source language for this secure compilation scheme, MiniML, uses a module system with the powerful notion of a functor to provide modularization of code.
 This contrasts with the object oriented approach used by many other languages.
-The compilation scheme targets the LLVM Intermediate Representation as a target language.
+The compilation scheme targets the LLVM Intermediate Representation, or LLVM IR, as a target language.
 A formalization of this MiniML source language and the LLVM IR target language is presented, enabling a formalization of the secure compilation scheme to be given as well.
 \end{abstract}
 
-%\begin{abstract*}
-%\end{abstract*}
+\begin{abstract*}
+Malware infecteert dagelijks nieuwe computers.
+Volgens sommige schattingen zou maar liefst 30\% van alle computers besmet zijn met malware.
+Malware kan zich verspreiden door het exploiteren van bugs in computer software.
+In veel gevallen zijn de bugs die deze malware misbruikt een gevolg van verschil tussen het computer model dat een hoge programmeertaal aanbiedt, en het effectieve model gebruikt door de lage niveau programmeertaal.
+
+Zulke bugs kunnen niet ontdekt worden door analyse van de code op het niveau de hoge programmeertaal, bijvoorbeeld met behulp van formele software verificatie programma's. De bugs worden namelijk 'ge\"introduceerd door het compilatieproces dat de hoge programmeertaal vertaalt naar de lage programmeertaal.
+In plaats daarvan moeten deze bugs voorkomen worden door het compilatieproces aan te passen, zodat een aanvaller op het niveau van de lage programmeertaal geen mogelijkheden extra heeft ten opzichte van een aanvaller op het hoge niveau.
+Een compiler die deze garantie bereikt, biedt `veilige compilatie' aan.
+
+Dit werk gebruikt de concepten volledige abstractie en contextuele equivalentie om de doelstellingen van een veilige compiler formeel te omschrijven. Bovendien wordt getoond hoe veilige compilatie mogelijk is voor MiniML, een kleine taal gebaseerd op de programmeertaal ML.
+\'E\'en van de vereiste voor de correct werking van de veilige compiler is dat het resultaat van de compilatie draait op een computer architectuur die instructiewijzer afhankelijke toegangscontrole aanbiedt. Zo'n architectuur wordt een veilige modulenarchitectuur genoemd.
+
+De hoge programmeertaal gebruikt door dit veilig compilatieschema, MiniML, biedt de mogelijkheid om modulaire code te schrijven dankzij een modulesysteem dat de krachtige notie van een functor bevat.
+Dit staat in contrast met de object ge\"orienteerde aanpak die door vele andere hoge programmeertalen genomen wordt.
+Als lage programmeertaal gebruikt deze veilige compiler de LLVM Intermediate Representation, ofwel LLVM IR.
+Dit werk levert een formele specificatie van de talen MiniML en LLVM IR aan, om vervolgens op basis hiervan ook een formele beschrijving van de veilige compiler te geven.  
+\end{abstract*}
 
 \mainmatter
 \include{Introduction}

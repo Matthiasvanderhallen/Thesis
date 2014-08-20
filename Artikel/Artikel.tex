@@ -1,24 +1,19 @@
-\documentclass[11pt]{article}
+\documentclass[conference]{IEEEtran}
 \title{Secure Compilation and the ML Language}
 \author{Matthias van der Hallen}
 \date{}
 \usepackage{listings}
-\usepackage{lmodern}
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{todonotes}
 \usepackage{hyperref}
-\usepackage{listings}
 \usepackage{float}
 \usepackage{lmodern}
 \usepackage{graphicx}
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{xcolor,colortbl}
-%\usepackage{longtable}
-\usepackage{ltablex}
-\usepackage{appendix}
 \usepackage{amsthm}
 
 \newcommand{\mypageref}[1]{Page~\pageref{#1}}
@@ -27,11 +22,12 @@
 \newcommand{\cmath}[1]{\ensuremath{\mathit{#1}}}
 \newcommand{\gray}{\cellcolor{lightgray}}
 \input{./tex/cmds}
+\linespread{1.1}
 
-\lstset{language={Java}, basicstyle=\footnotesize\ttfamily, columns=flexible, breaklines=true}
+\lstset{language={Java}, basicstyle=\ttfamily, columns=flexible, breaklines=true}
 \begin{document}
 \maketitle
-\abstract{
+\begin{abstract}
 The development of software is a daunting task, even more so when security becomes an issue. 
 Meanwhile, in today's technology driven world, computer security is not so much a luxury as it is a necessity. 
 Nearly all development happens in a high-level programming language, mainly because it allows for easier reasoning about the program being written.
@@ -43,7 +39,7 @@ These bugs can even pop up in software whose workings were formally verified usi
 The goal of secure compilation is strengthening the compilation process such that any security guarantees derived from the abstract computing model are preserved when compiling.
 
 This work aims to bring secure compilation to a language with an ML style module system, which uses signature matching and functors to provide modularization, encapsulation and information hiding.
-}
+\end{abstract}
 
 \section{Introduction}
 The amount of software in today's world is growing at rapid rates.
@@ -93,22 +89,22 @@ $O_{C}[O_1]$ is the program that results from linking $O_C$ with $O_1$, where $O
 
 Contextual equivalence captures security guarantees such as the public/private access modifier or the atomicity of function executions. For example, if two components $O_1$ and $O_2$, containing functions \myref{lst}{lst:SimpleReturn} and \myref{lst}{lst:UnreachableCode} respectively, are contextually equivalent then the atomicity of function execution of \lstinline{f} is guaranteed. Being able to break function atomicity would result in the normally unreachable \lstinline{return} in \myref{lst}{lst:UnreachableCode} becoming reachable, which means substituting $O_1$ by $O_2$ would be observable from some context object $O_C$.
 
-\begin{minipage}{0.40\textwidth}
+%\begin{minipage}{0.40\textwidth}
 \begin{lstlisting}[label={lst:SimpleReturn}, caption={Simple return}]
 public void f(){
     return 0;
     
 }
 \end{lstlisting}
-\end{minipage}
-\begin{minipage}{0.40\textwidth}
+%\end{minipage}
+%\begin{minipage}{0.40\textwidth}
 \begin{lstlisting}[label={lst:UnreachableCode}, caption={Unreachable code}]
 public void f(){
     return 0; 
     return 1; //Unreachable
 }
 \end{lstlisting}
-\end{minipage}
+%\end{minipage}
 
 Now that ability of contextual equivalence to express the security guarantees of a language is established, secure compilation can be formalized by the notion of \emph{full abstraction}~\cite{Abadi}, or the preservation and reflection of contextual equivalence throughout the compilation process.
 If $O_1$ is a high-level component and $\com{O_1}$ is its low-level result from compilation, full abstraction can be stated formally as:
@@ -124,7 +120,7 @@ This property is called soundness, and is closely linked to what is expected of 
 Indeed, if the results of compilation are contextually equivalent but the high-level objects are not, there exists a high-level context $O_C$ that can distinguish between $O_1$ and $O_2$, but without a low-level translation.
 
 \section{Contributions}
-\lstset{frame=single, language=ML, numbers=left, columns=flexible, breaklines=true, escapeinside={(*@}{@*)}}
+\lstset{frame=single, language=ML, columns=flexible, breaklines=true, escapeinside={(*@}{@*)}}
 This works introduces a secure compilation scheme for a language with an ML style module language.
 The ML language is a functional language that provides modularization of programs through its \emph{module} language~\cite{Milner:1997:DSM:549659}.
 
@@ -134,7 +130,7 @@ Structures allow a programmer to divide a large program in sets of smaller units
 These units dependencies and connections are well-defined and explicit.
 An example of a structure is shown in \myref{lst}{lst:DictionaryStructureExample}.
 
-\begin{lstlisting}[frame=single, language=ML,caption={[Dictionary Definition Example]An example structure showing the definition of a dictionary in ML.}, label=lst:DictionaryStructureExample,numbers=left]
+\begin{lstlisting}[frame=single, language=ML,caption={[Dictionary Definition Example]An example structure showing the definition of a dictionary in ML.}, label=lst:DictionaryStructureExample]
 structure Dictionary =
     struct
         type dictionary = (string * string) list
@@ -148,7 +144,7 @@ Another concept of the module language is a \emph{signature}.
 A signature is a set of type declarations and value declarations. It can provide type declarations without giving a specific implementation.
 An example of such a signature is shown in \myref{lst}{lst:DictionarySignatureExample}.
 
-\begin{lstlisting}[frame=single, language=ML, caption={[Dictionary Declaration Example]An example signature showing the declaration of a dictionary in ML.}, label=lst:DictionarySignatureExample, numbers=left]
+\begin{lstlisting}[frame=single, language=ML, caption={[Dictionary Declaration Example]An example signature showing the declaration of a dictionary in ML.}, label=lst:DictionarySignatureExample]
 signature DICTIONARYSIGNATURE =
     sig
         type dictionary
@@ -178,7 +174,6 @@ The last concept of the module language is a \emph{functor}.
 Functors behave as a function mapping an argument structure \cmath{StrIn} to output structures \cmath{StrOut} and are used to create \emph{parametric} dependencies of one structure on another.
 An example of such a functor is shown in \myref{lst}{lst:DictionaryFunctorExample}.
 
-\subsubsection{Functor Definition}
 \begin{lstlisting}[label={lst:DictionaryFunctorExample}, caption={The Dictionary as a functor. The structures and signatures that this example depends on are shown in {\protect\myref{lst}{lst:AdditionalSignatures}} in Appendix {\protect\ref{app:AdditionalCode}}.}]
 functor DictionaryFn (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
     struct
@@ -195,9 +190,10 @@ functor DictionaryFn (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.
 structure StringDict = DictionaryFn(StringEqual); (*@ \label{ln:Application} @*)
 \end{lstlisting}
 
+\subsubsection{Functor Definition}
 Functor definitions specify an identifier for an argument structure (\lstinline{KeyStruct}) and define an output structure that can use values defined by the argument structure. 
 
-To limit the set of structures allowed as an argument, a functor also specifies a signature (\lstinline{EQUAL)} with which the argument structure should match.
+To limit the set of structures allowed as an argument, a functor also specifies a signature \mbox{(\lstinline{EQUAL})} with which the argument structure should match.
 This signature ensures the functor that the output structure it defines can trust the values it uses from the argument structure are really defined by the argument structure.
 
 As functors themselves define an output structure as well, this output structure can be ascribed with a signature, in example \myref{lst}{lst:DictionaryFunctorExample} this is would be the signature \lstinline{DICTIONARY}.
@@ -212,7 +208,7 @@ Of course the functor application must be supplied a concrete structure as an ar
 
 The contribution of this work is a secure compilation scheme for a language that provides an ML style module language.
 In order to be able to preserve the security guarantees of ML when compiling to a low-level language, it is assumed that the low-level architecture offers certain access control semantics for the computer memory.
-The same access control semantics as specified by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247} are chosen (\myref{fig}{fig:PCBAC}).
+The same access control semantics as specified by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247} are chosen (\myref{tab}{tab:PCBAC}).
 
 This access control semantic assumes that all memory is split into a protected and an unprotected section.
 Protected memory has a further subdivision into a code section and a data section.
@@ -220,7 +216,7 @@ A number of memory locations inside the protected code section are designated to
 These are the only memory locations to which instructions in unprotected memory can jump. 
 Furthermore, instructions in unprotected memory can only read from or write to memory locations located in unprotected memory.
 
-\begin{figure}[htb]
+\begin{table}[H]
     \centering
 	\begin{tabular}{|c|c|c|c|c|}
 		\hline
@@ -229,8 +225,8 @@ Furthermore, instructions in unprotected memory can only read from or write to m
 		Protected & r x & r x & r w & r w x \\ \hline
 		Unprotected & x & & & r w x \\ \hline
 	\end{tabular}
-    \caption[PCBAC Semantics]{Program counter based access control semantics as specified in Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}. \label{fig:PCBAC}}
-\end{figure}
+    \caption[PCBAC Semantics]{Program counter based access control semantics as specified in Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}. \label{tab:PCBAC}}
+\end{table}
 
 Agten et al. already specify a secure compilation scheme from a simple high-level language to this low-level architecture.
 Patrignani et al.~\cite{Patrignani} expand on this work, adding several concepts from \emph{object oriented programming}.
@@ -250,17 +246,21 @@ This protects the `atomicity' of function execution.
 
 The compilation scheme has to be modified to allow for an ML style module language.
 \begin{description}
-\item[Masking] The first modification consists of adding the technique of masking, as introduced by Patrignani et al.~\cite{Patrignani}.
+\item[Masking]~ 
+
+The first modification consists of adding the technique of masking, as introduced by Patrignani et al.~\cite{Patrignani}.
 This means that values created in the secure code do not leave the secure memory, as this might provide details over their implementation, and neither do direct memory pointers.
 ML allows for opaque types, meaning two structures that provide the same type but with a different implementation are contextually equivalent. 
 As a result these implementation must be hidden from the insecure context.
 Instead of passing the values directly or passing a pointer to their memory location, every value created in secure code but passed to the insecure context is represented within insecure context as its index in a \emph{masking} list.
 
-\item[Typing]
+\item[Typing]~
+
 As a consequence of ML allowing for opaque types, simply having the correct structural implementation does not mean a function can operate on a certain value.
 For this to be allowed, the value must also be of the correct opaque type, which means the masking must keep track of type information.
 
-\item[Frames]
+\item[Frames]~
+
 Because functors are not hidden on source-level from the insecure code, the insecure code can create new structures by applying functors.
 Security-wise, the resulting structures are still expected to be secured in the same way as if they were written in secure code itself.
 For example, applying the dictionary from \myref{lst}{lst:DictionaryFunctorExample} should not result in anyone being able to tell whether the functor implements the dictionary type using a list of pairs, as in the case of the example, or a pair of lists.
@@ -274,12 +274,14 @@ For this, structures need to have a runtime representation containing a list wit
 These runtime representations are called \emph{frames}, and are collected in a list called the \emph{f-list}.
 The insecure code can refer to frames using their index in the \emph{f-list}
 
-\item[Trimming Map]
+\item[Trimming Map]~
+
 Code that represents the functor can now address values of the argument structure using the list of pointers inside the argument frame, and an offset.
 Because the argument structure can define more values than the expected signature declares, the offset of a value needed by the functor within the argument structure might differ from the offset of this same value in the argument signature.
 To solve this, a mapping between these offsets must be established as well, called the \emph{trimming map}. This is unique for every functor application.
 
-\item[Functor Applications]
+\item[Functor Applications]~
+
 Functor applications introduce new structures. 
 That these structures are the result of functor applications is not a distinguishable feature in the ML source language.
 When a program defines a structure statically, this program is still contextually equivalent to a program that defines this structure as the result of a functor application.
@@ -295,22 +297,30 @@ This means that all value calls must include a frame as an argument.
 This frame can only be the frame that represents the structure containing the value itself.
 Frames that represent the output structure of functor application must contain a reference to the frame that represents the argument of the functor application, so that the generic code representing the functor still gets a reference to the argument frame.
 \\[0.5em] %todo: Latex voodoo
-As a result, all frames now look like this, with an empty trimming map and pointer if the frame represents a statically defined structure.
-
+As a result, all frames now look as follows, with an empty trimming map and pointer if the frame represents a statically defined structure.
+%
+\begin{table}[H]
+\renewcommand{\arraystretch}{1.3} 
+\hspace*{2.6em}\makebox[\linewidth][c]{
 \begin{tabular}{|c c c|}
 \hline
 Ptr to argument frame & \gray trimming map &  list of values\\
 \hline
 \end{tabular}
+}
+\end{table}
+%}
 \end{itemize}
 
-\item[Ordering of Structure Bindings]
+\item[Ordering of Structure Bindings]~
+
 The order in which structures are defined provides no way to distinguish two ML programs.
 As a result, the order of frames in the f-list has to be alphabetical for any frames that correspond to structures defined within the secure code.
 
 Frames that represent structures resulting from \emph{functor applications} within \emph{insecure context} are appended in the order of their bindings.
 
-\item[A Single Entry Point]
+\item[A Single Entry Point]~
+
 Whether a structure was defined using functor application or statically is not a distinguishing feature in ML.
 This has an effect on how structure values should be called.
 

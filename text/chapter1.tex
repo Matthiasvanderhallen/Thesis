@@ -426,14 +426,14 @@ The index in this list can then be returned and used as a mask for the real obje
 Once again, this masking can be done within the stub function that wraps around the internal function that returns the value.
 
 When a stub represents a high level function that expects an argument of an opaque type, it will receive the index of the desired value in the internal masking list.
-It can use the internal masking list to retrieve the pointer associated with the index, and check whether it points to a value of the right type.
-The technique of masking and unmasking in the security boundary is visualized in \myref{fig}{fig:Masking}, which shows that the regular pointer is used within protected memory, but that is masked and unmasked by stubs when passing through the boundary.
-
-\begin{figure}
-\centering
-\includegraphics[scale=0.5]{img/Masking.png}
-\caption{Visual representation of the masking technique. \label{fig:Masking}}
-\end{figure}
+It can use the internal masking list to retrieve the pointer associated with the index, and to check whether it points to a value of the right type.
+%The technique of masking and unmasking in the security boundary is visualized in \myref{fig}{fig:Masking}, which shows that the regular pointer is used within protected memory, but that is masked and unmasked by stubs when passing through the boundary.
+%
+%\begin{figure}
+%\centering
+%\includegraphics[scale=0.5]{img/Masking.png}
+%\caption{Visual representation of the masking technique. \label{fig:Masking}}
+%\end{figure}
 
 
 \subsubsection{Entry points}

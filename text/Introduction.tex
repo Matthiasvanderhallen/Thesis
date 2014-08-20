@@ -107,14 +107,14 @@ In other words, any part of the application outside the \emph{SPM} can only oper
 Such a preservation of security guarantees is only possible if some form of access controlled memory is available.
 Indeed, if no protection of any memory where possible, no confidentiality of values within the \emph{SPM} with respect to other parts of the application could ever be preserved, as values would always be readable directly from memory.
 
-An \emph{SPM} enforces a specific access control model: \emph{SPM}s are split into a protected code and a protected data section.
+An \emph{SPM} requires a specific access control model: \emph{SPM}s are split into a protected code and a protected data section.
 Protected code contains the security sensitive part of the application's code.
 All other memory, containing data and code corresponding to other parts of the application, is considered to be the unprotected memory.
 
 Metadata in the \emph{SPM} also specifies a list of entry points.
 This list specifies the only memory locations in the protected code section to which instructions located in unprotected memory can jump.
 
-The semantics of the access control enforced the SPM are summarized in \myref{fig}{fig:AccessControlSemantics}.
+The semantics of the access control required by the SPM are summarized in \myref{fig}{fig:AccessControlSemantics}.
 This work uses the same memory access control model as given by Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}.
 As shown by Patrignani et al.~\cite{Patrignani} the same access control model can be used to provide secure compilation for more advanced concepts object oriented programming concepts.
 
@@ -153,7 +153,7 @@ To enforce such access control semantics, the SPM must execute on an architectur
 Such an architecture is called a \emph{Protected Module Architecture}.
 The term \emph{program counter based access control} refers to the fact that the validity of a memory access depends on the current location of the program counter.
 
-There are already a few architectures that support these program counter based access control semantics, or a variation of them~\cite{Fides, Salus, Sancus, SGX}.
+There are already a few architectures that support these program counter based access control semantics, or a variation on them~\cite{Fides, Salus, Sancus, SGX}.
 
 \section{Thesis Structure}
 This thesis aims to show how secure compilation can be achieved for a \emph{functional} language that implements an \emph{ML-style} module system.

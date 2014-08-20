@@ -1,8 +1,10 @@
 \chapter{LLVM Code}
 \label{app:LLVMCode}
 \section{@mask, @unmask \& @unmasktype}
+This section contains the LLVM IR code for the \lsttext{@mask}, \lsttext{@unmask} and \lsttext{@unmasktype} functions. These functions handle the masking process. They take an integer representing a pointer and return an integer representing the index of this pointer in the mask list, or vice versa. 
 \input{maskllvm}
 \section{@tyvarcheck}
+This section contains the LLVM IR code for the \lsttext{@tyvarcheck} function. It is tasked with checking whether two \lsttext{\%tyvar} values are the same type.
 \input{tyvarcheck}
 \section{Polymorphic Example}
 \label{sec:PolymorphicExample}

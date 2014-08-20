@@ -901,7 +901,11 @@ The resulting structure \emph{depends} on the insecure structure.
 It must call these functions using the same precautions as regular callbacks to the attacker's context.
 Of course the pointers that represent these functions can be manipulated by the attacker because the frame is now located in insecure memory.
 However, because contextually equivalent implementations of the functor must perform the same callbacks with the same arguments in the source language in the same order, their target language versions will always use the same pointers provided by the insecure frame, with the same parameters in the same order.
-As a result, the regular precautions, such as clearing registers, switching the stack and masking values that pass from secure code to the insecure context, are sufficient to ensure preservation of contextual equivalence of the functors in the target language.
+As a result, the regular precautions, such as clearing registers, switching the stack and masking values that pass from secure code to the insecure context, are sufficient to ensure preservation of contextual equivalence of the functors in the target language. 
+
+Additionaly, when calling the code in insecure context, the real return address should be saved in secure memory, and the return address entry in the insecure stack should be modified to point to the returnback entry point~\cite{Agten:2012:SCM:2354412.2355247}.
+This returnback entry point is listed in the entry points of the \emph{SPM}.
+The returnback entry point retrieves the last real return address saved in memory, and jumps to this address.
 
 If the application of the secure functor is done inside insecure code, the frame creating function corresponding to this functor must be called, and the types are checked dynamically using type information in the \emph{meta-frame}.
 %to do: OR depends on values
@@ -934,3 +938,5 @@ The dichotomy between the security status of an output structure and where the f
 This is solved by adding meta information in so called \emph{meta-frame}s capturing any necessary information of types.
 
 Because functors can exist in insecure code, they can be passed frames. These frames are \emph{masked} in the same way as closures, which calls for another \emph{getter function} to be made available as an entry point into the \emph{SPM}, so that the values or functions within frames are callable.
+
+Additionally, because functors can perform callbacks to the insecure context, a returnback entry point is added that can handle returns from these callbacks.

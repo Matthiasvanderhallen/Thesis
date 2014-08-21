@@ -243,31 +243,24 @@ Its alternative implementation is shown as well in \myref{lst}{code:DictionaryFu
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Dictionary Functor Example]A generic dictionary that can take any type of the EQUAL typeclass as its key.},
 label=code:DictionaryFunctor, morekeywords={where}]
-signature DICTIONARY =
-    sig
+signature DICTIONARY = sig
         type key
         type 'a dictionary
         val emptyDictionary : 'a dictionary
         val insert : 'a dictionary -> key -> 'a -> 'a dictionary
         val lookup : 'a dictionary -> key -> 'a
     end
-
-signature EQUAL =
-    sig
+signature EQUAL = sig
         type t
         val equal : t -> t -> bool
     end
-
-structure StringEqual: EQUAL = 
-    struct
+structure StringEqual: EQUAL = struct
         type t = string
         fun equal t1 t2  = case String.compare(t1,t2)
                                 of EQUAL => true
                                 | _ => false
     end
-    
-functor DictionaryFn (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
-    struct
+functor DictionaryFn (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t = struct
         type key = KeyStruct.t
         type 'a dictionary = (key * 'a) list
         val emptyDictionary = []
@@ -277,7 +270,6 @@ functor DictionaryFn (KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.
                                      then value
                                      else (lookup ds x)
     end
-    
 structure StringDict = DictionaryFn(StringEqual);
 \end{lstlisting}
 %https://www.cs.cmu.edu/~rwh/introsml/modules/subfun.htm
@@ -288,8 +280,7 @@ structure StringDict = DictionaryFn(StringEqual);
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Alternative Dictionary Functor]The alternative implementations of the dictionary.},
 label=code:DictionaryFunctorAlternative, morekeywords={where}, basicstyle=\ttfamily]
-functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
-    struct
+functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t = struct
         type key = KeyStruct.t
         type 'a dictionary = (key list * 'a list)
         val emptyDictionary = ([],[])
@@ -531,16 +522,13 @@ The application of \lsttext{DictionaryFn} to \lsttext{StringEqual} inside \myref
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Secure Code Fragment]Secure code fragment: secure.ml.},
 label=code:SecureCodeFragment, morekeywords={where}]
-structure StringEqual: EQUAL = 
-    struct
+structure StringEqual: EQUAL = struct
         type t = string
         fun equal t1 t2  = case String.compare(t1,t2)
                                 of EQUAL => true
                                 | _ => false
     end
-    
-functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t =
-    struct
+functor DictionaryFn(KeyStruct:EQUAL) :> DICTIONARY where type key = KeyStruct.t = struct
         type key = KeyStruct.t
         type 'a dictionary = (key * 'a) list
         val emptyDictionary = []
@@ -805,27 +793,21 @@ Indeed, the stubs corresponding to structure members \emph{cannot} be made entry
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Functor Application or Static Definition: 1]Binding StrA and StrB using functor application.},
 label=lst:FunctorApplicationOrStaticDefinition1, morekeywords={where}]
-functor F(ArgStruct:ArgSig) :> OutputSig =
-    struct
+functor F(ArgStruct:ArgSig) :> OutputSig = struct
         val x = ArgStruct.f x
     end
-    
 structure StrA = F(Arg1)
 structure StrB = F(Arg2)
 \end{lstlisting}
 
 \begin{lstlisting}[frame=single,numbers=left, language=ML, caption={[Functor Application or Static Definition: 2]Binding StrA and StrB using both static definition and functor application.},
 label=lst:FunctorApplicationOrStaticDefinition2, morekeywords={where}]
-functor F(ArgStruct:ArgSig) :> OutputSig =
-    struct
+functor F(ArgStruct:ArgSig) :> OutputSig = struct
         val x = ArgStruct.f x
     end
-    
-structure StrA :> OutputSig =
-    struct
+structure StrA :> OutputSig = struct
         val x = Arg1.f x
     end
-
 structure StrB = F(Arg2)
 \end{lstlisting}
 
@@ -842,15 +824,15 @@ The addition of a generic getter function that is used to access any value or fu
 To illustrate this, \myref{fig}{fig:callstackcomparisonsimple} shows the flow of execution corresponding to a function call in the simple \MiniML\ language or the work of Agten et al.~\cite{Agten:2012:SCM:2354412.2355247}. As a comparison, \myref{fig}{fig:callstackcomparisonadvanced} shows the flow of execution for that same call in the \MiniML\ language with advanced concepts.
 
 \begin{figure}[htb]
+\hspace*{-4em}
+\begin{subfigure}{0.45\textwidth}
 \centering
-\begin{subfigure}{\textwidth}
-\centering
-\includegraphics[scale=0.6]{img/Simple.png}
-\caption{Execution flow in the simple \MiniML\ language. \label{fig:callstackcomparisonsimple}}
+\includegraphics[scale=0.45]{img/Simple.png}
+\caption{Execution flow in simple \MiniML. \label{fig:callstackcomparisonsimple}}
 \end{subfigure}
-\\
-\begin{subfigure}{\textwidth}
-\includegraphics[scale=0.6]{img/Advanced.png}
+\begin{subfigure}{0.55\textwidth}
+\centering
+\includegraphics[scale=0.45]{img/Advanced.png}
 \caption{Execution flow in the \MiniML\ language. \label{fig:callstackcomparisonadvanced}}
 \end{subfigure}
 \caption{Comparison of execution}

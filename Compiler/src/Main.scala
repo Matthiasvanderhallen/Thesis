@@ -186,9 +186,9 @@ case class LetExpr(ident:Ident, bind:Expr, in:Expr) extends Expr
 case class PairExpr(left:Expr, right:Expr) extends Expr
 case class LeftExpr(pair:Expr, annot:Type) extends Expr
 case class RightExpr(pair:Expr, annot:Type) extends Expr
-sealed trait ListExpr extends Expr
-case object Empty extends Expr
-case class consExpr(tail:Expr) extends Expr
+//sealed trait ListExpr extends Expr
+case class Empty(annot:Type) extends Expr
+case class ConsExpr(elem:Expr, tail:Expr) extends Expr
 
 sealed trait BinOp
 case object Add extends BinOp
@@ -235,7 +235,7 @@ object Main extends App{
                         //new FunDefinition(new Ident("createPair"), List(new Ident("left"), new Ident("right")), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), PairExpr(ValExpr(new Ident("left")),ValExpr(new Ident("right")))),
                         //new FunDefinition(new Ident("getLeft"), List(new Ident("pair")), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))), CallExpr(new Ident("createPair"),List(ConstExpr(3)))), // ConstExpr(3)),
                         //new FunDefinition(new Ident("merge"), List(new Ident("left"), new Ident("right")), new FuncType(List(paira, paira), paira), ConstExpr(3)),
-                        new ValDefinition(new Ident("seed"), Integer, ConstExpr(3)),
+                        new ValDefinition(new Ident("seed"), Integer, new ConsExpr(ConstExpr(5), new ConsExpr(ConstExpr(3),new Empty(Integer)))),//ConstExpr(3)),
                         new ValDefinition(new Ident("rand"), Integer, ValExpr(new Ident("seed")))
                       )
                     )
@@ -889,6 +889,66 @@ object Main extends App{
           types = types + (s"%t$temp" -> annot)
           temp = temp+1;
           return s"%t${temp-1}"
+        }
+        case Empty(annot) => {
+          body +=s"\t%t${temp}.addr = call i8* @malloc(%int 1600)\n"
+          body +=s"\t%t${temp} = bitcast i8* %t${temp}.addr to %array*\n"
+          body +=s"\t%t${temp}.val.0 = insertvalue %array undef, %int 0, 0\n"
+          body +=s"\t%t${temp}.val.1 = insertvalue %array %t${temp}.val.0, %tyvar* null,1\n"
+          body +=s"\tstore %array %t${temp}.val.1, %array* %t${temp}\n"
+
+          types = types + (s"%t${temp}" -> ListType(annot))
+          temp = temp+1
+          return s"%t${temp-1}"
+        }
+        case ConsExpr(elem:Expr, tail:Expr) => {
+
+          var elembnd = translateExp(elem)
+          val tailbnd = translateExp(tail)
+          var arraybnd = ""
+
+          if(! types.get(tailbnd).get.isInstanceOf[ListType]){
+            if(types.get(tailbnd).get.isInstanceOf[TypeVar]){
+              body +=s"\t%t${temp}.array.addr = extractvalue %tyvar* $tailbnd, 0 ; extract address from tyvar\n"
+              body +=s"\t%t${temp}.array = bitcast %int %t${temp}.array.addr to %array* ; cast address to array*\n"
+            }else{
+              body +=s"\t%t${temp}.array = bitcast ${types.get(tailbnd).get.internalize(structure)} $tailbnd to %array*\n"
+            }
+            body += s"\t%t${temp}.array.val = load %array* %t${temp}.array\n"
+            arraybnd = s"%t${temp}.array"
+          }else{
+            body += s"\t%t${temp}.array.val = load %array* ${tailbnd}\n"
+            arraybnd = tailbnd
+          }
+
+          body += s"\t%t${temp}.array.length = extractvalue %array %t${temp}.array.val, 0\n"
+          body += s"\t%t${temp}.array.elem.ptr = getelementptr %array* ${arraybnd}, i32 0, i32 1, %int %t${temp}.array.length\n"
+
+          if(types.get(elembnd).get.isInstanceOf[VarType]){
+            body += s"store %tyvar* ${elembnd}, %tyvar** %t${temp}.array.elem.ptr\n"
+          }else{
+            body += s"\t%t${temp}.r.addr = call i8* @malloc(%int 16)\n"
+            body += s"\t%t${temp}.r = bitcast i8* %t${temp}.r.addr to %tyvar*\n"
+            if(types.get(elembnd).get != Integer){
+              //TODO: prefix juist zetten?
+              body += s"\t%t${temp}.r.int = ptrtoint %t${types.get(elembnd).get.internalize(structure)} ${elembnd} to %int; cast ptr to int\n"
+              body += s"\t%t${temp}.r.0 = insertvalue %tyvar undef, %int %t${temp}.r.int, 0 ; create tyvar step 1\n "
+            }else{
+              body += s"\t%t${temp}.r.0 = insertvalue %tyvar undef, %int ${elembnd}, 0 ; create tyvar step 1\n "
+            }
+            body += s"\t%t${temp}.r.1 = insertvalue %tyvar %t${temp}.r.0, %int ${types.get(elembnd).get.intRepresentation}, 1 ; create tyvar step 2\n "
+            body += s"\tstore %tyvar %t${temp}.r.1, %tyvar* %t${temp}.r ; Store the tyvar \n" //save
+
+            body += s"\tstore %tyvar* %t${temp}.r, %tyvar** %t${temp}.array.elem.ptr\n"
+          }
+
+          body += s"\t%t${temp}.array.length.ptr = getelementptr %array* ${arraybnd}, i32 0, i32 0\n"
+          body += s"\t%t${temp}.array.length.new = add %int 1, %t${temp}.array.length\n"
+          body += s"\tstore %int %t${temp}.array.length.new, %int* %t${temp}.array.length.ptr\n"
+
+          temp = temp+1
+
+          return tailbnd
         }
         case expr@_ => {throw new UnsupportedOperationException(s"Expression $expr could not be handled")}
       }

@@ -190,6 +190,8 @@ case class PairAccess(pair:Expr, annot:Type, side:Side) extends Expr
 //sealed trait ListExpr extends Expr
 case class Empty(annot:Type) extends Expr
 case class ConsExpr(elem:Expr, tail:Expr) extends Expr
+case class ListIndex(list:Expr, index:Int, annot:Type) extends Expr
+
 
 sealed trait Side{
   def loc:Int
@@ -935,6 +937,38 @@ object Main extends App{
 
           return tailbnd
         }
+        case ListIndex(list:Expr, index:Int, annot:Type) => {
+          var listbnd = translateExp(list)
+
+          body += getAsArray(s"%t${temp}", listbnd, types.get(listbnd).get, structure)
+          listbnd = s"%t${temp}"
+
+          temp = temp+1
+
+          body += s"\t%t${temp}.array.length = extractvalue %array %t${listbnd}.val, 0\n"
+          body += s"\t%t${temp}.check = icmp slt %int $index, %t${temp}.array.length\n"
+          body += s"\tbr i1 %t${temp}.check, label %Continue$temp, label %Exit$temp \n\n"
+
+          body += s"\tError$temp:\n" +
+                  "\t\tcall void @exit(i32 -1)\n" +
+                  "\t\tunreachable\n\n"
+
+          body += s"Continue${temp}:\n"
+          body += s"\t%t${temp}.ptr.ptr = getelementptr %array* $listbnd, i32 0, i32 1, %int $index\n"
+          body += s"\t%t${temp}.tyvar.ptr = load %tyvar** %t${temp}.ptr.ptr\n"
+          body += s"\t%t${temp}.tyvar = load %tyvar* %t${temp}.tyvar.ptr\n"
+          if(annot != Integer){
+            body += s"\t%t${temp} = extractvalue %tyvar %t${temp}.tyvar, 0\n"
+          }else{
+            body += s"\t%t${temp}.addr = extractvalue %tyvar %t${temp}.tyvar, 0\n"
+            body += s"\t%t${temp} = inttoptr %int %t${temp}.addr to ${localize(structure.ident.value, annot)}\n"
+          }
+
+          types = types + (s"%t${temp}" -> annot)
+          temp = temp+1
+          return s"%t${temp-1}"
+
+        }
         case expr@_ => {throw new UnsupportedOperationException(s"Expression $expr could not be handled")}
       }
     }
@@ -964,6 +998,25 @@ object Main extends App{
     return body
   }
 
+  def getAsArray(desiredName:String, currentName:String, currentType:Type, structure:Structure):String = {
+    var body = ""
+    if(!currentType.isInstanceOf[ListType]){ //If the tail is of a different type than List type -> LLVM code to convert
+      if(currentType.isInstanceOf[TypeVar]){  //If it is a tyvar, get the
+        body +=s"\t${desiredName}.tyvar.val = load %tyvar* $currentName\n"
+        body +=s"\t${desiredName}.addr = extractvalue %tyvar ${desiredName}.tyvar.val, 0 ; extract address from tyvar\n"
+        body +=s"\t${desiredName} = inttoptr %int ${desiredName}.array.addr to %array* ; cast address to array*\n" // bitcast -> inttoptr
+      }else{
+        body +=s"\t${desiredName} = bitcast ${currentType.internalize(structure)}* $currentName to %array*\n" //Added *, the original type can never be a non-pointer type
+      }
+      body += s"\t${desiredName}.val = load %array* %t${desiredName}\n"
+    }else{
+      body += s"\t${desiredName}.addr = ptrtoint %array* $currentName to %int\n"
+      body += s"\t${desiredName} = inttoptr %int ${desiredName}.addr to %array*\n"
+      body += s"\t${desiredName}.val = load %array* ${currentName}\n"
+    }
+    return body
+  }
+
   // @param desiredName     String containing the identifier that the tyvar* pointer should be bound to eventually.
   // @param valueToTyvarize String containing the identifier that the value to tyvarize is currently bound to
   // @param currentType     The current type of the value.
@@ -984,73 +1037,4 @@ object Main extends App{
     return body;
   }
 
-//  sealed trait Expr
-//  sealed trait ListExpr extends Expr
-//  case object Empty extends Expr
-//  case class consExpr(tail:Expr) extends Expr
 }
-
-/*case LeftExpr(pair, annot) => {
-          val pairbnd = translateExp(pair)
-
-          //bitcast to pair* if type not pair*
-          if(! types.get(pairbnd).get.isInstanceOf[PairType]){ //If the bound var is of a different type than the pair type -> LLVM code to convert
-            if(types.get(pairbnd).get.isInstanceOf[TypeVar]){ // If it is a tyvar, load the tyvar, get the address as an int, and cast it to a pair.
-              body +=s"\t%t${pairbnd}.${temp}.val = load %tyvar* $pairbnd\n"
-              body +=s"\t%t${temp}.pair.addr = extractvalue %tyvar $pairbnd.${temp}.val, 0 ; extract address from tyvar\n"
-              body +=s"\t%t${temp}.pair = inttoptr %int %t${temp}.pair.addr to %pair* ; cast address to pair*\n" // bitcast -> inttoptr
-            }else{ //If it is not a tyvar, it must be a pointer type, which is bitcastable to a pair* pointer.
-              body +=s"\t%t${temp}.pair = bitcast ${types.get(pairbnd).get.internalize(structure)}* $pairbnd to %pair*\n" //Changed + *, the original type can never be a non-pointer type
-            }
-            body += s"\t%t${temp}.pair.val = load %pair* %t${temp}.pair\n"
-          }else{
-            body += s"\t%t${temp}.pair.val = load %pair* %t${pairbnd}\n"
-          }
-
-          body += s"\t%t${temp}.tyvar.addr = extractvalue %pair %t${temp}.pair.val, 0\n"
-          body += s"\t%t${temp}.tyvar.ptr = inttoptr %int %t${temp}.tyvar.addr to %tyvar*\n" //Changed bitcast -> inttoptr
-          body += s"\t%t${temp}.tyvar.val = load %tyvar* %t${temp}.tyvar.ptr\n"
-
-          if(annot == Integer){
-            body+= s"\t%t${temp} = extractvalue %tyvar %t${temp}.tyvar.val, 0\n"
-          }else{
-            body += s"\t%t${temp}.addr = extractvalue %tyvar %t${temp}.tyvar.val, 0\n" //changed %pair to tyvar, and added .addr
-            body += s"\t%t${temp} = inttoptr %int t${temp}.ind to ${localize(structure.ident.value, annot)}\n" //cast loaded int to ptr of right type.
-          }
-
-          types = types + (s"%t$temp" -> annot)
-          temp = temp+1;
-          return s"%t${temp-1}"
-        }
-        case RightExpr(pair,annot) => {
-          val pairbnd = translateExp(pair)
-
-          //bitcast to pair* if type not pair*
-          if(! types.get(pairbnd).get.isInstanceOf[PairType]){ //If the bound var is of a different type than the pair type -> LLVM code to convert
-            if(types.get(pairbnd).get.isInstanceOf[TypeVar]){// If it is a tyvar, load the tyvar, get the address as an int, and cast it to a pair.
-              body +=s"\t%t${pairbnd}.${temp}.val = load %tyvar* $pairbnd\n"
-              body +=s"\t%t${temp}.pair.addr = extractvalue %tyvar $pairbnd.${temp}.val, 0 ; extract address from tyvar\n"
-              body +=s"\t%t${temp}.pair = inttoptr %int %t${temp}.pair.addr to %pair* ; cast address to pair*\n" // Changed + *
-            }else{//If it is not a tyvar, it must be a pointer type, which is bitcastable to a pair* pointer.
-              body +=s"\t%t${temp}.pair = bitcast ${types.get(pairbnd).get.internalize(structure)}* $pairbnd to %pair*\n" //bitcast ->inttoptr , the original type can never be a non-pointer type
-            }
-            body += s"\t%t${temp}.pair.val = load %pair* %t${temp}.pair\n"
-          }else{
-            body += s"\t%t${temp}.pair.val = load %pair* %t${pairbnd}\n"
-          }
-
-          body += s"\t%t${temp}.tyvar.addr = extractvalue %pair %t${temp}.pair.val, 1\n"
-          body += s"\t%t${temp}.tyvar.ptr = inttoptr %int %t${temp}.tyvar.addr to %tyvar*\n" //bitcast -> inttoptr
-          body += s"\t%t${temp}.tyvar.val = load %tyvar* %t${temp}.tyvar.ptr\n"
-
-          if(annot == Integer){ //If the type to be loaded is simply an integer
-            body+= s"\t%t${temp} = extractvalue %tyvar %t${temp}.tyvar.val, 0\n"
-          }else {
-            body += s"\t%t${temp}.addr = extractvalue %tyvar %t${temp}.tyvar.val, 0\n" //changed %pair to tyvar, and added .addr
-            body += s"\t%t${temp} = inttoptr %int t${temp}.ind to ${localize(structure.ident.value, annot)}\n" //cast loaded int to ptr of right type.
-          }
-
-          types = types + (s"%t$temp" -> annot)
-          temp = temp+1;
-          return s"%t${temp-1}"
-        }*/

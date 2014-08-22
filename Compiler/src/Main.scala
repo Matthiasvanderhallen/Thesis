@@ -186,7 +186,7 @@ case class LetExpr(ident:Ident, bind:Expr, in:Expr) extends Expr
 case class PairExpr(left:Expr, right:Expr) extends Expr
 //case class LeftExpr(pair:Expr, annot:Type) extends Expr
 //case class RightExpr(pair:Expr, annot:Type) extends Expr
-case class PairAccess(pair:Expr, annot:Type, side:Side)
+case class PairAccess(pair:Expr, annot:Type, side:Side) extends Expr
 //sealed trait ListExpr extends Expr
 case class Empty(annot:Type) extends Expr
 case class ConsExpr(elem:Expr, tail:Expr) extends Expr
@@ -734,12 +734,9 @@ object Main extends App{
 
          val funcType = trans.getFuncType(structure, name);
 
-//         val argTypesCall = funcType.left.map(x => localize(origin, x))
          val argIds = args.map(argExp => translateExp(argExp)) //Geeft hun bindings terug, bijv: //List("%t1", "%t2")
          val argData = funcType.left.zip(argIds) // List[(Expected Type, LLVM Identifier pre conversion)]
          var argCallData = List[(String, String)]() //List[(Expected Type in String, LLVM Identifier post conversion)]
-//         val argData = argTypesCall.zip(argIds) // List[(Expected Type, LLVM Identifier)]
-//
 
          //Possibly, these values are (according to LLVM) not yet of the right type. In that case, we need to cast them.
 
@@ -955,24 +952,14 @@ object Main extends App{
       }else{
         if(retType == Integer.toString()){
           body += s"\t%t$temp = bitcast ${types.get(retval).get.internalize(structure)} $retval.val to $retType\n"
-          retval = s"\t%t$temp"
+          retval = s"%t$temp"
         }else{
           body += s"\t%t$temp = bitcast ${types.get(retval).get.internalize(structure)}* $retval to $retType\n"
-          retval = s"\t%t$temp"
+          retval = s"%t$temp"
         }
       }
     }
     body += s"\tret $retType $retval\n"
-
-    /*exp match {
-   case ConstExpr(value) =>
-     body += s"\treturn %int $value\n"
-   case call @ CallExpr(name, args) =>{
-     val retval = translateExp(call);*/
-
-      /*}
-      case _ => {}
-    }*/
 
     return body
   }

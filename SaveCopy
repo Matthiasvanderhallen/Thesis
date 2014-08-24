@@ -248,7 +248,69 @@ case object Mul extends BinOp
 case object Rem extends BinOp
 
 object Main extends App{
-  val program = Programs.program1
+  val code = "signature SYMMETRICCIPHER = sig \n" +
+    "type cred \n" +
+    "val newcredentials : cred \n" +
+    "val encrypt : int -> cred -> int \n" +
+    "val decrypt : int -> cred -> int \n" +
+    "end \n" +
+    "structure Caesar :> SYMMETRICCIPHER = struct type cred = int\n" +
+    "fun newcredentials = rand\n" +
+    "fun encrypt a, cred = (a + cred)%26 \n" +
+    "fun decrypt a, cred = (a - cred)%26\n" +
+    "val seed = 3\n" +
+    "fun rand = time.now * seed\n" +
+    "end"
+
+  val symmetriccipher = new Signature(new Ident("SYMMETRICCIPHER"),
+                                 List(
+                                      new OpaqueTypeDeclaration(new Ident("cred"), 0),
+                                      //new OpaqueTypeDeclaration(new Ident("pair"), 1),
+                                      new ValDeclaration(new Ident("newcredentials"), new StructType(new Ident("cred"),0, List())),
+                                      new ValDeclaration(new Ident("encrypt"), new FuncType(List(Integer, new StructType(new Ident("cred"),0, List())), Integer)),
+                                      new ValDeclaration(new Ident("decrypt"), new FuncType(List(Integer, new StructType(new Ident("cred"),0, List())), Integer))//,
+                                      //new ValDeclaration(new Ident("createPair"), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"),1, List(new VarType(new Ident("a")))))),
+                                      //new ValDeclaration(new Ident("getLeft"), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a")))),
+                                      //new ValDeclaration(new Ident("merge"), new FuncType(List(paira, paira), paira))
+                                 )
+                                 )
+
+  val paira = new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))
+  val caesar = new  Structure(new Ident("Caesar"), new Ident("SYMMETRICCIPHER"),
+                      List(
+                        new TypeDefinition(new Ident("cred"), 0, Integer),
+                        //new TypeDefinition(new Ident("pair"), 1, PairType(new VarType(new Ident("a")), new VarType(new Ident("a")))),
+                        new ValDefinition(new Ident("newcredentials"), new StructType(new Ident("cred"), 0, List()), new ValExpr(new Ident("rand"))),
+                        new FunDefinition(new Ident("encrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"), 0, List())), Integer), new BinOpExpr(Rem, new BinOpExpr(Add, new ValExpr(new Ident("a")), new ValExpr(new Ident("cred"))), ConstExpr(26))),
+                        new FunDefinition(new Ident("decrypt"), List(new Ident("a"), new Ident("cred")), new FuncType(List(Integer, new StructType(new Ident("cred"), 0, List())), Integer), new BinOpExpr(Rem, new BinOpExpr(Sub, new ValExpr(new Ident("a")), new ValExpr(new Ident("cred"))), ConstExpr(26))),
+                        //new FunDefinition(new Ident("createPair"), List(new Ident("left"), new Ident("right")), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), PairExpr(ValExpr(new Ident("left")),ValExpr(new Ident("right")))),
+                        //new FunDefinition(new Ident("getLeft"), List(new Ident("pair")), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))), CallExpr(new Ident("createPair"),List(ConstExpr(3)))), // ConstExpr(3)),
+                        //new FunDefinition(new Ident("merge"), List(new Ident("left"), new Ident("right")), new FuncType(List(paira, paira), paira), ConstExpr(3)),
+                        new ValDefinition(new Ident("seed"), Integer, new ConsExpr(ConstExpr(5), new ConsExpr(ConstExpr(3),new Empty(Integer)))),//ConstExpr(3)),
+                        new ValDefinition(new Ident("rand"), Integer, ValExpr(new Ident("seed")))
+                      )
+                    )
+
+  val pairsig = new Signature(new Ident("PAIRSIG"),
+                              List(
+                                new OpaqueTypeDeclaration(new Ident("pair"), 1),
+                                new ValDeclaration(new Ident("createPair"), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"),1, List(new VarType(new Ident("a")))))),
+                                new ValDeclaration(new Ident("getLeft"), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a")))),
+                                new ValDeclaration(new Ident("getRight"), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))))
+                              ))
+
+  val pair = new Structure(new Ident("Pair"), new Ident("PAIRSIG"),
+                            List(
+                            new TypeDefinition(new Ident("pair"), 1, new PairType(new VarType(new Ident("a")), new VarType(new Ident("a")))),
+                            new FunDefinition(new Ident("createPair"), List(new Ident("left"), new Ident("right")), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), PairExpr(ValExpr(new Ident("left")),ValExpr(new Ident("right")))),
+                            new FunDefinition(new Ident("getLeft"), List(new Ident("pair")), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))), PairAccess(ValExpr(new Ident("pair")), new VarType(new Ident("a")), Left)),
+                            new FunDefinition(new Ident("getRight"), List(new Ident("pair")), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))), PairAccess(ValExpr(new Ident("pair")), new VarType(new Ident("a")), Right))// ConstExpr(3)),
+                            )
+                          )
+
+  val caesar2 = new Structure(new Ident("ACaesar"), new Ident("SYMMETRICCIPHER"), List())
+
+  val program = new Program(List(symmetriccipher, pairsig), List(caesar, caesar2, pair))
 
   println(translate(program))
 

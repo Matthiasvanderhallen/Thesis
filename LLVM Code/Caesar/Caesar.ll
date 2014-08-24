@@ -1,5 +1,5 @@
 %int = type i64
-%Caesar.cred = type {%int}
+%Caesar.cred = type %int
 
 declare i8* @malloc(%int)
 declare void @free(i8*)

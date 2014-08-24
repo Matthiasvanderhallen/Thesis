@@ -23,7 +23,25 @@ case class Literal(value: String) extends MLToken //String Literal
 case class Program(val signatures:List[Signature], val structures:List[Structure])
 
 case class Translation(program:Program, var types:String, var entryPoints:String, var values:String, var firstPass:Boolean, var opaqueTypes:Int, var opaqueTypeMapping:Map[String,Int], var implMapping:List[(Int,Int)], var tyvarMapping:Map[Int,Type]) {
-  override def toString() = entryPoints + types + "\n" + values;
+  override def toString() = {
+    val defaultTypes =  "%int = type i64 ; 1\n" +
+                        "%tyvar = type {%int, %int} ; 2\n" +
+                        "%pair = type {%tyvar*, %tyvar*} ; 3\n" +
+                        "%array = type {%int, [0 x %tyvar*]} ; 4\n"
+
+    val declarations =  "declare i8* @malloc(%int)\n" +
+                        "declare void @free(i8*)\n" +
+                        "declare void @exit(i32)\n" +
+                        "declare %int @mask(%int, %int)\n" +
+                        "declare %int @unmask(%int)\n" +
+                        "declare %int @unmasktype(%int)\n" +
+                        "declare i1 \t @tyvarcheck(%tyvar*, %tyvar*)\n"
+
+    val main =  "define %int @main(){\n" +
+                "\tret %int 0\n" +
+                "}\n"
+    defaultTypes +";Non-standard Types\n" +types + "\n"+ declarations + "\n" + entryPoints + "\n" + values + main
+  }
 
   def getImplTypeInt(search:Int):Int = {
     val result = implMapping.filter{case (search, _) => true; case _ => false}.head._2
@@ -77,27 +95,35 @@ case class Translation(program:Program, var types:String, var entryPoints:String
 sealed trait Type{
   def intRepresentation:Int
   def getVarTypes(trans:Translation):List[Int]
-  def internalize(structure:Structure):String
+  def qualifiedName(structure:Structure):String //Structname.typename, array, pair, int
+  def getTypeString(structure:Structure):String //%Structname.typename*, %array*, %pair*, %int
 }
 
 case object Integer extends Type {
   override def toString() = "%int"
   def intRepresentation = 1;
-  override def getVarTypes(trans:Translation):List[Int] = {
+  def getVarTypes(trans:Translation):List[Int] = {
     return List()
   }
-  override def internalize(structure:Structure):String = {
-    return toString()
+  def qualifiedName(structure:Structure):String = {
+    return "int"
+  }
+  
+  def getTypeString(structure:Structure):String = {
+    return toString() //No pointers to ints!
   }
 }
 
 case class FuncType(left:List[Type], right:Type) extends Type{
   def intRepresentation = 5;
-  override def getVarTypes(trans:Translation):List[Int] = {
+  def getVarTypes(trans:Translation):List[Int] = {
     throw new UnsupportedOperationException();
   }
-  def internalize(structure:Structure):String = {
+  def qualifiedName(structure:Structure):String = {
     throw new UnsupportedOperationException("Can't internalize a functype");
+  }
+  def getTypeString(structure:Structure):String = {
+    throw new UnsupportedOperationException("Functions are not a first class value, and are not passable")
   }
 }
 
@@ -105,30 +131,34 @@ case class VarType(ident:Ident) extends Type {
   override def toString() = "%tyvar"
   def intRepresentation = 2;
 
-  override def getVarTypes(trans:Translation):List[Int] = {
+  def getVarTypes(trans:Translation):List[Int] = {
     return List(ident.value.charAt(0).toInt-97)
   }
 
-  def internalize(structure:Structure):String = {
+  def qualifiedName(structure:Structure):String = {
     throw new UnsupportedOperationException("Can't internalize a VarType");
+  }
+
+  def getTypeString(structure:Structure):String = {
+    return "%tyvar*"
   }
 }
 
 case class StructType(typeId:Ident, nrTyvars:Int, tyvars:List[Type]) extends Type {
   def intRepresentation = -1; //Hmm
 
-  def internalize(structure:Structure):String = {
+  def qualifiedName(structure:Structure):String = {
     if(typeId.value.contains("."))
-      return typeId.value;
+      return s"${typeId.value}"
     else
       return s"${structure.ident.value}.${typeId.value}"
   }
 
-  def getPtrStr(structure:Structure):String = {
-    return s"%${internalize(structure)}*"
+  def getTypeString(structure:Structure):String = {
+    return s"%${qualifiedName(structure)}*"
   }
 
-  override def getVarTypes(trans:Translation):List[Int] = {
+  def getVarTypes(trans:Translation):List[Int] = {
     return trans.getImplType(trans.getOpaqueType(typeId.value)).getVarTypes(trans)
   }
 
@@ -139,11 +169,15 @@ case class StructType(typeId:Ident, nrTyvars:Int, tyvars:List[Type]) extends Typ
 case class PairType(left:Type, right:Type) extends Type {
   override def toString() = "%pair"
   def intRepresentation = 3;
-  override def getVarTypes(trans:Translation):List[Int] = {
+  def getVarTypes(trans:Translation):List[Int] = {
     return left.getVarTypes(trans)++right.getVarTypes(trans)
   }
-  def internalize(structure:Structure):String = {
-    return toString(); //Mogelijkerwijs + *
+  def qualifiedName(structure:Structure):String = {
+    return "pair"; //Mogelijkerwijs + *
+  }
+
+  def getTypeString(structure:Structure):String = {
+    return s"%${qualifiedName(structure)}*"
   }
 }
 
@@ -151,12 +185,16 @@ case class ListType(inner:Type) extends Type {
   override def toString() = "%array"
   def intRepresentation = 4;
 
-  override def getVarTypes(trans:Translation):List[Int] = {
+  def getVarTypes(trans:Translation):List[Int] = {
     return inner.getVarTypes(trans)
   }
 
-  def internalize(structure:Structure):String = {
-    return toString(); //Mogelijkerwijs + *
+  def qualifiedName(structure:Structure):String = {
+    return "array"; //Mogelijkerwijs + *
+  }
+
+  def getTypeString(structure:Structure):String = {
+    return s"%${qualifiedName(structure)}*"
   }
 }
 
@@ -227,13 +265,13 @@ object Main extends App{
   val symmetriccipher = new Signature(new Ident("SYMMETRICCIPHER"),
                                  List(
                                       new OpaqueTypeDeclaration(new Ident("cred"), 0),
-                                      new OpaqueTypeDeclaration(new Ident("pair"), 1),
+                                      //new OpaqueTypeDeclaration(new Ident("pair"), 1),
                                       new ValDeclaration(new Ident("newcredentials"), new StructType(new Ident("cred"),0, List())),
                                       new ValDeclaration(new Ident("encrypt"), new FuncType(List(Integer, new StructType(new Ident("cred"),0, List())), Integer)),
-                                      new ValDeclaration(new Ident("decrypt"), new FuncType(List(Integer, new StructType(new Ident("cred"),0, List())), Integer)),
-                                      new ValDeclaration(new Ident("createPair"), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"),1, List(new VarType(new Ident("a")))))),
-                                      new ValDeclaration(new Ident("getLeft"), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a")))),
-                                      new ValDeclaration(new Ident("merge"), new FuncType(List(paira, paira), paira))
+                                      new ValDeclaration(new Ident("decrypt"), new FuncType(List(Integer, new StructType(new Ident("cred"),0, List())), Integer))//,
+                                      //new ValDeclaration(new Ident("createPair"), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"),1, List(new VarType(new Ident("a")))))),
+                                      //new ValDeclaration(new Ident("getLeft"), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a")))),
+                                      //new ValDeclaration(new Ident("merge"), new FuncType(List(paira, paira), paira))
                                  )
                                  )
 
@@ -253,16 +291,33 @@ object Main extends App{
                       )
                     )
 
+  val pairsig = new Signature(new Ident("PAIRSIG"),
+                              List(
+                                new OpaqueTypeDeclaration(new Ident("pair"), 1),
+                                new ValDeclaration(new Ident("createPair"), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"),1, List(new VarType(new Ident("a")))))),
+                                new ValDeclaration(new Ident("getLeft"), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a")))),
+                                new ValDeclaration(new Ident("getRight"), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))))
+                              ))
+
+  val pair = new Structure(new Ident("Pair"), new Ident("PAIRSIG"),
+                            List(
+                            new TypeDefinition(new Ident("pair"), 1, new PairType(new VarType(new Ident("a")), new VarType(new Ident("a")))),
+                            new FunDefinition(new Ident("createPair"), List(new Ident("left"), new Ident("right")), new FuncType(List(new VarType(new Ident("a")),new VarType(new Ident("a"))), new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), PairExpr(ValExpr(new Ident("left")),ValExpr(new Ident("right")))),
+                            new FunDefinition(new Ident("getLeft"), List(new Ident("pair")), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))), PairAccess(ValExpr(new Ident("pair")), new VarType(new Ident("a")), Left)),
+                            new FunDefinition(new Ident("getRight"), List(new Ident("pair")), new FuncType(List(new StructType(new Ident("pair"), 1, List(new VarType(new Ident("a"))))), new VarType(new Ident("a"))), PairAccess(ValExpr(new Ident("pair")), new VarType(new Ident("a")), Right))// ConstExpr(3)),
+                            )
+                          )
+
   val caesar2 = new Structure(new Ident("ACaesar"), new Ident("SYMMETRICCIPHER"), List())
 
-  val program = new Program(List(symmetriccipher), List(caesar, caesar2))
+  val program = new Program(List(symmetriccipher, pairsig), List(caesar, caesar2, pair))
 
   println(translate(program))
 
   var entrypoints:String = ""
 
   def translate(program:Program):Translation={
-    var translation = new Translation(program,"", "", "",true, 5, Map(), List(), Map());
+    var translation = new Translation(program, "", "", "",true, 5, Map(), List(), Map());
 
     val structures = program.structures.sortBy(struct => struct.ident.value)
 
@@ -340,17 +395,12 @@ object Main extends App{
     val declaration = signature.value.exists{case ValDeclaration(fundef.ident,_)=>true; case _ =>false}
 
     val ident = structure.ident.value + "." + fundef.ident.value
+
     val retInt = fundef.ascription.right == Integer;
     val retTyvar = fundef.ascription.right.isInstanceOf[VarType]
-
-    val retTypeId = fundef.ascription.right match{
-      case s@StructType(ident,_,_) => s.getPtrStr(structure) // + (if(ident.value.contains(".")) ident.value else structure.ident.value + "." + ident.value + "*")
-      case Integer => Integer.toString()
-      case FuncType(_,_) => {throw new Error("Functions are not allowed as a return type.")}
-      case _ => fundef.ascription.right.toString() +"*"
-    }
+    val retTypeId = fundef.ascription.right.getTypeString(structure)
     val retTypeInt = fundef.ascription.right match{
-      case s@StructType(ident,_,_) => trans.getOpaqueType(s.internalize(structure))
+      case s@StructType(ident,_,_) => trans.getOpaqueType(s.qualifiedName(structure))
       case Integer => Integer.intRepresentation
       case FuncType(_,_) => {throw new Error("Functions are not allowed as a return type.")}
       case _ => fundef.ascription.right.intRepresentation
@@ -358,14 +408,10 @@ object Main extends App{
 
     val argInt = fundef.ascription.left.map(x => x == Integer)
     val argTyvar = fundef.ascription.left.map(x => x.isInstanceOf[VarType])
-    val argTypeId = fundef.ascription.left.map{
-      case s@StructType(ident,_,_) => s.getPtrStr(structure)
-      case Integer => Integer.toString()
-      case FuncType(_,_) => {throw new Error("Functions not allowed as argument type.")}
-      case x@_ => x.toString()+"*"
-    }
+    val argTypeId = fundef.ascription.left.map{x => x.getTypeString(structure)}
+
     val argTypeInt = fundef.ascription.left.map{
-      case s@StructType(ident,_,_) => trans.getOpaqueType(s.internalize(structure))
+      case s@StructType(ident,_,_) => trans.getOpaqueType(s.qualifiedName(structure))
       case Integer => Integer.intRepresentation
       case FuncType(_,_) => {throw new Error("Functions are not allowed as a return type.")}
       case _ => fundef.ascription.right.intRepresentation
@@ -383,8 +429,8 @@ object Main extends App{
     if(declaration){
       val argumentsAsInt = argTyvar.zip(argNames).map{x => "%int "+x._2+".in" + (if(x._1){", i2 " + x._2 + ".isMask"}else{""})}.mkString(", ")
 
-      value += s"define %int @${ident}_stub($argumentsAsInt){\n"
-      value += s"\t;Switch stack, move parameters, add entry point in spm\n"
+      value += s"define %int @${ident}_stub($argumentsAsInt) noinline {\n"
+      value += s"\t;Switch stack, move parameters\n"
 
       val argInformation = (fundef.variables, 1 to fundef.variables.length,(argTyvar,argTypeId,argTypeInt).zipped.toList).zipped.toList
       val argProcessingCode = argInformation.map{
@@ -401,7 +447,7 @@ object Main extends App{
                                                  s"\t\t%$name.tyvar.addr = call i8* @malloc(%int 16)\n" +
                                                  s"\t\t%$name = bitcast i8* %$name.tyvar.addr to %tyvar*\n" +
                                                  s"\t\tswitch i2 %$name.isMask, label %Unmask$nr [i2 0, label %External$nr\n" +
-                                                 s"\t\t                                           i2 1, label %Int$nr]\n\n" +
+                                                 s"\t\t${" " * (s"switch i2 %$name.isMask, label %Unmask$nr [").length}i2 1, label %Int$nr]\n\n" +
                                                  s"\tUnmask$nr:\n" +
                                                  s"\t\t%$name.addr = call %int @unmask(%int %$name.in)\n" +
                                                  s"\t\t%$name.type = call %int @unmasktype(%int %$name.in)\n" +
@@ -410,17 +456,18 @@ object Main extends App{
                                                  s"\t\tbr label %Create$nr\n\n" +
                                                  s"\tExternal$nr:\n" +
                                                  s"\t\t%$name.ext.1 = insertvalue %tyvar undef, %int %$name.in, 0\n" +
-                                                 s"\t\t%$name.ext.2 = insertvalue %tyvar undef, %int 0, 1\n" +
+                                                 s"\t\t%$name.ext.2 = insertvalue %tyvar %$name.ext.1, %int 0, 1\n" +
                                                  s"\t\tbr label %Create$nr\n\n" +
                                                  s"\t\tInt$nr:\n" +
                                                  s"\t\t%$name.int.1 = insertvalue %tyvar undef, %int %$name.in, 0\n" +
-                                                 s"\t\t%$name.int.2 = insertvalue %tyvar undef, %int 1, 1\n" +
+                                                 s"\t\t%$name.int.2 = insertvalue %tyvar %$name.int.1, %int 1, 1\n" +
                                                  s"\t\tbr label %Create$nr\n\n" +
                                                  s"\tCreate$nr:\n" +
                                                  s"\t\t%$name.tyvar = phi %tyvar [%$name.unmask.2, %Unmask$nr], [%$name.ext.2, %External$nr], [%$name.int.2, %Int$nr]\n" +
                                                  s"\t\tstore %tyvar %$name.tyvar, %tyvar* %$name\n"+
                                                  s"\t\tbr label %Process${nr+1}\n\n"
       }
+
 
       value += argProcessingCode.mkString("")+ "\tProcess"+ (fundef.variables.length+1)+":\n"
 
@@ -451,10 +498,11 @@ object Main extends App{
 
       value += s"}\n\n"
 
-      val entrypoint = s"define %int @$ident($argumentsAsInt){\n"+
-                       s"\t %ret = tail call %int @${ident}_stub($argumentsAsInt) ; Tail call\n"+
-                       s"\t ret %int %ret\n" +
-                       s"}\n\n"
+      val entrypoint =  s"define %int @$ident($argumentsAsInt){\n"+
+                        s"\t;add entry point in spm\n"+
+                        s"\t %ret = tail call %int @${ident}_stub($argumentsAsInt) ; Tail call\n"+
+                        s"\t ret %int %ret\n" +
+                        s"}\n\n"
 
       translation.entryPoints = translation.entryPoints.concat(entrypoint)
     }
@@ -489,7 +537,7 @@ object Main extends App{
         case s@StructType(ident,amount,types) => {
             val argName = variables(loc).value
 
-            val structTypeString = s.internalize(structure)
+            val structTypeString = s.qualifiedName(structure)
             val structTypeInt = trans.getOpaqueType(structTypeString)
             val implTypInt = trans.getImplTypeInt(structTypeInt)
             val implType = trans.getImplType(structTypeInt)//;.getVarTypeStr(trans);
@@ -498,15 +546,15 @@ object Main extends App{
             var tyvars = types;
             var prefixrec = s"$prefix$loc";
 
-            access += s"\t%ML.typecheck.$prefixrec.addr = add %int 0, $argName.addr\n" //Bootstrapping
+            access += s"\t%ML.typecheck.$prefixrec.addr = add %int 0, %$argName.addr\n" //Bootstrapping
 
             def recFunc():Int = //Loopt door een effectieve structuur heen en matcht tyvars en implementaties.
             {
               packed match{
                 case VarType(ident) => {
-                  val tyvarName = s"%ML.typecheck.$prefixrec"
+                  val tyvarName = s"%ML.typecheck.$prefixrec.tyvar"
 
-                  access += s"\t$tyvarName = bitcast i8* %ML.typecheck.$prefixrec.addr to %tyvar*\n"
+                  access += s"\t$tyvarName = inttoptr %int %ML.typecheck.$prefixrec.addr to %tyvar*\n" // bitcast i8*, nu inttoptr
 
                   val assumedType = tyvars(ident.ord())
 
@@ -521,8 +569,8 @@ object Main extends App{
                     }
                     case Integer => {
                       //check whether this is an Integer indeed!
-                      access += s"\t$tyvarName.tyvar = load %tyvar* $tyvarName\n"
-                      access += s"\t$tyvarName.tyvar.type = extractvalue %tyvar $tyvarName.tyvar, i32 1\n"
+                      access += s"\t$tyvarName.tyvar.val = load %tyvar* $tyvarName\n"
+                      access += s"\t$tyvarName.tyvar.type = extractvalue %tyvar $tyvarName.tyvar.val, i32 1\n"
                       access += s"\t$tyvarName.tyvar.check = icmp eq %int ${Integer.intRepresentation}, $tyvarName.tyvar.type\n"
                       access += s"\tbr i1 $tyvarName.tyvar.check, label %Continue${prefixrec}int, label %Error \n"
                       access += "\n"
@@ -531,10 +579,10 @@ object Main extends App{
                     case s2@StructType(ident2, amount2, types2) =>
                     {
                       //TODO! Nakijken of struct klopt -> Done
-                      access += s"\t$tyvarName.tyvar = load %tyvar* $tyvarName\n"
-                      access += s"\t$tyvarName.tyvar.addr = extractvalue %tyvar $tyvarName.tyvar, i32 0\n"
-                      access += s"\t$tyvarName.tyvar.type = extractvalue %tyvar $tyvarName.tyvar, i32 1\n"
-                      access += s"\t$tyvarName.tyvar.check = icmp eq %int ${trans.getOpaqueType(s2.internalize(structure))}, $tyvarName.tyvar.type\n"
+                      access += s"\t$tyvarName.tyvar.val = load %tyvar* $tyvarName\n"
+                      access += s"\t$tyvarName.tyvar = extractvalue %tyvar $tyvarName.tyvar.val, i32 0\n"
+                      access += s"\t$tyvarName.tyvar.type = extractvalue %tyvar $tyvarName.tyvar.val, i32 1\n"
+                      access += s"\t$tyvarName.tyvar.check = icmp eq %int ${trans.getOpaqueType(s2.qualifiedName(structure))}, $tyvarName.tyvar.type\n"
                       access += s"\tbr i1 $tyvarName.tyvar.check, label %Continue${prefixrec}int, label %Error \n"
                       access += "\n"
                       access += s"\t%Continue${prefixrec}int:\n"
@@ -543,7 +591,7 @@ object Main extends App{
 
                       // Daarna recFunc() aanroepen met overschrijven van packed, prefixrec én van types
                       tyvars = types2;//adjust types
-                      packed = trans.getImplType(trans.getOpaqueType(s2.internalize(structure)))//New packed structure
+                      packed = trans.getImplType(trans.getOpaqueType(s2.qualifiedName(structure)))//New packed structure
                       prefixrec = s"${prefixrec}.${ident2.value}" // New prefix
 
                       access += s"\t%ML.typecheck.$prefixrec.addr = add %int 0, $tyvarName.tyvar.addr ;Bootstrapping \n" //TODO: REBOOTSTRAPPING -> Done
@@ -556,8 +604,14 @@ object Main extends App{
                 //case StructType()
                 case PairType(left, right) => {
                   access += s"\t%ML.typecheck.$prefixrec.pair = inttoptr %int %ML.typecheck.$prefixrec.addr to %pair*\n"
-                  access += s"\t%ML.typecheck.$prefixrec.0.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 0 ; tyvar*\n"
-                  access += s"\t%ML.typecheck.$prefixrec.1.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 1 ; tyvar*\n"
+                  access += s"\t%ML.typecheck.$prefixrec.pair.val = load %pair* %ML.typecheck.$prefixrec.pair\n"
+                  access += s"\t%ML.typecheck.$prefixrec.l = extractvalue %pair %ML.typecheck.$prefixrec.pair.val, 0\n" //tyvar*
+                  access += s"\t%ML.typecheck.$prefixrec.r = extractvalue %pair %ML.typecheck.$prefixrec.pair.val, 0\n" //tyvar*
+                  access += untyvarize(s"%ML.typecheck.$prefixrec.0", s"%ML.typecheck.$prefixrec.l", left, structure)
+                  access += untyvarize(s"%ML.typecheck.$prefixrec.1", s"%ML.typecheck.$prefixrec.r", left, structure)
+
+                  //access += s"\t%ML.typecheck.$prefixrec.0.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 0 ; tyvar**\n"
+                  //access += s"\t%ML.typecheck.$prefixrec.1.addr = getelementptr %pair* %ML.typecheck.$prefix$loc.pair, i32 0, %int 1 ; tyvar**\n"
 
                   val prefixL = s"${prefixrec}.0"
                   val prefixR = s"${prefixrec}.1"
@@ -571,17 +625,19 @@ object Main extends App{
                   packed = right
                   recFunc()
                 }
-                case ListType(inner) => {
-                    access += s"\t%ML.typecheck.$prefixrec.array.ptr = inttoptr %int %ML.typecheck.$prefixrec.addr to %array*\n"
-                    access += s"\t%ML.typecheck.$prefixrec.array = load %array* %ML.typecheck.$prefixrec.array.ptr\n"
-                    access += s"\t%ML.typecheck.$prefixrec.array.length = extractvalue %array %ML.typecheck.$prefixrec.array, 0\n"
+                case ListType(inner) => { //TODO:Nakijken!
+                    access += s"\t%ML.typecheck.$prefixrec.array = inttoptr %int %ML.typecheck.$prefixrec.addr to %array*\n"
+                    access += s"\t%ML.typecheck.$prefixrec.array.val = load %array* %ML.typecheck.$prefixrec.array\n"
+                    access += s"\t%ML.typecheck.$prefixrec.array.length = extractvalue %array %ML.typecheck.$prefixrec.array.val, 0\n"
                     access += s"\t%ML.typecheck.$prefixrec.check = icmp eq %int 0, %ML.typecheck.$prefixrec.array.length\n"
                     access += s"\tbr i1 %ML.typecheck.$prefixrec.check, label %Skip$prefixrec, label %Continue$prefixrec\n\n"
 
                     access += s"\tContinue$prefixrec:\n"
-                    access += s"\t%ML.typecheck.$prefixrec.0.addr = getelementptr %array %ML.typecheck.$prefixrec.array.ptr, i32 0, %int 1;First Element\n"
+                    access += s"\t%ML.typecheck.$prefixrec.tyvar.ptr = getelementptr %array* %ML.typecheck.$prefixrec.array, i32 0, i32 1, %int 1;First Element: tyvar**\n"
+                    access += s"\t%ML.typecheck.$prefixrec.tyvar = load %tyvar** %ML.typecheck.$prefixrec.tyvar.ptr ; tyvar*\n"
+                    access += untyvarize(s"${prefixrec}.elem", s"%ML.typecheck.$prefixrec.tyvar", inner, structure) //TODO: Wat als hier nu een int in zit?
 
-                    prefixrec = s"${prefixrec}.0"
+                    prefixrec = s"${prefixrec}.elem"
                     packed = inner
                     recFunc()
 
@@ -611,14 +667,9 @@ object Main extends App{
 
     val ident = structure.ident.value + "." + valdef.ident.value;
     val returnInt = valdef.ascription == Integer;
-    val typeId = valdef.ascription match{
-      case s@StructType(ident,_,_) => s.getPtrStr(structure)
-      case Integer => Integer.toString()
-      case FuncType(_,_) => {throw new Error("val expression with function type is not allowed.")}
-      case _ => valdef.ascription.toString() +"*"
-    }
+    val typeId = valdef.ascription.getTypeString(structure)
     val typeInt = valdef.ascription match{
-      case s@StructType(ident,_,_s) => trans.getOpaqueType(s.internalize(structure))
+      case s@StructType(ident,_,_s) => trans.getOpaqueType(s.qualifiedName(structure))
       case Integer => Integer.intRepresentation
       case FuncType(_,_) => {throw new Error("val expression with function type is not allowed.")}
       case _ => valdef.ascription.intRepresentation
@@ -631,8 +682,8 @@ object Main extends App{
 
     //External function output
     if(declaration.isDefined){
-      value += s"define %int @${ident}_stub(){\n"
-      value += s"\t;Switch stack, move parameters, add entry point in spm\n"
+      value += s"define %int @${ident}_stub() noinline {\n"
+      value += s"\t;Switch stack, move parameters\n"
       if(!returnInt){
         value += s"\t%ret.ptr = call $typeId @$ident"+s"_internal()\n"
         value += s"\t%ret.int = ptrtoint $typeId %ret.ptr to %int\n"
@@ -647,6 +698,7 @@ object Main extends App{
       value += s"}\n\n"
 
       val entrypoint = s"define %int @$ident(){\n"+
+        s"\t;add entry point in spm\n"+
         s"\t %ret = tail call %int @${ident}_stub() ; Tail call\n"+
         s"\t ret %int %ret\n" +
         s"}\n\n"
@@ -659,24 +711,6 @@ object Main extends App{
     return translation
   }
 
-//  def getVarTypeInformation(prefix:List[Int], argType:StructType, idents:Map[Ident,List[List[Int]]]):(Map[Ident,List[List[Int]]],List[(List[Int], Type)]) = {
-//    var identMap = idents;
-//    var instantiationsMap = List[(List[Int], Type)]() // This map contains instantiated tyvars of the parametric type.
-//
-//    for((argType, loc)<-argType.tyvars.zip(0 to argType.nrTyvars-1)){
-//      argType match{
-//        case VarType(ident) => {identMap = identMap.updated(ident, (prefix.:+(loc)) :: identMap.getOrElse(ident, List()))}
-//        case x:StructType => { val pair = getVarTypeInformation((prefix.:+(loc)),x,identMap)
-//          identMap = pair._1;
-//          instantiationsMap.+:((prefix.:+(loc), x)).++(pair._2);
-//        }
-//        case _ => {}
-//      }
-//    }
-//
-//    return (identMap, instantiationsMap)
-//  }
-
   def translateBody(trans:Translation, definition:Definition, structure:Structure, signature:Signature, argTypes:List[(Type, String)], retType:String):String = {
     var body = ""
     var types = Map[String, Type]()
@@ -687,18 +721,14 @@ object Main extends App{
       arg match{
         case (argType, argName) => {
 
-          val argTypeStr = argType match {
-            case s@StructType(ident,_,_) => s.getPtrStr(structure)
-            case Integer => Integer.toString()
-            case FuncType(_,_) => {throw new Error("Functions not allowed as argument type.")}
-            case x@_ => x.toString()+"*"
-          }
+          val argTypeStr = argType.getTypeString(structure)
 
           if(argType == Integer){
             body += s"\t${argName}.val = add %int 0, ${argName} ; Integer reassign hack\n"
           }else{
             body += s"\t${argName}.val = load ${argTypeStr} ${argName}\n"
           }
+
           types = types + (s"${argName}" -> argType)
         }
       }
@@ -725,45 +755,45 @@ object Main extends App{
     def translateExp(exp:Expr):String = {
       exp match{
         case ConstExpr(value) => {
-          body += s"\t%t$temp = add %int 0, ${value}\n"
+          body += s"\t%t$temp = add %int 0, ${value} ; Hack to give ints a name \n "
+
           types = types + (s"%t$temp" -> Integer)
           temp = temp + 1
           s"%t${temp-1}"
         }
         case CallExpr(name, args) => {
-         val funcName = name.internalize(structure);
-         val origin = funcName.split("""\.""")(0)
+         val funcName = name.internalize(structure) //Find the function name. Either it is local, or it already is a qualified name
+         val origin = funcName.split("""\.""")(0) //Get the qualification part from the func name. This is the defining structure for any type in
 
-         val funcType = trans.getFuncType(structure, name);
+         val funcType = trans.getFuncType(structure, name); //Find the function type associated with the function. Pass the current structure, because the function name might not be a qualified name.
 
-         val argIds = args.map(argExp => translateExp(argExp)) //Geeft hun bindings terug, bijv: //List("%t1", "%t2")
+         val argIds = args.map(argExp => translateExp(argExp)) //Translate the expressions and give back the bindings, example: //List("%t1", "%t2")
          val argData = funcType.left.zip(argIds) // List[(Expected Type, LLVM Identifier pre conversion)]
          var argCallData = List[(String, String)]() //List[(Expected Type in String, LLVM Identifier post conversion)]
 
          //Possibly, these values are (according to LLVM) not yet of the right type. In that case, we need to cast them.
-
          for((expectedType, identifier) <- argData){
            if(types.get(identifier).get != expectedType){
-             if(expectedType == Integer){ // extract
+             if(expectedType == Integer){ // If the expected type is an integer, the current type MUST be of type {%int}, so extract the int.
               body += "\n"
-              body += s"\t%t${temp}.${identifier.substring(1)}.val = load ${localize(origin, types.get(identifier).get)} ${identifier}"
-              body += s"\t%t${temp}.${identifier.substring(1)} = extractvalue ${types.get(identifier).get.internalize(structure)} %t${temp}.${identifier.substring(1)}.val, 0"
-             }else if(expectedType.isInstanceOf[VarType]){ //Wrap
+              body += s"\t%t${temp}.${identifier.substring(1)}.val = load ${types.get(identifier).get.getTypeString(structure)} ${identifier} \n"
+              body += s"\t%t${temp}.${identifier.substring(1)} = extractvalue %${types.get(identifier).get.qualifiedName(structure)} %t${temp}.${identifier.substring(1)}.val, 0 \n"
+             }else if(expectedType.isInstanceOf[VarType]){ // If the expected type is a type variable, tyvarize it. We already are sure the current type associated with the identifier isn't a typevar.
                body += "\n" + tyvarize(s"%t${temp}.${identifier.substring(1)}", identifier, types.get(identifier).get, structure) + "\n"
-             }else{ //bitcast. Als dit een tyvar zou zijn, zou het programma ill-typed zijn.
-               body += "\n" + s"\t%t${temp}.${identifier.substring(1)} = bitcast ${localize(origin, types.get(identifier).get)} ${identifier} to ${localize(origin,expectedType)}\n"+ "\n"
+             }else{ //bitcast.
+               body += "\n" + s"\t%t${temp}.${identifier.substring(1)} = bitcast ${types.get(identifier).get.getTypeString(structure)} ${identifier} to ${localize(origin,expectedType)}\n"+ "\n"
              }
-             argCallData = argCallData :+ (localize(origin,expectedType), s"%t${temp}.${identifier.substring(1)}")
+             argCallData = argCallData :+ (localize(origin,expectedType), s"%t${temp}.${identifier.substring(1)}")// build call data with adjusted identifier //De funcType annotatie komt van structure met naam origin, niet perse huidige structure
            }else{
-             argCallData = argCallData :+ (localize(origin,expectedType), identifier)
+             argCallData = argCallData :+ (localize(origin,expectedType), identifier)// build call data with unchanged identifier //De funcType annotatie komt van structure met naam origin, niet perse huidige structure
            }
          }
-         val argCallString = argCallData.map{case (a,b) => s"$a $b"}.mkString(", ")
 
+         val argCallString = argCallData.map{case (a,b) => s"$a $b"}.mkString(", ") //build the argument string
 
-         body += s"\t%t$temp = call ${localize(origin, funcType.right)} @${funcName}_internal(${argCallString})\n"
+         body += s"\t%t$temp = call ${localize(origin, funcType.right)} @${funcName}_internal(${argCallString})\n" //perform the call
 
-         types = types + (s"%t$temp" -> funcType.right)
+         types = types + (s"%t$temp" -> funcType.right) //TODO: Might need to change ident to the qualified version?
          temp = temp+1
          return s"%t${temp-1}"
         }
@@ -772,14 +802,12 @@ object Main extends App{
           var rightbind = translateExp(right)
 
           if(types.get(leftbind).get != Integer){
-            //body += s"\t%t${temp}.left.int = bitcast %${types.get(leftbind).get.internalize(structure).replace("*", "")} $leftbind.val to %int ; Cast to int \n"
-            body += s"\t%t${temp}.left.int = extractvalue %${types.get(leftbind).get.internalize(structure).replace("*", "")} $leftbind.val, 0 ; Access \n"
+            body += s"\t%t${temp}.left.int = extractvalue %${types.get(leftbind).get.qualifiedName(structure)} $leftbind.val, 0 ; Access \n"
             leftbind = s"%t${temp}.left.int"
           }
 
           if(types.get(rightbind).get != Integer){
-            //body += s"\t%t${temp}.right.int = bitcast ${types.get(rightbind).get.internalize(structure).replace("*", "")} $rightbind.val to %int ; Cast to int \n"
-            body += s"\t%t${temp}.right.int = extractvalue %${types.get(rightbind).get.internalize(structure).replace("*", "")} $rightbind.val, 0 ; Access\n"
+            body += s"\t%t${temp}.right.int = extractvalue %${types.get(rightbind).get.qualifiedName(structure)} $rightbind.val, 0 ; Access\n"
             rightbind = s"%t${temp}.right.int"
           }
 
@@ -848,7 +876,7 @@ object Main extends App{
           }
 
           body += s"\tstore %pair %t${temp}.1, %pair* %t${temp} ; Store pair to pointer\n"
-          body += s"\t%t${temp}.val = load %pair* %t${temp}  ; Store pair to pointer\n"
+          body += s"\t%t${temp}.val = load %pair* %t${temp}  ; load pair from pointer for later use\n"
 
           types = types + (s"%t$temp" -> PairType(types.get(leftbind).get,types.get(rightbind).get))
           temp = temp+1
@@ -857,30 +885,24 @@ object Main extends App{
         case PairAccess(pair, annot, side) => {
           val pairbnd = translateExp(pair)
 
-          //bitcast to pair* if type not pair*
+          //bitcast to pair* if type not pair* //TODO: extractable
           if(! types.get(pairbnd).get.isInstanceOf[PairType]){ //If the bound var is of a different type than the pair type -> LLVM code to convert
             if(types.get(pairbnd).get.isInstanceOf[TypeVar]){ // If it is a tyvar, load the tyvar, get the address as an int, and cast it to a pair.
               body +=s"\t%t${pairbnd}.${temp}.val = load %tyvar* $pairbnd\n"
               body +=s"\t%t${temp}.pair.addr = extractvalue %tyvar $pairbnd.${temp}.val, 0 ; extract address from tyvar\n"
               body +=s"\t%t${temp}.pair = inttoptr %int %t${temp}.pair.addr to %pair* ; cast address to pair*\n" // bitcast -> inttoptr
             }else{ //If it is not a tyvar, it must be a pointer type, which is bitcastable to a pair* pointer.
-              body +=s"\t%t${temp}.pair = bitcast ${types.get(pairbnd).get.internalize(structure)}* $pairbnd to %pair*\n" //Changed + *, the original type can never be a non-pointer type
+              body +=s"\t%t${temp}.pair = bitcast ${types.get(pairbnd).get.getTypeString(structure)} $pairbnd to %pair*\n" //Changed + *, the original type can never be a non-pointer type
             }
             body += s"\t%t${temp}.pair.val = load %pair* %t${temp}.pair\n"
           }else{
             body += s"\t%t${temp}.pair.val = load %pair* %t${pairbnd}\n"
           }
 
-          body += s"\t%t${temp}.tyvar.addr = extractvalue %pair %t${temp}.pair.val, ${side.loc}\n"
-          body += s"\t%t${temp}.tyvar.ptr = inttoptr %int %t${temp}.tyvar.addr to %tyvar*\n" //Changed bitcast -> inttoptr
-          body += s"\t%t${temp}.tyvar.val = load %tyvar* %t${temp}.tyvar.ptr\n"
+          body += s"\t%t${temp}.tyvar.ptr = extractvalue %pair %t${temp}.pair.val, ${side.loc}\n" // This loads the %tyvar pointer value inside the pair
+          //body += s"\t%t${temp}.tyvar.ptr = inttoptr %int %t${temp}.tyvar.addr to %tyvar*\n" //Changed bitcast -> inttoptr
 
-          if(annot == Integer){
-            body+= s"\t%t${temp} = extractvalue %tyvar %t${temp}.tyvar.val, 0\n"
-          }else{
-            body += s"\t%t${temp}.addr = extractvalue %tyvar %t${temp}.tyvar.val, 0\n" //changed %pair to tyvar, and added .addr
-            body += s"\t%t${temp} = inttoptr %int t${temp}.ind to ${localize(structure.ident.value, annot)}\n" //cast loaded int to ptr of right type.
-          }
+          body += untyvarize(s"%t${temp}", s"%t${temp}.tyvar.ptr", annot, structure)
 
           types = types + (s"%t$temp" -> annot)
           temp = temp+1;
@@ -901,32 +923,20 @@ object Main extends App{
 
           var elembnd = translateExp(elem)
           val tailbnd = translateExp(tail)
-          var arraybnd = ""
+          val arraybnd = s"%t${temp}"
 
-          if(! types.get(tailbnd).get.isInstanceOf[ListType]){ //If the tail is of a different type than List type -> LLVM code to convert
-            if(types.get(tailbnd).get.isInstanceOf[TypeVar]){  //If it is a tyvar, get the
-              body +=s"\t%t${tailbnd}.${temp}.val = load %tyvar* $tailbnd\n"
-              body +=s"\t%t${temp}.array.addr = extractvalue %tyvar ${tailbnd}.${temp}.val, 0 ; extract address from tyvar\n"
-              body +=s"\t%t${temp}.array = inttoptr %int %t${temp}.array.addr to %array* ; cast address to array*\n" // bitcast -> inttoptr
-            }else{
-              body +=s"\t%t${temp}.array = bitcast ${types.get(tailbnd).get.internalize(structure)}* $tailbnd to %array*\n" //Added *, the original type can never be a non-pointer type
-            }
-            body += s"\t%t${temp}.array.val = load %array* %t${temp}.array\n"
-            arraybnd = s"%t${temp}.array"
-          }else{
-            body += s"\t%t${temp}.array.val = load %array* ${tailbnd}\n"
-            arraybnd = tailbnd
-          }
 
-          body += s"\t%t${temp}.array.length = extractvalue %array %t${temp}.array.val, 0\n"
+          body += getAsArray(s"%t${temp}", tailbnd, types.get(tailbnd).get, structure)
+          temp = temp +1
+
+          body += s"\t%t${temp}.array.length = extractvalue %array ${arraybnd}.val, 0\n"
           body += s"\t%t${temp}.array.elem.ptr = getelementptr %array* ${arraybnd}, i32 0, i32 1, %int %t${temp}.array.length\n"
 
           if(types.get(elembnd).get.isInstanceOf[VarType]){
             body += s"store %tyvar* ${elembnd}, %tyvar** %t${temp}.array.elem.ptr\n"
           }else{
             body += tyvarize(s"%t${temp}.elem", elembnd, types.get(elembnd).get, structure)
-
-            body += s"\tstore %tyvar* %t${temp}.r, %tyvar** %t${temp}.array.elem.ptr\n"
+            body += s"\tstore %tyvar* %t${temp}.elem, %tyvar** %t${temp}.array.elem.ptr\n"
           }
 
           body += s"\t%t${temp}.array.length.ptr = getelementptr %array* ${arraybnd}, i32 0, i32 0\n"
@@ -954,15 +964,10 @@ object Main extends App{
                   "\t\tunreachable\n\n"
 
           body += s"Continue${temp}:\n"
-          body += s"\t%t${temp}.ptr.ptr = getelementptr %array* $listbnd, i32 0, i32 1, %int $index\n"
-          body += s"\t%t${temp}.tyvar.ptr = load %tyvar** %t${temp}.ptr.ptr\n"
-          body += s"\t%t${temp}.tyvar = load %tyvar* %t${temp}.tyvar.ptr\n"
-          if(annot != Integer){
-            body += s"\t%t${temp} = extractvalue %tyvar %t${temp}.tyvar, 0\n"
-          }else{
-            body += s"\t%t${temp}.addr = extractvalue %tyvar %t${temp}.tyvar, 0\n"
-            body += s"\t%t${temp} = inttoptr %int %t${temp}.addr to ${localize(structure.ident.value, annot)}\n"
-          }
+          body += s"\t%t${temp}.tyvar.ptr.ptr = getelementptr %array* $listbnd, i32 0, i32 1, %int $index\n"
+          body += s"\t%t${temp}.tyvar.ptr = load %tyvar** %t${temp}.tyvar.ptr.ptr\n"
+
+          body += untyvarize(s"%t${temp}", s"%t${temp}.tyvar.ptr", annot, structure)
 
           types = types + (s"%t${temp}" -> annot)
           temp = temp+1
@@ -976,7 +981,7 @@ object Main extends App{
 
     var retval = translateExp(exp)
 
-    if(types.get(retval).get.toString != retType){
+    if(types.get(retval).get.getTypeString(structure) != retType){
       if(types.get(retval).get == Integer){
         body += s"\t%t$temp.addr = call i8* @malloc(%int 8)\n"
         body += s"\t%t$temp = bitcast i8* %t$temp.addr to ${retType}\n"
@@ -985,10 +990,13 @@ object Main extends App{
         retval = s"%t$temp"
       }else{
         if(retType == Integer.toString()){
-          body += s"\t%t$temp = bitcast ${types.get(retval).get.internalize(structure)} $retval.val to $retType\n"
+          body += s"\t%t$temp.val = load ${types.get(retval).get.getTypeString(structure)} $retval\n"
+          body += s"\t%t$temp = extractvalue %${types.get(retval).get.qualifiedName(structure)} %t$temp.val, 0\n"
           retval = s"%t$temp"
-        }else{
-          body += s"\t%t$temp = bitcast ${types.get(retval).get.internalize(structure)}* $retval to $retType\n"
+          //body += s"\t%t$temp = bitcast ${types.get(retval).get.getTypeString(structure)} $retval.val to $retType\n"
+
+        } else{
+          body += s"\t%t$temp = bitcast ${types.get(retval).get.getTypeString(structure)} $retval to $retType\n"
           retval = s"%t$temp"
         }
       }
@@ -1006,7 +1014,7 @@ object Main extends App{
         body +=s"\t${desiredName}.addr = extractvalue %tyvar ${desiredName}.tyvar.val, 0 ; extract address from tyvar\n"
         body +=s"\t${desiredName} = inttoptr %int ${desiredName}.array.addr to %array* ; cast address to array*\n" // bitcast -> inttoptr
       }else{
-        body +=s"\t${desiredName} = bitcast ${currentType.internalize(structure)}* $currentName to %array*\n" //Added *, the original type can never be a non-pointer type
+        body +=s"\t${desiredName} = bitcast ${currentType.getTypeString(structure)} $currentName to %array*\n" //Added *, the original type can never be a non-pointer type
       }
       body += s"\t${desiredName}.val = load %array* %t${desiredName}\n"
     }else{
@@ -1026,7 +1034,7 @@ object Main extends App{
     body += s"\t${desiredName}.addr = call i8* @malloc(%int 16)\n"
     body += s"\t${desiredName} = bitcast i8* ${desiredName}.addr to %tyvar*\n"
     if(currentType != Integer){
-      body += s"\t${desiredName}.int = ptrtoint %t${currentType.internalize(structure)}* ${valueToTyvarize} to %int; cast ptr to int\n" //added *
+      body += s"\t${desiredName}.int = ptrtoint ${currentType.getTypeString(structure)} ${valueToTyvarize} to %int; cast ptr to int\n" //added *
       body += s"\t${desiredName}.0 = insertvalue %tyvar undef, %int ${desiredName}.int, 0 ; create tyvar step 1\n "
     }else{
       body += s"\t${desiredName}.0 = insertvalue %tyvar undef, %int ${valueToTyvarize}, 0 ; create tyvar step 1\n "
@@ -1037,4 +1045,33 @@ object Main extends App{
     return body;
   }
 
+  def untyvarize(desiredName:String, tyvarPtr:String, annot:Type, structure:Structure):String = {
+    var body = ""
+
+    if(annot.isInstanceOf[VarType]){
+      body += s"\t${desiredName}.addr = ptrtoint %tyvar* ${tyvarPtr} to %int\n"
+      body += s"\t${desiredName} = inttoptr %int ${desiredName}.addr to %tyvar*\n"
+      body += s"\t${desiredName}.val = load %tyvar* ${desiredName} \n"
+    } else {
+      body += s"\t${desiredName}.tyvar = load %tyvar* ${tyvarPtr}\n"
+
+      if (annot == Integer) {
+        body += s"\t${desiredName} = extractvalue %tyvar ${desiredName}.tyvar, 0\n"
+        body += s"\t${desiredName}.val = extractvalue %tyvar ${desiredName}.tyvar, 0\n"
+      } else {
+        body += s"\t${desiredName}.addr = extractvalue %tyvar ${desiredName}.tyvar, 0\n ; int"
+        body += s"\t${desiredName} = inttoptr %int ${desiredName}.addr to ${annot.getTypeString(structure)}\n"
+        body += s"\t${desiredName}.val = load ${annot.getTypeString(structure)} ${desiredName}\n" //Load the value.
+      }
+    }
+
+    return body
+  }
 }
+//Zou ook rekening kunnen houden bij call om dan te checken of het unexpected type miss een tyvar is, en dan geen annotaties nodig bij het uitpakken van een pair/array, omdat je tyvar kan gebruiken. Then again, wat met tyvars van een verschillend type? Welke 'ident'?
+//Implementation type must be Liskov substitution principle subtype of declaration type.
+// For functions:
+//    1. implementation has tyvar argument while declaration specifies specific type. (Contravariance)
+//    2. implementation has specific returntype while declaration is more general. (Covariance)
+// This has already mostly been implemented because we tyvarize an argument when it isn't a tyvar when it's supposed to. (Contravariance)
+// TODO: The second doesn't really happen in normal situations? (i.e. you never have return type typevar a, unless a was featured in the type earlier. But then it's an argument, and this can't be replaced by the more specific type, as it breaks contravariance)

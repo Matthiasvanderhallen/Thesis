@@ -1,0 +1,1 @@
+case class Program(val signatures:List[Signature], val structures:List[Structure])

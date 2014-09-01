@@ -13,7 +13,7 @@ object Main extends App{
   var entrypoints:String = ""
 
   def translate(program:Program):Translation={
-    var translation = new Translation(program, true);
+    var translation = new Translation(program, "", "", "",true, 5, Map(), List(), Map());
 
     //First translation pass.
     translation = program.translate(translation);

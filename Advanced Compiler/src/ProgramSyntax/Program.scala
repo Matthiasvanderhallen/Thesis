@@ -1,8 +1,8 @@
 package ProgramSyntax
 import Compiler.Translation
-import ModuleSyntax.{Signature, Structure}
+import ModuleSyntax.{StructureDefinition, Signature, Structure}
 
-case class Program(val signatures:List[Signature], val structures:List[Structure]){
+case class Program(val signatures:List[Signature], val structures:List[StructureDefinition]){
   def translate(trans:Translation):Translation = {
     var translation = trans
 

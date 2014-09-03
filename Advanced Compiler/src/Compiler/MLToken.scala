@@ -1,20 +1,22 @@
 package Compiler
 
-import ModuleSyntax.Structure
+import ModuleSyntax.{StructureDefinition, Structure}
 
 sealed trait MLToken
-case class Ident(value: String) extends MLToken {
+case class Ident(value: String) extends MLToken with Ordered[Ident]{
   override def toString() = value;
   def ord():Int = {
     return value.charAt(0).toInt-97;
   }
 
-  def internalize(structure:Structure):String = {
+  def internalize(structureDef:StructureDefinition):String = {
     if(value.contains("."))
       return value;
     else
-      return s"${structure.ident.value}.${value}"
+      return s"${structureDef.ident.value}.${value}"
   }
+
+  def compare(a:Ident) = value.compareTo(a.value)
 }
 case class Number(value: Int) extends MLToken
 case object Delimiter extends MLToken

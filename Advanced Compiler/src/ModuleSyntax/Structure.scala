@@ -2,7 +2,7 @@ package ModuleSyntax
 
 import Compiler.{Ident, Translation}
 
-case class Structure(ident:Ident, signature:Ident, values: List[Definition])
+case class Structure(ident:Ident, signature:Ident, values: List[Definition]) extends StructureDefinition
 {
   def translate(trans:Translation, signature:Signature):Translation= {
 
@@ -11,10 +11,7 @@ case class Structure(ident:Ident, signature:Ident, values: List[Definition])
     val types = this.values.filter{case TypeDefinition(_,_,_) => true; case _ => false}
     val values = this.values
       .filter{case TypeDefinition(_,_,_) => false; case _ => true}
-      .sortBy{case TypeDefinition(ident,_,_) => ident.value;
-              case ValDefinition(ident,_,_) => ident.value;
-              case FunDefinition(ident,_,_,_) => ident.value
-             }
+      .sorted
 
     if(translation.firstPass){
       for(typedef <- types){
@@ -24,7 +21,7 @@ case class Structure(ident:Ident, signature:Ident, values: List[Definition])
       for(valdef <- values){
         translation = valdef.translate(translation, this, signature)
       }
-      translation = createFrame(translation, this, signature)
+      translation = createFrame(translation, signature)
     }
 
     return translation;
@@ -32,7 +29,7 @@ case class Structure(ident:Ident, signature:Ident, values: List[Definition])
 
   //Create a record of style:
   //%frame = type {[0 x i8]*, %frame*, i1, {%int, [0 x %int]}*, {%int, [0 x %int (%frame*, i8*)*]}*, {%int, [0 x %int]}*, %metaframe*}
-  def createFrame(trans:Translation, structure:Structure, signature:Signature):Translation ={
+  def createFrame(trans:Translation, signature:Signature):Translation ={
     var translation = trans;
 
     val fname = s"%frame.${this.ident.value}"
@@ -62,27 +59,60 @@ case class Structure(ident:Ident, signature:Ident, values: List[Definition])
     body += s"\t$trimmingMap = insertvalue %frame $securityBit, {%int, [0 x %int]}* null, 3 \n"
 
     //valueMap
-    val nbOfValues = signature.values.filter{case ValDeclaration(_,_) => true; case _ => false;}.length
-    body += s"\t$valueMap.addr = call i8* @malloc(%int ${8*nbOfValues})\n"
+    val nbOfValues = signature.values.count{case ValDeclaration(_,_) => true; case _ => false;}
+    body += s"\t$valueMap.addr = call i8* @malloc(%int ${8*nbOfValues*2})\n"
     body += s"\t$valueMap.ptr = bitcast i8* $valueMap.addr to {%int, [0 x %int (%frame*, i8*)*]}* \n"
     body += s"\t$valueMap.length.ptr = getelementptr {%int, [0 x %int (%frame*, i8*)*]}* $valueMap.ptr, i32 0, i32 0 \n"
-    body += s"\tstore %int $nbOfValues, %int* $valueMap.length.ptr \n"
+    body += s"\tstore %int ${nbOfValues*2}, %int* $valueMap.length.ptr \n"
     var index = 0;
-    for(value:Declaration <- signature.values.filter{case ValDeclaration(_,_) => true; case _ => false;}){
-      body += s"\t$valueMap.elem.$index.ptr = getelementptr {%int, [0 x %int (%frame*, i8*)*]}* $valueMap.ptr, i32 0, i32 1, %int $index \n"
-      body += s"\tstore %int (%frame*, i8*)* @${value.getIdent.internalize(this)}, %int (%frame*, i8*)** \n"
-      index = index + 1
+    for(declaration:Declaration <- signature.values){
+      declaration match{
+        case value@ValDeclaration(_,_) => {
+          //Stub
+          body += s"\t$valueMap.elem.$index.ptr = getelementptr {%int, [0 x %int (%frame*, i8*)*]}* $valueMap.ptr, i32 0, i32 1, %int $index \n"
+          body += s"\tstore %int (%frame*, i8*)* @${value.getIdent.internalize(this)}_stub, %int (%frame*, i8*)** $valueMap.elem.$index.ptr\n"
+          index = index + 1
+
+          //Internal
+          body += s"\t$valueMap.elem.$index.ptr = getelementptr {%int, [0 x %int (%frame*, i8*)*]}* $valueMap.ptr, i32 0, i32 1, %int $index \n"
+          //body += s"\t$valueMap.elem.$index.val.ptr = bitcast ${value.getTypeString(this)}* @${value.getIdent.internalize(this)}_internal to %int (%frame*, i8*)* \n"
+          body += s"\tstore %int (%frame*, i8*)* @${value.getIdent.internalize(this)}_intstub, %int (%frame*, i8*)** $valueMap.elem.$index.ptr\n"
+          index = index + 1
+        }
+        case _ => {
+
+        }
+      }
     }
     body += s"\t$valueMap = insertvalue %frame $trimmingMap, {%int, [0 x %int (%frame*, i8*)*]}* $valueMap.ptr, 4\n"
 
     //opaqueTypeMap
-    body += s"\t$opaqueTypeMap = insertvalue %frame $valueMap, {%int, [0 x %int]}* null, 5 \n"
+    val nbOfOpaqueTypes = signature.values.count{case OpaqueTypeDeclaration(_,_) => true; case _ => false}
+    body += s"\t$opaqueTypeMap.addr = call i8* @malloc(%int ${8*nbOfOpaqueTypes})\n"
+    body += s"\t$opaqueTypeMap.ptr = bitcast i8* $valueMap.addr to {%int, [0 x %int]}* \n"
+    body += s"\t$opaqueTypeMap.length.ptr = getelementptr {%int, [0 x %int]}* $opaqueTypeMap.ptr, i32 0, i32 0 \n"
+    body += s"\tstore %int ${nbOfOpaqueTypes}, %int* $opaqueTypeMap.length.ptr \n"
+
+    index = 0
+    for(declaration:Declaration <- signature.values.sorted){
+      declaration match{
+        case OpaqueTypeDeclaration(ident, tyvars) => {
+          body += s"\t$opaqueTypeMap.$ident.ptr = getelementptr {%int, [0 x %int]}* $opaqueTypeMap.ptr, i32 0, i32 1, %int $index \n"
+          body += s"\tstore %int ${translation.getOpaqueType(ident.internalize(this))}, %int* $opaqueTypeMap.$ident.ptr"
+          index = index + 1
+        }
+        case _ => {}
+      }
+    }
+    body += s"\t$opaqueTypeMap = insertvalue %frame $valueMap, {%int, [0 x %int]}* $opaqueTypeMap.ptr, 5 \n"
 
     //metaframe
 
     body += s"\t$metaframe = insertvalue %frame $opaqueTypeMap, %metaframe* null, 6\n"
 
-    body += s"\tstore %frame $metaframe, %frame* $fname"
+    body += s"\tstore %frame $metaframe, %frame* $fname\n"
+
+    body += s"\tret void\n"
 
     //println(body)
 
@@ -91,7 +121,7 @@ case class Structure(ident:Ident, signature:Ident, values: List[Definition])
     return translation
   }
 
-  def createMetaFrame(trans:Translation, structure:Structure, signature:Signature):Translation = {
+  def createMetaFrame(trans:Translation, signature:Signature):Translation = {
     var translation = trans
 
     return translation

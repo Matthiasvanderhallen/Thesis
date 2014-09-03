@@ -1,10 +1,10 @@
 package Compiler
 
-import ModuleSyntax.Structure
+import ModuleSyntax.{StructureDefinition, Structure}
 import TypeSystem.{VarType, ListType, Type}
 
 object TranslationHelper {
-  def getAsArray(desiredName:String, currentName:String, currentType:Type, structure:Structure):String = {
+  def getAsArray(desiredName:String, currentName:String, currentType:Type, structureDef:StructureDefinition):String = {
     var body = ""
     if(!currentType.isInstanceOf[ListType]){ //If the tail is of a different type than List type -> LLVM code to convert
       if(currentType.isInstanceOf[VarType]){  //If it is a tyvar, get the
@@ -12,7 +12,7 @@ object TranslationHelper {
         body +=s"\t${desiredName}.addr = extractvalue %tyvar ${desiredName}.tyvar.val, 0 ; extract address from tyvar\n"
         body +=s"\t${desiredName} = inttoptr %int ${desiredName}.array.addr to %array* ; cast address to array*\n" // bitcast -> inttoptr
       }else{
-        body +=s"\t${desiredName} = bitcast ${currentType.getTypeString(structure)} $currentName to %array*\n" //Added *, the original type can never be a non-pointer type
+        body +=s"\t${desiredName} = bitcast ${currentType.getTypeString(structureDef)} $currentName to %array*\n" //Added *, the original type can never be a non-pointer type
       }
       body += s"\t${desiredName}.val = load %array* %t${desiredName}\n"
     }else{
@@ -27,12 +27,12 @@ object TranslationHelper {
   // @param valueToTyvarize String containing the identifier that the value to tyvarize is currently bound to
   // @param currentType     The current type of the value.
   // @param structure       The 'local environment' structure.
-  def tyvarize(desiredName:String, valueToTyvarize:String, currentType:Type, structure:Structure):String = {
+  def tyvarize(desiredName:String, valueToTyvarize:String, currentType:Type, structureDef:StructureDefinition):String = {
     var body = ""
     body += s"\t${desiredName}.addr = call i8* @malloc(%int 16)\n"
     body += s"\t${desiredName} = bitcast i8* ${desiredName}.addr to %tyvar*\n"
     if(currentType != TypeSystem.Integer){
-      body += s"\t${desiredName}.int = ptrtoint ${currentType.getTypeString(structure)} ${valueToTyvarize} to %int; cast ptr to int\n" //added *
+      body += s"\t${desiredName}.int = ptrtoint ${currentType.getTypeString(structureDef)} ${valueToTyvarize} to %int; cast ptr to int\n" //added *
       body += s"\t${desiredName}.0 = insertvalue %tyvar undef, %int ${desiredName}.int, 0 ; create tyvar step 1\n "
     }else{
       body += s"\t${desiredName}.0 = insertvalue %tyvar undef, %int ${valueToTyvarize}, 0 ; create tyvar step 1\n "
@@ -43,7 +43,7 @@ object TranslationHelper {
     return body;
   }
 
-  def untyvarize(desiredName:String, tyvarPtr:String, annot:Type, structure:Structure):String = {
+  def untyvarize(desiredName:String, tyvarPtr:String, annot:Type, structureDef:StructureDefinition):String = {
     var body = ""
 
     if(annot.isInstanceOf[VarType]){
@@ -58,8 +58,8 @@ object TranslationHelper {
         body += s"\t${desiredName}.val = extractvalue %tyvar ${desiredName}.tyvar, 0\n"
       } else {
         body += s"\t${desiredName}.addr = extractvalue %tyvar ${desiredName}.tyvar, 0\n ; int"
-        body += s"\t${desiredName} = inttoptr %int ${desiredName}.addr to ${annot.getTypeString(structure)}\n"
-        body += s"\t${desiredName}.val = load ${annot.getTypeString(structure)} ${desiredName}\n" //Load the value.
+        body += s"\t${desiredName} = inttoptr %int ${desiredName}.addr to ${annot.getTypeString(structureDef)}\n"
+        body += s"\t${desiredName}.val = load ${annot.getTypeString(structureDef)} ${desiredName}\n" //Load the value.
       }
     }
 

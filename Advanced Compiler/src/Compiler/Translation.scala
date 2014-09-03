@@ -1,6 +1,6 @@
 package Compiler
 
-import ModuleSyntax.{FunDefinition, Structure, ValDeclaration, ValDefinition, Signature}
+import ModuleSyntax._
 import ProgramSyntax.Program
 import TypeSystem.{FuncType, Type}
 
@@ -11,11 +11,19 @@ case class Translation(program:Program, var firstPass:Boolean) {
   var entryPoints:String = ""
   var values:String = ""
   var initialize:String = ""
-  var opaqueTypeMapping:Map[String,Int] = Map()
+  var opaqueTypeMapping:Map[String,Int] = Map().+("%int" -> 1).+("%tyvar" -> 2).+("%pair" -> 3).+("%array" -> 4)
   var implMapping:Map[Int,Int] = Map()
   var tyvarMapping:Map[Int,Type] = Map()
 
-  override def toString = {
+  def structToFrame(structureDef:StructureDefinition):Int = {
+    structureDef match {
+      case Structure(_, _, _) => program.structures.filterNot { case _ => true}.sorted.indexOf(structureDef) //TODO
+      case Functor(_, _, _, _, _) => throw new IllegalArgumentException("Functors have no associated frame, only functor applications have frames")
+      case _ => throw new IllegalArgumentException("")
+    }
+  }
+
+  override def toString:String = {
     val defaultTypes =
       "%int = type i64 ; 1\n" +
       "%tyvar = type {%int, %int} ; 2\n" +
@@ -41,7 +49,12 @@ case class Translation(program:Program, var firstPass:Boolean) {
 
     val initial = "define void @initialize(){\n" +
       initialize +"}\n"
-    defaultTypes +";Non-standard Types\n" +types + "\n"+ declarations + "\n" + entryPoints + "\n" + values + main + initial
+
+    //TODO: hier frame opzoeken in lijst, en laden...
+    val callStructureValue = "define %int @callStructureValue(%int %frame, %int %value, i8* %args){\n" +
+      "\tret %int 0\n" +
+      "}\n"
+    defaultTypes +";Non-standard Types\n" +types + "\n"+ declarations + "\n" + entryPoints + "\n" + values + main + "\n" + initial + "\n" +callStructureValue
   }
 
   def getImplTypeInt(search:Int):Int = {
@@ -60,35 +73,45 @@ case class Translation(program:Program, var firstPass:Boolean) {
     tyvarMapping.get(search).get
   }
 
-  def getFuncType(structure:Structure, search:Ident):FuncType = {
+  def getSignatureByName(name:String) : Signature = {
+    val ident = new Ident(name);
+    program.signatures.find{case Signature(`ident`, _) => true; case _ => false}.get
+  }
+
+  def getFuncType(structureDef:StructureDefinition, search:Ident):FuncType = {
     if(search.value.contains(".")){
       val defStructIdent = new Ident(search.value.split("""\.""")(0))
       val valueIdent = new Ident(search.value.split("""\.""")(1))
-      if(defStructIdent == structure.ident)
-        return structure.values.find{case FunDefinition(`search`,_,_,_) => true ;case _ => false}.get.asInstanceOf[FunDefinition].ascription
+      if(defStructIdent == structureDef.ident)
+        return structureDef.values.find{case FunDefinition(`search`,_,_,_) => true ;case _ => false}.get.asInstanceOf[FunDefinition].ascription
 
       val defStruct = program.structures.find{case Structure(`defStructIdent`,_,_) => true ; case _ => false}.get
       val sigId = defStruct.signature
       val defSignature = program.signatures.find{case Signature(`sigId`,_) => true; case _ => false}.get
       return defSignature.values.find{case ValDeclaration(`valueIdent`,_) => true; case _ => false}.get.asInstanceOf[ValDeclaration].ascription.asInstanceOf[FuncType]
     }else{
-      return structure.values.find{case FunDefinition(`search`,_,_,_) => true ;case _ => false}.get.asInstanceOf[FunDefinition].ascription
+      return structureDef.values.find{case FunDefinition(`search`,_,_,_) => true ;case _ => false}.get.asInstanceOf[FunDefinition].ascription
     }
   }
 
-  def getValType(struct:Structure, search:Ident) : Type = {
+  def getValType(structureDef:StructureDefinition, search:Ident) : Type = {
     if(search.value.contains(".")){
       val defStructIdent = new Ident(search.value.split("""\.""")(0))
       val valueIdent = new Ident(search.value.split("""\.""")(1))
-      if(defStructIdent == struct.ident)
-        return struct.values.find{case ValDefinition(`search`,_,_) => true ; case _ => false}.get.asInstanceOf[ValDefinition].ascription
+      if(defStructIdent == structureDef.ident)
+        return structureDef.values.find{case ValDefinition(`search`,_,_) => true ; case _ => false}.get.asInstanceOf[ValDefinition].ascription
 
       val defStruct = program.structures.find{case Structure(`defStructIdent`,_,_) => true; case _ => false}.get
       val sigId = defStruct.signature
       val defSignature = program.signatures.find{case Signature(`sigId`,_) => true; case _ => false}.get
       return defSignature.values.find{case ValDeclaration(`valueIdent`,_) => true; case _ => false}.get.asInstanceOf[ValDeclaration].ascription
     }else{
-      return struct.values.find{case ValDefinition(`search`,_,_) => true ; case _ => false}.get.asInstanceOf[ValDefinition].ascription
+      return structureDef.values.find{case ValDefinition(`search`,_,_) => true ; case _ => false}.get.asInstanceOf[ValDefinition].ascription
     }
+  }
+
+  def getStructureDefinitionByName(name:String) : StructureDefinition = {
+    val ident = new Ident(name)
+    program.structures.find(x => x.ident == `ident`).get
   }
 }

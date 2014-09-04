@@ -36,7 +36,8 @@ object Programs {
       new OpaqueTypeDeclaration(new Ident("pair"), 1),
       new ValDeclaration(new Ident("createPair"), new FuncType(List(vara,vara), new StructType(new Ident("pair"),1, List(vara)))),
       new ValDeclaration(new Ident("getLeft"), new FuncType(List(paira), vara)),
-      new ValDeclaration(new Ident("getRight"), new FuncType(List(paira), vara))
+      new ValDeclaration(new Ident("getRight"), new FuncType(List(paira), vara)),
+      new ValDeclaration(new Ident("copy"), new FuncType(List(paira), paira))
     ))
 
   val pair = new Structure(new Ident("Pair"), new Ident("PAIRSIG"),
@@ -44,9 +45,19 @@ object Programs {
       new TypeDefinition(new Ident("pair"), 1, new PairType(vara, vara)),
       new FunDefinition(new Ident("createPair"), List(new Ident("left"), new Ident("right")), new FuncType(List(vara,vara), paira), PairExpr(ValExpr(new Ident("left")),ValExpr(new Ident("right")))),
       new FunDefinition(new Ident("getLeft"), List(new Ident("pair")), new FuncType(List(paira), vara), PairAccess(ValExpr(new Ident("pair")), vara, Left)),
-      new FunDefinition(new Ident("getRight"), List(new Ident("pair")), new FuncType(List(paira), vara), PairAccess(ValExpr(new Ident("pair")), vara, Right))// CoreSyntax.ConstExpr(3)),
+      new FunDefinition(new Ident("getRight"), List(new Ident("pair")), new FuncType(List(paira), vara), PairAccess(ValExpr(new Ident("pair")), vara, Right)),// CoreSyntax.ConstExpr(3)),
+      new FunDefinition(new Ident("copy"), List(new Ident("pair")), new FuncType(List(paira), paira), CallExpr(new Ident("createPair"), List(CallExpr(new Ident("getLeft"), List(ValExpr(new Ident("pair")))),CallExpr(new Ident("getRight"), List(ValExpr(new Ident("pair")))))))
     )
   )
 
-  val program1 = new Program(List(symmetriccipher, pairsig), List(caesar, pair))
+  val secpair = new Functor(new Ident("SecurePair"), new Ident("c"), new Ident("SYMMETRICCIPHER"), new Ident("PAIRSIG"), List(
+    new TypeDefinition(new Ident("pair"), 1, new PairType(vara,vara)),
+    new FunDefinition(new Ident("createPair"), List(new Ident("left"), new Ident("right")), new FuncType(List(vara,vara), paira), PairExpr(ValExpr(new Ident("left")),ValExpr(new Ident("right")))),
+    new FunDefinition(new Ident("getLeft"), List(new Ident("pair")), new FuncType(List(paira), vara), PairAccess(ValExpr(new Ident("pair")), vara, Left)),
+    new FunDefinition(new Ident("getRight"), List(new Ident("pair")), new FuncType(List(paira), vara), PairAccess(ValExpr(new Ident("pair")), vara, Right)),
+    new FunDefinition(new Ident("copy"), List(new Ident("pair")), new FuncType(List(paira), paira), CallExpr(new Ident("createPair"), List(CallExpr(new Ident("getLeft"), List(ValExpr(new Ident("pair")))),CallExpr(new Ident("getRight"), List(ValExpr(new Ident("pair"))))))),
+    new ValDefinition(new Ident("cred"), new StructType(new Ident("c.cred"), 0, List()), ValExpr(new Ident("c.newcredentials")))
+  ))
+
+  val program1 = new Program(List(symmetriccipher, pairsig), List(caesar, pair, secpair))
 }

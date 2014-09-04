@@ -48,13 +48,15 @@ case class Translation(program:Program, var firstPass:Boolean) {
       "}\n"
 
     val initial = "define void @initialize(){\n" +
-      initialize +"}\n"
+      initialize +
+      "\tret void\n" +
+      "}\n"
 
     //TODO: hier frame opzoeken in lijst, en laden...
     val callStructureValue = "define %int @callStructureValue(%int %frame, %int %value, i8* %args){\n" +
       "\tret %int 0\n" +
       "}\n"
-    defaultTypes +";Non-standard Types\n" +types + "\n"+ declarations + "\n" + entryPoints + "\n" + values + main + "\n" + initial + "\n" +callStructureValue
+    defaultTypes +";Non-standard Types\n" +types + "\n"+ declarations + "\n" + entryPoints + "\n" + values + main + "\n" + initial + "\n" +callStructureValue + s"\n\n@opaqueTypeCounter = private global %int ${opaqueTypeCounter}\n@frameCounter = private global %int ${frameCounter}\n@flist = private global [100 x %frame*]* null"
   }
 
   def getImplTypeInt(search:Int):Int = {
@@ -66,7 +68,11 @@ case class Translation(program:Program, var firstPass:Boolean) {
   }
 
   def getOpaqueType(str:String):Int = {
-    opaqueTypeMapping.get(str).get
+    if (opaqueTypeMapping.get(str).isDefined) {
+      opaqueTypeMapping.get(str).get //todo: Hacky
+    }else {
+      return -1
+    }
   }
 
   def getImplType(search:Int):Type = {
@@ -95,18 +101,22 @@ case class Translation(program:Program, var firstPass:Boolean) {
   }
 
   def getValType(structureDef:StructureDefinition, search:Ident) : Type = {
-    if(search.value.contains(".")){
-      val defStructIdent = new Ident(search.value.split("""\.""")(0))
-      val valueIdent = new Ident(search.value.split("""\.""")(1))
-      if(defStructIdent == structureDef.ident)
-        return structureDef.values.find{case ValDefinition(`search`,_,_) => true ; case _ => false}.get.asInstanceOf[ValDefinition].ascription
+    try {
+      if (search.value.contains(".")) {
+        val defStructIdent = new Ident(search.value.split( """\.""")(0))
+        val valueIdent = new Ident(search.value.split( """\.""")(1))
+        if (defStructIdent == structureDef.ident)
+          return structureDef.values.find { case ValDefinition(`search`, _, _) => true; case _ => false}.get.asInstanceOf[ValDefinition].ascription
 
-      val defStruct = program.structures.find{case Structure(`defStructIdent`,_,_) => true; case _ => false}.get
-      val sigId = defStruct.signature
-      val defSignature = program.signatures.find{case Signature(`sigId`,_) => true; case _ => false}.get
-      return defSignature.values.find{case ValDeclaration(`valueIdent`,_) => true; case _ => false}.get.asInstanceOf[ValDeclaration].ascription
-    }else{
-      return structureDef.values.find{case ValDefinition(`search`,_,_) => true ; case _ => false}.get.asInstanceOf[ValDefinition].ascription
+        val defStruct = program.structures.find { case Structure(`defStructIdent`, _, _) => true; case _ => false}.get
+        val sigId = defStruct.signature
+        val defSignature = program.signatures.find { case Signature(`sigId`, _) => true; case _ => false}.get
+        return defSignature.values.find { case ValDeclaration(`valueIdent`, _) => true; case _ => false}.get.asInstanceOf[ValDeclaration].ascription
+      } else {
+        return structureDef.values.find { case ValDefinition(`search`, _, _) => true; case _ => false}.get.asInstanceOf[ValDefinition].ascription
+      }
+    }catch{
+      case e:java.util.NoSuchElementException => return TypeSystem.Integer
     }
   }
 

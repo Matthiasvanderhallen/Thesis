@@ -60,7 +60,7 @@ case class Structure(ident:Ident, signature:Ident, values: List[Definition]) ext
 
     //valueMap
     val nbOfValues = signature.values.count{case ValDeclaration(_,_) => true; case _ => false;}
-    body += s"\t$valueMap.addr = call i8* @malloc(%int ${8*nbOfValues*2})\n"
+    body += s"\t$valueMap.addr = call i8* @malloc(%int ${8*nbOfValues*2+8})\n"
     body += s"\t$valueMap.ptr = bitcast i8* $valueMap.addr to {%int, [0 x %int (%frame*, i8*)*]}* \n"
     body += s"\t$valueMap.length.ptr = getelementptr {%int, [0 x %int (%frame*, i8*)*]}* $valueMap.ptr, i32 0, i32 0 \n"
     body += s"\tstore %int ${nbOfValues*2}, %int* $valueMap.length.ptr \n"
@@ -89,7 +89,7 @@ case class Structure(ident:Ident, signature:Ident, values: List[Definition]) ext
     //opaqueTypeMap
     val nbOfOpaqueTypes = signature.values.count{case OpaqueTypeDeclaration(_,_) => true; case _ => false}
     body += s"\t$opaqueTypeMap.addr = call i8* @malloc(%int ${8*nbOfOpaqueTypes})\n"
-    body += s"\t$opaqueTypeMap.ptr = bitcast i8* $valueMap.addr to {%int, [0 x %int]}* \n"
+    body += s"\t$opaqueTypeMap.ptr = bitcast i8* $opaqueTypeMap.addr to {%int, [0 x %int]}* \n"
     body += s"\t$opaqueTypeMap.length.ptr = getelementptr {%int, [0 x %int]}* $opaqueTypeMap.ptr, i32 0, i32 0 \n"
     body += s"\tstore %int ${nbOfOpaqueTypes}, %int* $opaqueTypeMap.length.ptr \n"
 
@@ -111,8 +111,14 @@ case class Structure(ident:Ident, signature:Ident, values: List[Definition]) ext
     body += s"\t$metaframe = insertvalue %frame $opaqueTypeMap, %metaframe* null, 6\n"
 
     body += s"\tstore %frame $metaframe, %frame* $fname\n"
+    body += s"\t%frIndex.$ident = load %int* @frameCounter\n"
+    body += s"\t%flist.$ident.ptr = load [100 x %frame*]** @flist\n"
+    body += s"\t%$ident.frame.ptr = getelementptr [100 x %frame*]* %flist.${ident}.ptr, i32 0, %int %frIndex.$ident\n"
+    body += s"\tstore %frame* $fname, %frame** %$ident.frame.ptr\n"
+    body += s"\t%frIndexNew.$ident = add %int 1, %frIndex.$ident\n"
+    body += s"\tstore %int %frIndexNew.$ident, %int* @frameCounter\n"
 
-    body += s"\tret void\n"
+
 
     //println(body)
 

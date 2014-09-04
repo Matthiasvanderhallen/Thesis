@@ -48,11 +48,11 @@ case class FunDefinition(ident:Ident, variables:List[Ident], ascription: FuncTyp
     //Internal function output
     var value = s"define private $retTypeId @$ident"+s"_internal(%frame* %frame, $argForInternal){\n"
     if(structureDef.isInstanceOf[Functor]) {
-      value += s"%frame.val = load %frame\n"
-      value += s"%frame.opaqueTypeMap = extractvalue %frame %frame.val, 5\n"
-      value += s"%argframe = extractvalue %frame %frame, 1\n"
-      value += s"%argframe.val = load %frame* %argframe\n"
-      value += s"%argframe.opaqueTypeMap = extractvalue %frame %argframe.val, 5\n"
+      value += s"\t%frame.val = load %frame* %frame\n"
+      value += s"\t%frame.opaqueTypeMap = extractvalue %frame %frame.val, 5\n"
+      value += s"\t%argframe = extractvalue %frame %frame.val, 1\n"
+      value += s"\t%argframe.val = load %frame* %argframe\n"
+      value += s"\t%argframe.opaqueTypeMap = extractvalue %frame %argframe.val, 5\n"
     }
     value += this.expression.translate(trans, structureDef, signature, this.ascription.left.zip(argNames), retTypeId)
     value +="}\n\n"
@@ -69,11 +69,11 @@ case class FunDefinition(ident:Ident, variables:List[Ident], ascription: FuncTyp
       value += s"define %int @${ident}_stub(%frame* %frame, i8* %args) noinline {\n"//$argumentsAsInt) noinline {\n"
       value += s"\t;Switch stack, move parameters\n"
       if(structureDef.isInstanceOf[Functor]) {
-        value += s"$frame.val = load %frame\n"
-        value += s"$frame.opaqueTypeMap = extractvalue %frame $frame.val, 5\n"
-        value += s"$argframe = extractvalue %frame $frame, 1\n"
-        value += s"$argframe.val = load %frame* $frame.argframe\n"
-        value += s"$argframe.opaqueTypeMap = extractvalue %frame $argframe.val, 5\n"
+        value += s"\t$frame.val = load %frame* %frame\n"
+        value += s"\t$frame.opaqueTypeMap = extractvalue %frame $frame.val, 5\n"
+        value += s"\t$argframe = extractvalue %frame $frame.val, 1\n"
+        value += s"\t$argframe.val = load %frame* $argframe\n"
+        value += s"\t$argframe.opaqueTypeMap = extractvalue %frame $argframe.val, 5\n"
       }
 
       value += loadArgumentsFromPtr
@@ -90,12 +90,12 @@ case class FunDefinition(ident:Ident, variables:List[Ident], ascription: FuncTyp
             { if(structureDef.isInstanceOf[Functor]){
                 if(argTypeId.contains(structureDef.ident.value + ".")){
                   val typeIndex = structureDef.getTypeIndex(new Ident(typeId.split("""\.""")(1)))
-                  s"\t\t$name.check.expectedvalue.ptr = getelementptr {%int, [0 x %int]} $frame.opaqueTypeMap, i32 0, i32 0, %int $typeIndex \n"
+                  s"\t\t$name.check.expectedvalue.ptr = getelementptr {%int, [0 x %int]}* $frame.opaqueTypeMap, i32 0, i32 0, %int $typeIndex \n"
                   s"\t\t$name.check.expectedvalue = load %int* $name.check.expectedvalue.ptr \n"
                   s"\t\t$name.check = icmp ne %int %$name.type, $name.check.expectedvalue \n"
                 }else if(argTypeId.contains(structureDef.asInstanceOf[Functor].argIdent.value + ".")){
                   val typeIndex = translation.getStructureDefinitionByName(typeId.split("""\.""")(0)).getTypeIndex(new Ident(typeId.split(""".""")(1)))
-                  s"\t\t$name.check.expectedvalue.ptr = getelementptr {%int, [0 x %int]} $argframe.opaqueTypeMap, i32 0, i32 0, %int $typeIndex \n"
+                  s"\t\t$name.check.expectedvalue.ptr = getelementptr {%int, [0 x %int]}* $argframe.opaqueTypeMap, i32 0, i32 0, %int $typeIndex \n"
                   s"\t\t$name.check.expectedvalue = load %int* $name.check.expectedvalue.ptr \n"
                   s"\t\t$name.check = icmp ne %int %$name.type, $name.check.expectedvalue \n"
                   s"\t\t%$name.check = icmp ne %int %$name.type, $typeInt\n"
@@ -148,14 +148,14 @@ case class FunDefinition(ident:Ident, variables:List[Ident], ascription: FuncTyp
           value += s"\t%ret.int = ptrtoint $retTypeId %ret.ptr to %int\n"
           if(structureDef.isInstanceOf[Functor]){
             if(retTypeId.contains(structureDef.ident.value + ".")){
-              val typeIndex = structureDef.getTypeIndex(new Ident(retTypeId.split(""".""")(1)))
-              s"\t\t%ret.typeInt.ptr = getelementptr {%int, [0 x %int]} $frame.opaqueTypeMap, i32 0, i32 0, %int $typeIndex \n"
-              s"\t\t%ret.typeInt = load %int* %ret.typeInt.ptr \n"
+              val typeIndex = structureDef.getTypeIndex(new Ident(retTypeId.split("""\.""")(1).replace("*","")))
+              value += s"\t%ret.typeInt.ptr = getelementptr {%int, [0 x %int]}* $frame.opaqueTypeMap, i32 0, i32 1, %int $typeIndex \n"
+              value += s"\t%ret.typeInt = load %int* %ret.typeInt.ptr \n"
               value += s"\t%ret.mask = call %int @mask(%int %ret.int, %int %ret.typeInt)\n"
             }else if(retTypeId.contains(structureDef.asInstanceOf[Functor].argIdent.value + ".")){
               val typeIndex = translation.getStructureDefinitionByName(retTypeId.split("""\.""")(0)).getTypeIndex(new Ident(retTypeId.split(""".""")(1)))
-              s"\t\t%ret.typeInt.ptr = getelementptr {%int, [0 x %int]} $argframe.opaqueTypeMap, i32 0, i32 0, %int $typeIndex \n"
-              s"\t\t%ret.typeInt = load %int* %ret.typeInt.ptr \n"
+              value += s"\t%ret.typeInt.ptr = getelementptr {%int, [0 x %int]}* $argframe.opaqueTypeMap, i32 0, i32 1, %int $typeIndex \n"
+              value += s"\t%ret.typeInt = load %int* %ret.typeInt.ptr \n"
               value += s"\t%ret.mask = call %int @mask(%int %ret.int, %int %ret.typeInt)\n"
             }else{
               value += s"\t%ret.mask = call %int @mask(%int %ret.int, %int $retTypeInt)\n"
@@ -456,11 +456,11 @@ case class ValDefinition(ident:Ident, ascription: Type, expression: Expr) extend
     //Internal function output
     var value = s"define private $typeId @$ident"+s"_internal(%frame* %frame){\n"
     if(structureDef.isInstanceOf[Functor]) {
-      value += s"%frame.val = load %frame\n"
-      value += s"%frame.opaqueTypeMap = extractvalue %frame %frame.val, 5\n"
-      value += s"%argframe = extractvalue %frame %frame, 1\n"
-      value += s"%argframe.val = load %frame* %frame.argframe\n"
-      value += s"%argframe.opaqueTypeMap = extractvalue %frame %argframe.val, 5\n"
+      value += s"\t%frame.val = load %frame* %frame\n"
+      value += s"\t%frame.opaqueTypeMap = extractvalue %frame %frame.val, 5\n"
+      value += s"\t%argframe = extractvalue %frame %frame.val, 1\n"
+      value += s"\t%argframe.val = load %frame* %frame.argframe\n"
+      value += s"\t%argframe.opaqueTypeMap = extractvalue %frame %argframe.val, 5\n"
     }
     value += this.expression.translate(trans, structureDef, signature, List(), typeId)
     value +="}\n\n"
@@ -475,11 +475,11 @@ case class ValDefinition(ident:Ident, ascription: Type, expression: Expr) extend
       value += s"define %int @${ident}_stub(%frame* %frame, i8* %args) noinline {\n"
       value += s"\t;Switch stack, move parameters\n"
       if(structureDef.isInstanceOf[Functor]) {
-        value += s"$frame.val = load %frame\n"
-        value += s"$frame.opaqueTypeMap = extractvalue %frame $frame.val, 5\n"
-        value += s"$argframe = extractvalue %frame $frame, 1\n"
-        value += s"$argframe.val = load %frame* $frame.argframe\n"
-        value += s"$argframe.opaqueTypeMap = extractvalue %frame $argframe.val, 5\n"
+        value += s"\t$frame.val = load %frame* %frame\n"
+        value += s"\t$frame.opaqueTypeMap = extractvalue %frame $frame.val, 5\n"
+        value += s"\t$argframe = extractvalue %frame $frame.val, 1\n"
+        value += s"\t$argframe.val = load %frame* $frame.argframe\n"
+        value += s"\t$argframe.opaqueTypeMap = extractvalue %frame $argframe.val, 5\n"
       }
 
       if(!returnInt){
@@ -488,13 +488,13 @@ case class ValDefinition(ident:Ident, ascription: Type, expression: Expr) extend
         if(structureDef.isInstanceOf[Functor]){
           if(typeId.contains(structureDef.ident.value + ".")){
             val typeIndex = structureDef.getTypeIndex(new Ident(typeId.split(""".""")(1)))
-            s"\t\t%ret.typeInt.ptr = getelementptr {%int, [0 x %int]} $frame.opaqueTypeMap, i32 0, i32 0, %int $typeIndex \n"
-            s"\t\t%ret.typeInt = load %int* %ret.typeInt.ptr \n"
+            value += s"\t%ret.typeInt.ptr = getelementptr {%int, [0 x %int]}* $frame.opaqueTypeMap, i32 0, i32 1, %int $typeIndex \n"
+            value += s"\t%ret.typeInt = load %int* %ret.typeInt.ptr \n"
             value += s"\t%ret.mask = call %int @mask(%int %ret.int, %int %ret.typeInt)\n"
           }else if(typeId.contains(structureDef.asInstanceOf[Functor].argIdent.value + ".")){
             val typeIndex = translation.getStructureDefinitionByName(typeId.split("""\.""")(0)).getTypeIndex(new Ident(typeId.split(""".""")(1)))
-            s"\t\t%ret.typeInt.ptr = getelementptr {%int, [0 x %int]} $argframe.opaqueTypeMap, i32 0, i32 0, %int $typeIndex \n"
-            s"\t\t%ret.typeInt = load %int* %ret.typeInt.ptr \n"
+            value += s"\t%ret.typeInt.ptr = getelementptr {%int, [0 x %int]}* $argframe.opaqueTypeMap, i32 0, i32 1, %int $typeIndex \n"
+            value += s"\t%ret.typeInt = load %int* %ret.typeInt.ptr \n"
             value += s"\t%ret.mask = call %int @mask(%int %ret.int, %int %ret.typeInt)\n"
           }else{
             value += s"\t%ret.mask = call %int @mask(%int %ret.int, %int $typeInt)\n"

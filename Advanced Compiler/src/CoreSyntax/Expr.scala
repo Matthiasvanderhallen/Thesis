@@ -139,7 +139,7 @@ sealed trait Expr {
            body += s"CallFinish$temp:\n"
            body += s"\t%t$temp = phi %${localize(origin, funcType.right)} [%frame.$temp.sec.ret, CallSecure$temp], [%frame.$temp.insec.ret, CallInsecure$temp]\n"
          }else {
-           val funcType = trans.getFuncType(structureDef, name); //Find the function type associated with the function. Pass the current structure, because the function name might not be a qualified name.
+           funcType = trans.getFuncType(structureDef, name); //Find the function type associated with the function. Pass the current structure, because the function name might not be a qualified name.
 
            val argIds = args.map(argExp => translateExp(argExp)) //Translate the expressions and give back the bindings, example: //List("%t1", "%t2")
            val argData = funcType.left.zip(argIds) // List[(Expected TypeSystem.Type, LLVM Identifier pre conversion)]
@@ -165,7 +165,6 @@ sealed trait Expr {
                argCallData = argCallData :+(localize(origin, expectedType), identifier) // build call data with unchanged identifier //De funcType annotatie komt van structure met naam origin, niet perse huidige structure
              }
            }
-           println("argCall" + argCallData)
            val argCallString = argCallData.map { case (a, b) => s"$a $b"}.mkString(", ") //build the argument string
 
            body += s"\t%t$temp = call ${localize(origin, funcType.right)} @${funcName}_internal(%frame* null, ${argCallString})\n" //perform the call //TODO: Welk frame

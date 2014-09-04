@@ -2,9 +2,6 @@ package ModuleSyntax
 
 import Compiler.{Translation, Ident}
 
-/**
- * Created by Matthias on 3/09/14.
- */
 case class FunctorApplication(ident:Ident, functor:Functor, structure:Structure) extends StructureDefinition{
 
   override def translate(trans: Translation, signature: Signature): Translation = {
@@ -101,6 +98,8 @@ case class FunctorApplication(ident:Ident, functor:Functor, structure:Structure)
     translation.frameCounter = translation.frameCounter + 1; //We've created one additional frame.
     return translation
   }
+
+
 
   override val values: List[Definition] = functor.values
   override val signature: Ident = functor.signature
